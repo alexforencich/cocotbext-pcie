@@ -48,7 +48,9 @@ class Bridge(Function):
         self.mem_limit = 0x000fffff
         self.prefetchable_mem_base = 0x00000000
         self.prefetchable_mem_limit = 0x000fffff
-        self.bridge_control = 0
+        self.parity_error_response_enable = 0
+        self.serr_enable = 0
+        self.secondary_bus_reset = 0
 
         self.pcie_device_type = 0x6
 
@@ -113,7 +115,13 @@ class Bridge(Function):
         elif reg == 12: return (self.io_limit & 0xffff0000) | ((self.io_base & 0xffff0000) >> 16)
         elif reg == 13: return self.cap_ptr
         elif reg == 14: return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
-        elif reg == 15: return (self.bridge_control << 16) | (self.intr_pin << 8) | self.intr_line
+        elif reg == 15:
+            val = (self.intr_pin << 8) | self.intr_line
+            # bridge control
+            if self.parity_error_response_enable: val |= 1 << 16
+            if self.serr_enable: val |= 1 << 17
+            if self.secondary_bus_reset: val |= 1 << 22
+            return val
         else:           return await super().read_config_register(reg)
 
     async def write_config_register(self, reg, data, mask):
@@ -149,7 +157,10 @@ class Bridge(Function):
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 0x1, data)
             self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
-            self.bridge_control = byte_mask_update(self.min_gnt, (mask >> 2) & 3, data >> 16, 0x0043)
+            # bridge control
+            if mask & 0x4: self.parity_error_response_enable = (data & 1 << 16 != 0)
+            if mask & 0x4: self.serr_enable = (data & 1 << 17 != 0)
+            if mask & 0x4: self.secondary_bus_reset = (data & 1 << 22 != 0)
         else:
             await super().write_config_register(reg, data, mask)
 
