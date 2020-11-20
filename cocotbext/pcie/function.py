@@ -561,7 +561,7 @@ class Function(PmCapability, PcieCapability):
             byte_length = length-n
             byte_length = min(byte_length, (128 << self.max_read_request_size)-first_pad) # max read request size
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff)) # 4k align
-            tlp.set_addr_be(addr, length)
+            tlp.set_addr_be(addr, byte_length)
 
             tlp.tag = await self.alloc_tag()
 
