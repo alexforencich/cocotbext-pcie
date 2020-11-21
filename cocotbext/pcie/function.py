@@ -83,6 +83,7 @@ class Function(PmCapability, PcieCapability):
         self.bar = []
         self.bar_mask = []
         self.expansion_rom_addr = 0
+        self.expansion_rom_addr_mask = 0
         self.expansion_rom_enable = 0
         self.cap_ptr = 0
         self.intr_pin = 0

@@ -152,7 +152,7 @@ class Bridge(Function):
             self.io_base = byte_mask_update(self.io_base, (mask & 0x3) << 2, data << 16)
             self.io_limit = byte_mask_update(self.io_limit, (mask & 0xc), data)
         elif reg == 14:
-            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data) & 0xfffff800
+            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data, self.expansion_rom_addr_mask) & 0xfffff800
             if mask & 0x1: self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 0x1, data)

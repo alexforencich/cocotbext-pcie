@@ -105,7 +105,7 @@ class Endpoint(Function):
         elif reg ==  8: self.bar[4] = byte_mask_update(self.bar[4], mask, data, self.bar_mask[4])
         elif reg ==  9: self.bar[5] = byte_mask_update(self.bar[5], mask, data, self.bar_mask[5])
         elif reg == 12:
-            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data) & 0xfffff800
+            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data, self.expansion_rom_addr_mask) & 0xfffff800
             if mask & 0x1: self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 1, data)
