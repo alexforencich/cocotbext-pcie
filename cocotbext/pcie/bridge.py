@@ -52,6 +52,7 @@ class Bridge(Function):
         self.serr_enable = 0
         self.secondary_bus_reset = 0
 
+        self.class_code = 0x060400
         self.pcie_device_type = 0x6
 
         self.root = False
@@ -446,6 +447,8 @@ class HostBridge(SwitchUpstreamPort):
         self.pri_bus_num = 0
         self.sec_bus_num = 0
         self.sub_bus_num = 255
+
+        self.class_code = 0x060000
 
 
 class RootPort(SwitchDownstreamPort):
