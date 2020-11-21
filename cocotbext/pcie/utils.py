@@ -87,6 +87,8 @@ class TreeItem(object):
         self.sub_bus_num = 0
 
         self.bar = [None]*6
+        self.bar_raw = [None]*6
+        self.bar_addr = [None]*6
         self.bar_size = [None]*6
 
         self.expansion_rom = None

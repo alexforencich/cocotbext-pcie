@@ -1075,6 +1075,7 @@ class RootComplex(Switch):
 
                     if val == 0:
                         # unimplemented BAR
+                        ti.bar_raw[bar] = 0
                         bar += 1
                         continue
                     
@@ -1089,14 +1090,17 @@ class RootComplex(Switch):
                         # align
                         self.io_limit = align(self.io_limit, mask)
 
-                        val = val & 3 | self.io_limit
+                        addr = self.io_limit
+                        self.io_limit += size
+
+                        val = val & 3 | addr
 
                         ti.bar[bar] = val
+                        ti.bar_raw[bar] = val
+                        ti.bar_addr[bar] = addr
                         ti.bar_size[bar] = size
 
                         self.log.info("Function %s IO BAR%d Allocation: 0x%08x, size: %d", cur_func, bar, val, size)
-
-                        self.io_limit += size
 
                         # write BAR
                         await self.config_write_dword(cur_func, 0x010+bar*4, val)
@@ -1122,7 +1126,7 @@ class RootComplex(Switch):
                                 # prefetchable
                                 # align and allocate
                                 self.prefetchable_mem_limit = align(self.prefetchable_mem_limit, mask)
-                                val = val & 15 | self.prefetchable_mem_limit
+                                addr = self.prefetchable_mem_limit
                                 self.prefetchable_mem_limit += size
 
                             else:
@@ -1130,10 +1134,15 @@ class RootComplex(Switch):
                                 self.log.info("Function %s Mem BAR%d (64-bit) marked non-prefetchable, allocating from 32-bit non-prefetchable address space", cur_func, bar)
                                 # align and allocate
                                 self.mem_limit = align(self.mem_limit, mask)
-                                val = val & 15 | self.mem_limit
+                                addr = self.mem_limit
                                 self.mem_limit += size
 
+                            val = val & 15 | addr
+
                             ti.bar[bar] = val
+                            ti.bar_raw[bar] = val & 0xffffffff
+                            ti.bar_raw[bar+1] = (val >> 32) & 0xffffffff
+                            ti.bar_addr[bar] = addr
                             ti.bar_size[bar] = size
 
                             self.log.info("Function %s Mem BAR%d (64-bit) Allocation: 0x%016x, size: %d", cur_func, bar, val, size)
@@ -1155,10 +1164,14 @@ class RootComplex(Switch):
 
                             # align and allocate
                             self.mem_limit = align(self.mem_limit, mask)
-                            val = val & 15 | self.mem_limit
+                            addr = self.mem_limit
                             self.mem_limit += size
 
+                            val = val & 15 | addr
+
                             ti.bar[bar] = val
+                            ti.bar_raw[bar] = val
+                            ti.bar_addr[bar] = addr
                             ti.bar_size[bar] = size
 
                             self.log.info("Function %s Mem BAR%d (32-bit) Allocation: 0x%08x, size: %d", cur_func, bar, val, size)
