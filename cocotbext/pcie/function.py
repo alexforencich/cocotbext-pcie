@@ -74,7 +74,7 @@ class Function(PmCapability, PcieCapability):
         self.received_master_abort = False
         self.signaled_system_error = False
         self.detected_parity_error = False
-        self.rev_id = 0
+        self.revision_id = 0
         self.class_code = 0
         self.cache_ln = 0
         self.lat_timer = 0
@@ -190,7 +190,7 @@ class Function(PmCapability, PcieCapability):
             if self.signaled_system_error: val |= 1 << 30
             if self.detected_parity_error: val |= 1 << 31
             return val
-        elif reg ==  2: return (self.class_code << 8) | self.rev_id
+        elif reg ==  2: return (self.class_code << 8) | self.revision_id
         elif reg ==  3: return (self.bist << 24) | (self.header_type << 16) | (self.lat_timer << 8) | self.cache_ln
         elif reg == 13: return self.cap_ptr
         elif reg == 15: return (self.intr_pin << 8) | self.intr_line
