@@ -1026,45 +1026,54 @@ class RootComplex(Switch):
             # valid vendor ID
             self.log.info("Found device at %02x:%02x.%x", bus, d, 0)
 
-            fc = 1
-
-            # read type
-            val = await self.config_read_byte(PcieId(bus, d, 0), 0x00e, timeout, timeout_unit)
-
-            if val & 0x80:
-                # multifunction device
-                fc = 8
-
-            for f in range(fc):
+            for f in range(8):
                 cur_func = PcieId(bus, d, f)
 
                 # read vendor ID and device ID
-                val = await self.config_read(cur_func, 0x000, 4, timeout, timeout_unit)
+                val = await self.config_read_dword(cur_func, 0x000, timeout, timeout_unit)
 
-                if val is None or val == b'\xff\xff\xff\xff':
+                if val is None or val == 0xffffffff:
                     continue
 
                 ti = TreeItem()
                 tree.children.append(ti)
-                ti.bus_num = bus
-                ti.device_num = d
-                ti.function_num = f
-                ti.vendor_id, ti.device_id = struct.unpack('<HH', val)
+                ti.pcie_id = cur_func
+                ti.vendor_id = val & 0xffff
+                ti.device_id = (val >> 16) & 0xffff
+
+                # read header type
+                header_type = await self.config_read_byte(cur_func, 0x00e, timeout, timeout_unit)
+                ti.header_type = header_type
+
+                val = await self.config_read_dword(cur_func, 0x008, timeout, timeout_unit)
+
+                ti.revision_id = val & 0xff
+                ti.class_code = val >> 8
 
                 self.log.info("Found function at %s", cur_func)
+                self.log.info("Header type: 0x%02x", header_type)
+                self.log.info("Vendor ID: 0x%04x", ti.vendor_id)
+                self.log.info("Device ID: 0x%04x", ti.device_id)
+                self.log.info("Revision ID: 0x%02x", ti.revision_id)
+                self.log.info("Class code: 0x%06x", ti.class_code)
 
-                # read type
-                val = await self.config_read_byte(cur_func, 0x00e, timeout, timeout_unit)
-
-                bridge = val & 0x7f == 0x01
+                bridge = header_type & 0x7f == 0x01
 
                 bar_cnt = 6
 
                 if bridge:
-                    # found a bridge
+                    # bridge (type 1 header)
                     self.log.info("Found bridge at %s", cur_func)
 
                     bar_cnt = 2
+                else:
+                    # normal function (type 0 header)
+                    val = await self.config_read_dword(cur_func, 0x02c)
+                    ti.subsystem_vendor_id = val & 0xffff
+                    ti.subsystem_id = (val >> 16) & 0xffff
+
+                    self.log.info("Subsystem vendor ID: 0x%04x", ti.subsystem_vendor_id)
+                    self.log.info("Subsystem ID: 0x%04x", ti.subsystem_id)
 
                 # configure base address registers
                 bar = 0
@@ -1100,7 +1109,7 @@ class RootComplex(Switch):
                         ti.bar_addr[bar] = addr
                         ti.bar_size[bar] = size
 
-                        self.log.info("Function %s IO BAR%d Allocation: 0x%08x, size: %d", cur_func, bar, val, size)
+                        self.log.info("Function %s IO BAR%d allocation: 0x%08x, size: %d", cur_func, bar, val, size)
 
                         # write BAR
                         await self.config_write_dword(cur_func, 0x010+bar*4, val)
@@ -1145,7 +1154,7 @@ class RootComplex(Switch):
                             ti.bar_addr[bar] = addr
                             ti.bar_size[bar] = size
 
-                            self.log.info("Function %s Mem BAR%d (64-bit) Allocation: 0x%016x, size: %d", cur_func, bar, val, size)
+                            self.log.info("Function %s Mem BAR%d (64-bit) allocation: 0x%016x, size: %d", cur_func, bar, val, size)
 
                             # write BAR
                             await self.config_write_dword(cur_func, 0x010+bar*4, val & 0xffffffff)
@@ -1174,12 +1183,44 @@ class RootComplex(Switch):
                             ti.bar_addr[bar] = addr
                             ti.bar_size[bar] = size
 
-                            self.log.info("Function %s Mem BAR%d (32-bit) Allocation: 0x%08x, size: %d", cur_func, bar, val, size)
+                            self.log.info("Function %s Mem BAR%d (32-bit) allocation: 0x%08x, size: %d", cur_func, bar, val, size)
 
                             # write BAR
                             await self.config_write_dword(cur_func, 0x010+bar*4, val)
 
                             bar += 1
+
+                # configure expansion ROM
+
+                # read register
+                await self.config_write_dword(cur_func, 0x038 if bridge else 0x30, 0xfffff800)
+                val = await self.config_read_dword(cur_func, 0x038 if bridge else 0x30)
+
+                if val:
+                    self.log.info("Configure function %s expansion ROM", cur_func)
+
+                    mask = (~val & 0xffffffff) | 0x7ff
+                    size = mask + 1
+                    self.log.info("Function %s expansion ROM raw: 0x%08x, mask: 0x%08x, size: %d", cur_func, val, mask, size)
+
+                    # align and allocate
+                    self.mem_limit = align(self.mem_limit, mask)
+                    addr = self.mem_limit
+                    self.mem_limit += size
+
+                    val = val & 15 | addr
+
+                    ti.expansion_rom_raw = val
+                    ti.expansion_rom_addr = addr
+                    ti.expansion_rom_size = size
+
+                    self.log.info("Function %s expansion ROM allocation: 0x%08x, size: %d", cur_func, val, size)
+
+                    # write register
+                    await self.config_write_dword(cur_func, 0x038 if bridge else 0x30, val)
+                else:
+                    # not implemented
+                    ti.expansion_rom_raw = 0
 
                 self.log.info("Walk capabilities of function %s", cur_func)
 
@@ -1225,6 +1266,9 @@ class RootComplex(Switch):
                     self.log.info("Configure bridge registers for enumeration")
                     self.log.info("Set pri %d, sec %d, sub %d", bus, sec_bus, 255)
 
+                    ti.pri_bus_num = bus
+                    ti.sec_bus_num = sec_bus
+
                     await self.config_write(cur_func, 0x018, bytearray([bus, sec_bus, 255]))
 
                     # enumerate secondary bus
@@ -1234,6 +1278,10 @@ class RootComplex(Switch):
                     # finalize bridge configuration
                     self.log.info("Finalize bridge configuration")
                     self.log.info("Set pri %d, sec %d, sub %d", bus, sec_bus, sub_bus)
+
+                    ti.pri_bus_num = bus
+                    ti.sec_bus_num = sec_bus
+                    ti.sub_bus_num = sub_bus
 
                     await self.config_write(cur_func, 0x018, bytearray([bus, sec_bus, sub_bus]))
 
@@ -1254,6 +1302,10 @@ class RootComplex(Switch):
                     await self.config_write(cur_func, 0x02c, struct.pack('<L', ti.prefetchable_mem_limit >> 32))
 
                     sec_bus = sub_bus+1
+
+                if header_type & 0x80 == 0:
+                    # only one function
+                    break
 
         tree.sub_bus_num = sub_bus
 

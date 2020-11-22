@@ -80,9 +80,16 @@ class TreeItem(object):
     def __init__(self):
         self._pcie_id = PcieId()
 
+        self.header_type = 0
+        self.class_code = 0
+        self.revision_id = 0
+
         self.vendor_id = 0
         self.device_id = 0
+        self.subsystem_vendor_id = 0
+        self.subsystem_id = 0
 
+        self.pri_bus_num = 0
         self.sec_bus_num = 0
         self.sub_bus_num = 0
 
@@ -91,7 +98,8 @@ class TreeItem(object):
         self.bar_addr = [None]*6
         self.bar_size = [None]*6
 
-        self.expansion_rom = None
+        self.expansion_rom_raw = None
+        self.expansion_rom_addr = None
         self.expansion_rom_size = None
 
         self.io_base = 0
