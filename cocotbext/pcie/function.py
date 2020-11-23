@@ -102,35 +102,23 @@ class Function(PmCapability, PcieCapability):
     
     @pcie_id.setter
     def pcie_id(self, val):
-        self._pcie_id = PcieId(val)
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
+        val = PcieId(val)
+        if self._pcie_id != val:
+            self.log.info("Assigned PCIe ID %s", val)
+            self._pcie_id = val
+            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
 
     @property
     def bus_num(self):
         return self._pcie_id.bus
 
-    @bus_num.setter
-    def bus_num(self, value):
-        self._pcie_id.bus = value
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
-
     @property
     def device_num(self):
         return self._pcie_id.device
 
-    @device_num.setter
-    def device_num(self, value):
-        self._pcie_id.device = value
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
-
     @property
     def function_num(self):
         return self._pcie_id.function
-
-    @function_num.setter
-    def function_num(self, value):
-        self._pcie_id.function = value
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
 
     """
     Common config space
@@ -384,7 +372,9 @@ class Function(PmCapability, PcieCapability):
             self.log.info("Config type 0 read, reg 0x%03x", tlp.register_number)
 
             # capture address information
-            self.bus_num = tlp.dest_id.bus
+            if self.bus_num != tlp.dest_id.bus:
+                self.log.info("Capture bus number %d", tlp.dest_id.bus)
+                self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
             # perform operation
             data = await self.read_config_register(tlp.register_number)
@@ -406,7 +396,9 @@ class Function(PmCapability, PcieCapability):
             self.log.info("Config type 0 write, reg 0x%03x data 0x%08x", tlp.register_number, tlp.data[0])
 
             # capture address information
-            self.bus_num = tlp.dest_id.bus
+            if self.bus_num != tlp.dest_id.bus:
+                self.log.info("Capture bus number %d", tlp.dest_id.bus)
+                self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
             # perform operation
             await self.write_config_register(tlp.register_number, tlp.data[0], tlp.first_be)

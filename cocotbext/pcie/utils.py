@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 """
 
+from collections import namedtuple
+
 def align(val, mask):
     if val & mask:
         return val + mask + 1 - (val & mask)
@@ -41,30 +43,26 @@ def byte_mask_update(old, mask, new, bitmask=-1):
     return old
 
 
-class PcieId(object):
-    def __init__(self, bus=0, device=0, function=0):
-        self.bus = 0
-        self.device = 0
-        self.function = 0
-        if isinstance(bus, PcieId):
-            self.bus = bus.bus
-            self.device = bus.device
-            self.function = bus.function
-        elif isinstance(bus, tuple):
-            self.bus, self.device, self.function = bus
-        else:
-            self.bus = bus
-            self.device = device
-            self.function = function
+class PcieId(namedtuple("PcieId", ["bus", "device", "function"])):
+    def __new__(cls, bus=0, device=0, function=0):
+        if not isinstance(bus, int):
+            bus, device, function = bus
+
+        if bus < 0 or bus > 255:
+            raise ValueError("Bus number out of range")
+        if device < 0 or device > 31:
+            raise ValueError("Device number out of range")
+        if function < 0 or function > 7:
+            raise ValueError("Function number out of range")
+
+        return super().__new__(cls, bus, device, function)
 
     @classmethod
     def from_int(cls, val):
         return cls((val >> 8) & 0xff, (val >> 3) & 0x1f, val & 0x7)
 
-    def __eq__(self, other):
-        if isinstance(other, PcieId):
-            return self.bus == other.bus and self.device == other.device and self.function == other.function
-        return False
+    def _replace(self, **kwargs):
+        return type(self)(**dict(self._asdict(), **kwargs))
 
     def __int__(self):
         return ((self.bus & 0xff) << 8) | ((self.device & 0x1f) << 3) | (self.function & 0x7)

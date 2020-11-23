@@ -57,8 +57,11 @@ class Device(object):
 
     @bus_num.setter
     def bus_num(self, value):
-        self._bus_num = value
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
+        if value < 0 or value > 255:
+            raise ValueError("Out of range")
+        if self._bus_num != value:
+            self._bus_num = value
+            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
 
     @property
     def device_num(self):
@@ -66,8 +69,11 @@ class Device(object):
 
     @device_num.setter
     def device_num(self, value):
-        self._device_num = value
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
+        if value < 0 or value > 31:
+            raise ValueError("Out of range")
+        if self._device_num != value:
+            self._device_num = value
+            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
 
     def next_free_function_number(self):
         self.functions.sort(key=lambda x: x.function_num)
@@ -93,7 +99,7 @@ class Device(object):
         return function
 
     def append_function(self, function):
-        function.function_num = self.next_free_function_number()
+        function.pcie_id = PcieId(0, 0, self.next_free_function_number())
         return self.add_function(function)
 
     def make_function(self):
@@ -113,7 +119,7 @@ class Device(object):
                 self.bus_num = tlp.dest_id.bus
 
                 for f in self.functions:
-                    f.bus_num = self.bus_num
+                    f.pci_id = f.pcie_id._replace(bus=self.bus_num)
 
                 # pass TLP to function
                 for f in self.functions:

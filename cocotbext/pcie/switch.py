@@ -25,6 +25,7 @@ THE SOFTWARE.
 from cocotb.log import SimLog
 
 from .bridge import SwitchUpstreamPort, SwitchDownstreamPort
+from .utils import PcieId
 
 class Switch(object):
     """Switch object, container for switch bridges and associated interconnect"""
@@ -61,9 +62,7 @@ class Switch(object):
         return ep
 
     def add_endpoint(self, ep):
-        ep.bus_num = 0
-        ep.device_num = self.next_free_device_number()
-        ep.function_num = 0
+        ep.pcie_id = PcieId(0, self.next_free_device_number(), 0)
         return self.append_endpoint(ep)
 
     def make_port(self):
