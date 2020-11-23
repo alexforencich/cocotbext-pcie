@@ -430,63 +430,66 @@ class Tlp(object):
 
         return pkt
 
-    def unpack(self, pkt):
+    @classmethod
+    def unpack(cls, pkt):
         """Unpack TLP from DWORD array"""
-        self.length = pkt[0] & 0x3ff
-        self.at = (pkt[0] >> 10) & 0x3
-        self.attr = (pkt[0] >> 12) & 0x3
-        self.ep = (pkt[0] >> 14) & 1
-        self.td = (pkt[0] >> 15) & 1
-        self.th = (pkt[0] >> 16) & 1
-        self.attr |= (pkt[0] >> 16) & 0x4
-        self.tc = (pkt[0] >> 20) & 0x7
-        self.type = (pkt[0] >> 24) & 0x1f
-        self.fmt = (pkt[0] >> 29) & 0x7
+        tlp = cls()
 
-        if self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA:
-            if self.length == 0:
-                self.length = 1024
+        tlp.length = pkt[0] & 0x3ff
+        tlp.at = (pkt[0] >> 10) & 0x3
+        tlp.attr = (pkt[0] >> 12) & 0x3
+        tlp.ep = (pkt[0] >> 14) & 1
+        tlp.td = (pkt[0] >> 15) & 1
+        tlp.th = (pkt[0] >> 16) & 1
+        tlp.attr |= (pkt[0] >> 16) & 0x4
+        tlp.tc = (pkt[0] >> 20) & 0x7
+        tlp.type = (pkt[0] >> 24) & 0x1f
+        tlp.fmt = (pkt[0] >> 29) & 0x7
 
-        if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
-                self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1 or
-                self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64 or
-                self.fmt_type == TlpType.MEM_READ_LOCKED or self.fmt_type == TlpType.MEM_READ_LOCKED_64 or
-                self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64 or
-                self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE):
-            self.first_be = pkt[1] & 0xf
-            self.last_be = (pkt[1] >> 4) & 0xf
-            self.tag = (pkt[1] >> 8) & 0xff
-            self.requester_id = PcieId.from_int(pkt[1] >> 16)
+        if tlp.fmt == TlpFmt.THREE_DW_DATA or tlp.fmt == TlpFmt.FOUR_DW_DATA:
+            if tlp.length == 0:
+                tlp.length = 1024
 
-            if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
-                    self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1):
-                self.register_number = (pkt[2] >> 2) >> 0x3ff
-                self.dest_id = PcieId.from_int(pkt[2] >> 16)
-            elif self.fmt == TlpFmt.THREE_DW or self.fmt == TlpFmt.THREE_DW_DATA:
-                self.address = pkt[2] & 0xfffffffc
-            elif self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
-                self.address = (pkt[2] & 0xffffffff) << 32 | pkt[3] & 0xfffffffc
-        elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
-                self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
-            self.byte_count = pkt[1] & 0xfff
-            self.bcm = (pkt[1] >> 12) & 1
-            self.status = (pkt[1] >> 13) & 0x7
-            self.completer_id = PcieId.from_int(pkt[1] >> 16)
-            self.lower_address = pkt[2] & 0x7f
-            self.tag = (pkt[2] >> 8) & 0xff
-            self.requester_id = PcieId.from_int(pkt[2] >> 16)
+        if (tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0 or
+                tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1 or
+                tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
+                tlp.fmt_type == TlpType.MEM_READ_LOCKED or tlp.fmt_type == TlpType.MEM_READ_LOCKED_64 or
+                tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64 or
+                tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+            tlp.first_be = pkt[1] & 0xf
+            tlp.last_be = (pkt[1] >> 4) & 0xf
+            tlp.tag = (pkt[1] >> 8) & 0xff
+            tlp.requester_id = PcieId.from_int(pkt[1] >> 16)
 
-            if self.byte_count == 0:
-                self.byte_count = 4096
+            if (tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0 or
+                    tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1):
+                tlp.register_number = (pkt[2] >> 2) >> 0x3ff
+                tlp.dest_id = PcieId.from_int(pkt[2] >> 16)
+            elif tlp.fmt == TlpFmt.THREE_DW or tlp.fmt == TlpFmt.THREE_DW_DATA:
+                tlp.address = pkt[2] & 0xfffffffc
+            elif tlp.fmt == TlpFmt.FOUR_DW or tlp.fmt == TlpFmt.FOUR_DW_DATA:
+                tlp.address = (pkt[2] & 0xffffffff) << 32 | pkt[3] & 0xfffffffc
+        elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
+                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+            tlp.byte_count = pkt[1] & 0xfff
+            tlp.bcm = (pkt[1] >> 12) & 1
+            tlp.status = (pkt[1] >> 13) & 0x7
+            tlp.completer_id = PcieId.from_int(pkt[1] >> 16)
+            tlp.lower_address = pkt[2] & 0x7f
+            tlp.tag = (pkt[2] >> 8) & 0xff
+            tlp.requester_id = PcieId.from_int(pkt[2] >> 16)
+
+            if tlp.byte_count == 0:
+                tlp.byte_count = 4096
         else:
             raise Exception("Unknown TLP type")
 
-        if self.fmt == TlpFmt.THREE_DW_DATA:
-            self.data = pkt[3:]
-        elif self.fmt == TlpFmt.FOUR_DW_DATA:
-            self.data = pkt[4:]
+        if tlp.fmt == TlpFmt.THREE_DW_DATA:
+            tlp.data = pkt[3:]
+        elif tlp.fmt == TlpFmt.FOUR_DW_DATA:
+            tlp.data = pkt[4:]
 
-        return self
+        return tlp
 
     def __eq__(self, other):
         if isinstance(other, Tlp):
