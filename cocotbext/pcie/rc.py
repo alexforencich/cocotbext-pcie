@@ -30,6 +30,7 @@ from cocotb.log import SimLog
 from cocotb.triggers import Event, Timer, First
 from collections import deque
 
+from .version import __version__
 from .bridge import HostBridge, RootPort
 from .caps import PCIE_CAP_ID, MSI_CAP_ID
 from .switch import Switch
@@ -42,6 +43,11 @@ class RootComplex(Switch):
 
         self.log = SimLog(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
+
+        self.log.info("PCIe root complex model")
+        self.log.info("cocotbext-pcie version %s", __version__)
+        self.log.info("Copyright (c) 2020 Alex Forencich")
+        self.log.info("https://github.com/alexforencich/cocotbext-pcie")
 
         self.default_switch_port = RootPort
 

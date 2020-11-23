@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 """
 
+from .version import __version__
+
 from .function import Function
 from .endpoint import Endpoint, MemoryEndpoint
 from .device import Device
