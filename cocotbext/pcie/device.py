@@ -31,7 +31,7 @@ from .utils import PcieId
 
 class Device(object):
     """PCIe device, container for multiple functions"""
-    def __init__(self, eps=None):
+    def __init__(self, eps=None, *args, **kwargs):
 
         self._bus_num = 0
         self._device_num = 0
@@ -50,6 +50,8 @@ class Device(object):
                     self.append_function(ep)
             except:
                 self.append_function(eps)
+
+        super().__init__(*args, **kwargs)
 
     @property
     def bus_num(self):
