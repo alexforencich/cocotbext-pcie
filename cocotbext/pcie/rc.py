@@ -929,6 +929,8 @@ class RootComplex(Switch):
             # already configured
             return
 
+        self.log.info("Configure MSI on %s", ti.pcie_id)
+
         msg_ctrl = await self.capability_read_dword(dev, MSI_CAP_ID, 0)
 
         msi_64bit = msg_ctrl >> 23 & 1
@@ -955,6 +957,10 @@ class RootComplex(Switch):
         ti.msi_count = 2**msi_mmcap
         ti.msi_addr = self.msi_addr
         ti.msi_data = self.msi_msg_limit
+
+        self.log.info("MSI count: %d", ti.msi_count)
+        self.log.info("MSI address: 0x%08x", ti.msi_addr)
+        self.log.info("MSI base data: 0x%08x", ti.msi_data)
 
         for k in range(32):
             self.msi_events[self.msi_msg_limit] = [Event()]
