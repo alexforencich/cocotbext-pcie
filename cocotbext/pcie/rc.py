@@ -987,7 +987,7 @@ class RootComplex(Switch):
             raise Exception("Invalid device")
         if ti.msi_data is None:
             raise Exception("MSI not configured on device")
-        if 0 < number < ti.msi_count or ti.msi_data+number not in self.msi_events:
+        if number < 0 or number >= ti.msi_count or ti.msi_data+number not in self.msi_events:
             raise Exception("MSI number out of range")
         self.msi_events[ti.msi_data+number].append(event)
 
@@ -999,7 +999,7 @@ class RootComplex(Switch):
             raise Exception("Invalid device")
         if ti.msi_data is None:
             raise Exception("MSI not configured on device")
-        if 0 < number < ti.msi_count or ti.msi_data+number not in self.msi_callbacks:
+        if number < 0 or number >= ti.msi_count or ti.msi_data+number not in self.msi_callbacks:
             raise Exception("MSI number out of range")
         self.msi_callbacks[ti.msi_data+number].append(callback)
 
