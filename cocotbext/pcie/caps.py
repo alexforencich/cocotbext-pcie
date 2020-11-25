@@ -687,7 +687,7 @@ class PcieCapability(object):
             if mask & 0x2: self.compliance_sos = (data & 1 << 11 != 0)
             if mask & 0x2: self.compliance_preset_de_emphasis = (data >> 12) & 0xff
             # Link status 2
-            if self.link_equalization_request: val |= 1 << 21
+            if mask & 0x4: self.link_equalization_request = (data & 1 << 21 != 0)
 
     async def initiate_function_level_reset(self):
         pass
