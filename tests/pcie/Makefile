@@ -26,9 +26,9 @@ WAVES ?= 0
 COCOTB_HDL_TIMEUNIT = 1ns
 COCOTB_HDL_TIMEPRECISION = 1ps
 
-DUT      = pcie
+DUT      = test_pcie
 TOPLEVEL = $(DUT)
-MODULE   = test_$(DUT)
+MODULE   = $(DUT)
 VERILOG_SOURCES += $(DUT).v
 
 SIM_BUILD ?= sim_build_$(MODULE)

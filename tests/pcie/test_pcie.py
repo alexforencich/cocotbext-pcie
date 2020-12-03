@@ -568,7 +568,7 @@ if cocotb.SIM_NAME:
 tests_dir = os.path.dirname(__file__)
 
 def test_pcie(request):
-    dut = "pcie"
+    dut = "test_pcie"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
