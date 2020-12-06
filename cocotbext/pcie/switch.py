@@ -27,6 +27,7 @@ from cocotb.log import SimLog
 from .bridge import SwitchUpstreamPort, SwitchDownstreamPort
 from .utils import PcieId
 
+
 class Switch(object):
     """Switch object, container for switch bridges and associated interconnect"""
     def __init__(self, *args, **kwargs):
@@ -75,4 +76,3 @@ class Switch(object):
 
     def connect(self, port):
         self.upstream_bridge.upstream_port.connect(port)
-

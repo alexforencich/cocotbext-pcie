@@ -26,7 +26,8 @@ import mmap
 
 from .function import Function
 from .tlp import Tlp, TlpType
-from .utils import PcieId, byte_mask_update
+from .utils import byte_mask_update
+
 
 class Endpoint(Function):
     """PCIe endpoint function, implements endpoint config space"""
@@ -83,34 +84,56 @@ class Endpoint(Function):
     +----------------+----------------+----------------+----------------+
     """
     async def read_config_register(self, reg):
-        if   reg ==  4: return self.bar[0]
-        elif reg ==  5: return self.bar[1]
-        elif reg ==  6: return self.bar[2]
-        elif reg ==  7: return self.bar[3]
-        elif reg ==  8: return self.bar[4]
-        elif reg ==  9: return self.bar[5]
-        elif reg == 10: return self.cardbus_cis
-        elif reg == 11: return (self.subsystem_id << 16) | self.subsystem_vendor_id
-        elif reg == 12: return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
-        elif reg == 13: return self.cap_ptr
-        elif reg == 14: return 0 # reserved
-        elif reg == 15: return (self.intr_pin << 8) | self.intr_line
-        else:           return await super().read_config_register(reg)
+        if reg == 4:
+            return self.bar[0]
+        elif reg == 5:
+            return self.bar[1]
+        elif reg == 6:
+            return self.bar[2]
+        elif reg == 7:
+            return self.bar[3]
+        elif reg == 8:
+            return self.bar[4]
+        elif reg == 9:
+            return self.bar[5]
+        elif reg == 10:
+            return self.cardbus_cis
+        elif reg == 11:
+            return (self.subsystem_id << 16) | self.subsystem_vendor_id
+        elif reg == 12:
+            return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
+        elif reg == 13:
+            return self.cap_ptr
+        elif reg == 14:
+            return 0  # reserved
+        elif reg == 15:
+            return (self.intr_pin << 8) | self.intr_line
+        else:
+            return await super().read_config_register(reg)
 
     async def write_config_register(self, reg, data, mask):
-        if   reg ==  4: self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
-        elif reg ==  5: self.bar[1] = byte_mask_update(self.bar[1], mask, data, self.bar_mask[1])
-        elif reg ==  6: self.bar[2] = byte_mask_update(self.bar[2], mask, data, self.bar_mask[2])
-        elif reg ==  7: self.bar[3] = byte_mask_update(self.bar[3], mask, data, self.bar_mask[3])
-        elif reg ==  8: self.bar[4] = byte_mask_update(self.bar[4], mask, data, self.bar_mask[4])
-        elif reg ==  9: self.bar[5] = byte_mask_update(self.bar[5], mask, data, self.bar_mask[5])
+        if reg == 4:
+            self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
+        elif reg == 5:
+            self.bar[1] = byte_mask_update(self.bar[1], mask, data, self.bar_mask[1])
+        elif reg == 6:
+            self.bar[2] = byte_mask_update(self.bar[2], mask, data, self.bar_mask[2])
+        elif reg == 7:
+            self.bar[3] = byte_mask_update(self.bar[3], mask, data, self.bar_mask[3])
+        elif reg == 8:
+            self.bar[4] = byte_mask_update(self.bar[4], mask, data, self.bar_mask[4])
+        elif reg == 9:
+            self.bar[5] = byte_mask_update(self.bar[5], mask, data, self.bar_mask[5])
         elif reg == 12:
-            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data, self.expansion_rom_addr_mask) & 0xfffff800
-            if mask & 0x1: self.expansion_rom_enable = (data & 1) != 0
+            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr,
+                mask, data, self.expansion_rom_addr_mask) & 0xfffff800
+            if mask & 0x1:
+                self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 1, data)
             self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
-        else:           await super().write_config_register(reg, data, mask)
+        else:
+            await super().write_config_register(reg, data, mask)
 
 
 class MemoryEndpoint(Endpoint):
@@ -166,7 +189,7 @@ class MemoryEndpoint(Endpoint):
         if not self.regions[region]:
             raise Exception("Invalid region")
         if type(self.regions[region]) is tuple:
-            await self.regions[region][1](addr, length)
+            await self.regions[region][1](addr, data)
         else:
             self.regions[region][addr:addr+len(data)] = data
 
@@ -295,8 +318,8 @@ class MemoryEndpoint(Endpoint):
                 cpl_byte_length = byte_length - n
                 cpl.byte_count = cpl_byte_length
                 if cpl_dw_length > 32 << self.max_payload_size:
-                    cpl_dw_length = 32 << self.max_payload_size # max payload size
-                    cpl_dw_length -= (addr & 0x7c) >> 2 # RCB align
+                    cpl_dw_length = 32 << self.max_payload_size  # max payload size
+                    cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
 
                 cpl.lower_address = addr & 0x7f
 
@@ -305,9 +328,9 @@ class MemoryEndpoint(Endpoint):
                 self.log.debug("Completion: %s", repr(cpl))
                 await self.send(cpl)
 
-                m += cpl_dw_length;
-                n += cpl_dw_length*4 - (addr&3)
-                addr += cpl_dw_length*4 - (addr&3)
+                m += cpl_dw_length
+                n += cpl_dw_length*4 - (addr & 3)
+                addr += cpl_dw_length*4 - (addr & 3)
 
         else:
             self.log.warning("Memory request did not match any BARs")
@@ -377,4 +400,3 @@ class MemoryEndpoint(Endpoint):
 
         else:
             self.log.warning("Memory request did not match any BARs")
-

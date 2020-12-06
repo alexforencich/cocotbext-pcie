@@ -24,7 +24,6 @@ THE SOFTWARE.
 
 import struct
 
-import cocotb
 from cocotb.log import SimLog
 from cocotb.triggers import Event, Timer, First
 from collections import deque
@@ -33,6 +32,7 @@ from .caps import PcieCapList, PcieExtCapList
 from .caps import PmCapability, PcieCapability
 from .tlp import Tlp, TlpType, CplStatus
 from .utils import PcieId, byte_mask_update
+
 
 class Function(PmCapability, PcieCapability):
     """PCIe function, implements config TLP handling"""
@@ -99,7 +99,7 @@ class Function(PmCapability, PcieCapability):
     @property
     def pcie_id(self):
         return self._pcie_id
-    
+
     @pcie_id.setter
     def pcie_id(self, val):
         val = PcieId(val)
@@ -160,55 +160,74 @@ class Function(PmCapability, PcieCapability):
     +---------------------------------+----------------+----------------+
     """
     async def read_config_register(self, reg):
-        if   reg ==  0: return (self.device_id << 16) | self.vendor_id
-        elif reg ==  1:
+        if reg == 0:
+            return (self.device_id << 16) | self.vendor_id
+        elif reg == 1:
             val = 0
             # command
-            if self.bus_master_enable: val |= 1 << 2
-            if self.parity_error_response: val |= 1 << 6
-            if self.serr_enable: val |= 1 << 8
-            if self.interrupt_disable: val |= 1 << 10
+            val |= bool(self.bus_master_enable) << 2
+            val |= bool(self.parity_error_response) << 6
+            val |= bool(self.serr_enable) << 8
+            val |= bool(self.interrupt_disable) << 10
             # status
-            if self.interrupt_status: val |= 1 << 19
-            if self.capabilities_list: val |= 1 << 20
-            if self.master_data_parity_error: val |= 1 << 24
-            if self.signaled_target_abort: val |= 1 << 27
-            if self.received_target_abort: val |= 1 << 28
-            if self.received_master_abort: val |= 1 << 29
-            if self.signaled_system_error: val |= 1 << 30
-            if self.detected_parity_error: val |= 1 << 31
+            val |= bool(self.interrupt_status) << 19
+            val |= bool(self.capabilities_list) << 20
+            val |= bool(self.master_data_parity_error) << 24
+            val |= bool(self.signaled_target_abort) << 27
+            val |= bool(self.received_target_abort) << 28
+            val |= bool(self.received_master_abort) << 29
+            val |= bool(self.signaled_system_error) << 30
+            val |= bool(self.detected_parity_error) << 31
             return val
-        elif reg ==  2: return (self.class_code << 8) | self.revision_id
-        elif reg ==  3: return (self.bist << 24) | (self.header_type << 16) | (self.lat_timer << 8) | self.cache_ln
-        elif reg == 13: return self.cap_ptr
-        elif reg == 15: return (self.intr_pin << 8) | self.intr_line
-        elif 16 <= reg < 256: return await self.read_capability_register(reg)
-        elif 256 <= reg < 4096: return await self.read_extended_capability_register(reg)
-        else:           return 0
+        elif reg == 2:
+            return (self.class_code << 8) | self.revision_id
+        elif reg == 3:
+            return (self.bist << 24) | (self.header_type << 16) | (self.lat_timer << 8) | self.cache_ln
+        elif reg == 13:
+            return self.cap_ptr
+        elif reg == 15:
+            return (self.intr_pin << 8) | self.intr_line
+        elif 16 <= reg < 256:
+            return await self.read_capability_register(reg)
+        elif 256 <= reg < 4096:
+            return await self.read_extended_capability_register(reg)
+        else:
+            return 0
 
     async def write_config_register(self, reg, data, mask):
-        if   reg ==  1:
+        if reg == 1:
             # command
-            if mask & 0x1: self.bus_master_enable = (data & 1 << 2 != 0)
-            if mask & 0x1: self.parity_error_response = (data & 1 << 6 != 0)
-            if mask & 0x2: self.serr_enable = (data & 1 << 8 != 0)
-            if mask & 0x2: self.interrupt_disable = (data & 1 << 10 != 0)
+            if mask & 0x1:
+                self.bus_master_enable = (data & 1 << 2 != 0)
+                self.parity_error_response = (data & 1 << 6 != 0)
+            if mask & 0x2:
+                self.serr_enable = (data & 1 << 8 != 0)
+                self.interrupt_disable = (data & 1 << 10 != 0)
             # status
-            if mask & 0x8 and data & 1 << 24: self.master_data_parity_error = False
-            if mask & 0x8 and data & 1 << 27: self.signaled_target_abort = False
-            if mask & 0x8 and data & 1 << 28: self.received_target_abort = False
-            if mask & 0x8 and data & 1 << 29: self.received_master_abort = False
-            if mask & 0x8 and data & 1 << 30: self.signaled_system_error = False
-            if mask & 0x8 and data & 1 << 31: self.detected_parity_error = False
-        elif reg ==  3:
+            if mask & 0x8:
+                if data & 1 << 24:
+                    self.master_data_parity_error = False
+                if data & 1 << 27:
+                    self.signaled_target_abort = False
+                if data & 1 << 28:
+                    self.received_target_abort = False
+                if data & 1 << 29:
+                    self.received_master_abort = False
+                if data & 1 << 30:
+                    self.signaled_system_error = False
+                if data & 1 << 31:
+                    self.detected_parity_error = False
+        elif reg == 3:
             self.cache_ln = byte_mask_update(self.cache_ln, mask & 1, data)
             self.lat_timer = byte_mask_update(self.lat_timer, (mask >> 1) & 1, data >> 8)
             self.bist = byte_mask_update(self.bist, (mask >> 3) & 1, data >> 24)
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 1, data)
             self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
-        elif 16 <= reg < 256: await self.write_capability_register(reg, data, mask)
-        elif 256 <= reg < 4096: await self.write_extended_capability_register(reg, data, mask)
+        elif 16 <= reg < 256:
+            await self.write_capability_register(reg, data, mask)
+        elif 256 <= reg < 4096:
+            await self.write_extended_capability_register(reg, data, mask)
 
     async def read_capability_register(self, reg):
         return await self.capabilities.read_register(reg)
@@ -552,8 +571,8 @@ class Function(PmCapability, PcieCapability):
 
             first_pad = addr % 4
             byte_length = length-n
-            byte_length = min(byte_length, (128 << self.max_read_request_size)-first_pad) # max read request size
-            byte_length = min(byte_length, 0x1000 - (addr & 0xfff)) # 4k align
+            byte_length = min(byte_length, (128 << self.max_read_request_size)-first_pad)  # max read request size
+            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
             tlp.set_addr_be(addr, byte_length)
 
             tlp.tag = await self.alloc_tag()
@@ -572,7 +591,7 @@ class Function(PmCapability, PcieCapability):
                     self.release_tag(tlp.tag)
                     raise Exception("Unsuccessful completion")
                 else:
-                    assert cpl.byte_count+3+(cpl.lower_address&3) >= cpl.length*4
+                    assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
                     assert cpl.byte_count == byte_length - m
 
                     d = bytearray()
@@ -580,7 +599,7 @@ class Function(PmCapability, PcieCapability):
                     for k in range(cpl.length):
                         d.extend(struct.pack('<L', cpl.data[k]))
 
-                    offset = cpl.lower_address&3
+                    offset = cpl.lower_address & 3
                     data += d[offset:offset+cpl.byte_count]
 
                 m += len(d)-offset
@@ -636,8 +655,8 @@ class Function(PmCapability, PcieCapability):
 
             first_pad = addr % 4
             byte_length = len(data)-n
-            byte_length = min(byte_length, (128 << self.max_payload_size)-first_pad) # max payload size
-            byte_length = min(byte_length, 0x1000 - (addr & 0xfff)) # 4k align
+            byte_length = min(byte_length, (128 << self.max_payload_size)-first_pad)  # max payload size
+            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
 
             await self.send(tlp)
@@ -669,4 +688,3 @@ class Function(PmCapability, PcieCapability):
 
     async def mem_write_qword(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
         await self.mem_write_qwords(addr, [data], timeout, timeout_unit, attr, tc)
-

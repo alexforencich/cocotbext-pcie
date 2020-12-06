@@ -105,46 +105,63 @@ class Bridge(Function):
 
     """
     async def read_config_register(self, reg):
-        if   reg ==  4: return self.bar[0]
-        elif reg ==  5: return self.bar[1]
-        elif reg ==  6: return (self.sec_lat_timer << 24) | (self.sub_bus_num << 16) | (self.sec_bus_num << 8) | self.pri_bus_num
-        elif reg ==  7: return (self.sec_status << 16) | (self.io_limit & 0xf000) | ((self.io_base & 0xf000) >> 8)
-        elif reg ==  8: return (self.mem_limit & 0xfff00000) | ((self.mem_base & 0xfff00000) >> 16)
-        elif reg ==  9: return (self.prefetchable_mem_limit & 0xfff00000) | ((self.prefetchable_mem_base & 0xfff00000) >> 16)
-        elif reg == 10: return self.prefetchable_mem_base >> 32
-        elif reg == 11: return self.prefetchable_mem_limit >> 32
-        elif reg == 12: return (self.io_limit & 0xffff0000) | ((self.io_base & 0xffff0000) >> 16)
-        elif reg == 13: return self.cap_ptr
-        elif reg == 14: return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
+        if reg == 4:
+            return self.bar[0]
+        elif reg == 5:
+            return self.bar[1]
+        elif reg == 6:
+            return (self.sec_lat_timer << 24) | (self.sub_bus_num << 16) | (self.sec_bus_num << 8) | self.pri_bus_num
+        elif reg == 7:
+            return (self.sec_status << 16) | (self.io_limit & 0xf000) | ((self.io_base & 0xf000) >> 8)
+        elif reg == 8:
+            return (self.mem_limit & 0xfff00000) | ((self.mem_base & 0xfff00000) >> 16)
+        elif reg == 9:
+            return (self.prefetchable_mem_limit & 0xfff00000) | ((self.prefetchable_mem_base & 0xfff00000) >> 16)
+        elif reg == 10:
+            return self.prefetchable_mem_base >> 32
+        elif reg == 11:
+            return self.prefetchable_mem_limit >> 32
+        elif reg == 12:
+            return (self.io_limit & 0xffff0000) | ((self.io_base & 0xffff0000) >> 16)
+        elif reg == 13:
+            return self.cap_ptr
+        elif reg == 14:
+            return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
         elif reg == 15:
             val = (self.intr_pin << 8) | self.intr_line
             # bridge control
-            if self.parity_error_response_enable: val |= 1 << 16
-            if self.serr_enable: val |= 1 << 17
-            if self.secondary_bus_reset: val |= 1 << 22
+            if self.parity_error_response_enable:
+                val |= 1 << 16
+            if self.serr_enable:
+                val |= 1 << 17
+            if self.secondary_bus_reset:
+                val |= 1 << 22
             return val
-        else:           return await super().read_config_register(reg)
+        else:
+            return await super().read_config_register(reg)
 
     async def write_config_register(self, reg, data, mask):
-        if   reg ==  4:
+        if reg == 4:
             self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
-        if   reg ==  5:
+        if reg == 5:
             self.bar[1] = byte_mask_update(self.bar[1], mask, data, self.bar_mask[1])
-        elif reg ==  6:
+        elif reg == 6:
             self.pri_bus_num = byte_mask_update(self.pri_bus_num, mask & 0x1, data)
             self.sec_bus_num = byte_mask_update(self.sec_bus_num, (mask >> 1) & 1, data >> 8)
             self.sub_bus_num = byte_mask_update(self.sub_bus_num, (mask >> 2) & 1, data >> 16)
             self.sec_lat_timer = byte_mask_update(self.sec_lat_timer, (mask >> 3) & 1, data >> 24)
-        elif reg ==  7:
+        elif reg == 7:
             self.io_base = byte_mask_update(self.io_base, (mask & 0x1) << 1, data << 8, 0xf000)
             self.io_limit = byte_mask_update(self.io_limit, (mask & 0x2), data, 0xf000) | 0xfff
             self.sec_status = byte_mask_update(self.sec_status, (mask >> 2) & 1, 0x0000, (data >> 16) & 0xf900)
-        elif reg ==  8:
+        elif reg == 8:
             self.mem_base = byte_mask_update(self.mem_base, (mask & 0x3) << 2, data << 16, 0xfff00000)
             self.mem_limit = byte_mask_update(self.mem_limit, (mask & 0xc), data, 0xfff00000) | 0xfffff
-        elif reg ==  9:
-            self.prefetchable_mem_base = byte_mask_update(self.prefetchable_mem_base, (mask & 0x3) << 2, data << 16, 0xfff00000)
-            self.prefetchable_mem_limit = byte_mask_update(self.prefetchable_mem_limit, (mask & 0xc), data, 0xfff00000) | 0xfffff
+        elif reg == 9:
+            self.prefetchable_mem_base = byte_mask_update(self.prefetchable_mem_base,
+                (mask & 0x3) << 2, data << 16, 0xfff00000)
+            self.prefetchable_mem_limit = byte_mask_update(self.prefetchable_mem_limit,
+                (mask & 0xc), data, 0xfff00000) | 0xfffff
         elif reg == 10:
             self.prefetchable_mem_base = byte_mask_update(self.prefetchable_mem_base, mask << 4, data << 32)
         elif reg == 11:
@@ -153,15 +170,18 @@ class Bridge(Function):
             self.io_base = byte_mask_update(self.io_base, (mask & 0x3) << 2, data << 16)
             self.io_limit = byte_mask_update(self.io_limit, (mask & 0xc), data)
         elif reg == 14:
-            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data, self.expansion_rom_addr_mask) & 0xfffff800
-            if mask & 0x1: self.expansion_rom_enable = (data & 1) != 0
+            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data,
+                self.expansion_rom_addr_mask) & 0xfffff800
+            if mask & 0x1:
+                self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
             self.intr_line = byte_mask_update(self.intr_line, mask & 0x1, data)
             self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
             # bridge control
-            if mask & 0x4: self.parity_error_response_enable = (data & 1 << 16 != 0)
-            if mask & 0x4: self.serr_enable = (data & 1 << 17 != 0)
-            if mask & 0x4: self.secondary_bus_reset = (data & 1 << 22 != 0)
+            if mask & 0x4:
+                self.parity_error_response_enable = (data & 1 << 16 != 0)
+                self.serr_enable = (data & 1 << 17 != 0)
+                self.secondary_bus_reset = (data & 1 << 22 != 0)
         else:
             await super().write_config_register(reg, data, mask)
 
@@ -226,7 +246,8 @@ class Bridge(Function):
             if self.match_bar(tlp.address):
                 # for me
                 await self.handle_tlp(tlp)
-            elif self.mem_base <= tlp.address <= self.mem_limit or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit:
+            elif (self.mem_base <= tlp.address <= self.mem_limit
+                    or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit):
                 await self.route_downstream_tlp(tlp, False)
             else:
                 # error
@@ -305,7 +326,8 @@ class Bridge(Function):
             if self.match_bar(tlp.address):
                 # for me
                 await self.handle_tlp(tlp)
-            elif self.mem_base <= tlp.address <= self.mem_limit or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit:
+            elif (self.mem_base <= tlp.address <= self.mem_limit
+                    or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit):
                 await self.route_downstream_tlp(tlp, True)
             else:
                 await self.upstream_send(tlp)
@@ -391,7 +413,8 @@ class SwitchUpstreamPort(Bridge):
                 if dev.match_bar(tlp.address):
                     await p.ext_recv(Tlp(tlp))
                     return
-                elif isinstance(dev, Bridge) and (dev.mem_base <= tlp.address <= dev.mem_limit or dev.prefetchable_mem_base <= tlp.address <= dev.prefetchable_mem_limit):
+                elif isinstance(dev, Bridge) and (dev.mem_base <= tlp.address <= dev.mem_limit or
+                        dev.prefetchable_mem_base <= tlp.address <= dev.prefetchable_mem_limit):
                     await p.ext_recv(Tlp(tlp))
                     return
             elif tlp.fmt_type == TlpType.MSG_TO_RC or tlp.fmt_type == TlpType.MSG_DATA_TO_RC:
@@ -462,4 +485,3 @@ class RootPort(SwitchDownstreamPort):
 
     def connect(self, port):
         self.downstream_port.connect(port)
-

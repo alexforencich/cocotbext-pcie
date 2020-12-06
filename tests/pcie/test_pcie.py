@@ -23,16 +23,13 @@ THE SOFTWARE.
 
 """
 
-import itertools
 import logging
 import os
 
 import cocotb_test.simulator
-import pytest
 
 import cocotb
 from cocotb.log import SimLog
-from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 
 from cocotbext.pcie import RootComplex, MemoryEndpoint, Device, Switch
@@ -107,22 +104,22 @@ async def run_test_rc_mem(dut):
     mem_base, mem_data = tb.rc.alloc_region(1024*1024)
     io_base, io_data = tb.rc.alloc_io_region(1024)
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation length: %d offset: %d", length, offset)
             addr = mem_base+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.mem_write(addr, test_data)
             assert mem_data[offset:offset+length] == test_data
 
             assert await tb.rc.mem_read(addr, length) == test_data
 
-    for length in list(range(1,32)):
+    for length in list(range(1, 32)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = io_base+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.io_write(addr, test_data)
             assert io_data[offset:offset+length] == test_data
@@ -224,10 +221,10 @@ async def run_test_enumerate(dut):
         while bar < bar_cnt:
             if d.bar_mask[bar] == 0:
                 # unused bar
-                assert ti.bar[bar] == None
+                assert ti.bar[bar] is None
                 assert ti.bar_raw[bar] == 0
-                assert ti.bar_addr[bar] == None
-                assert ti.bar_size[bar] == None
+                assert ti.bar_addr[bar] is None
+                assert ti.bar_size[bar] is None
                 bar += 1
             elif d.bar[bar] & 1:
                 # IO BAR
@@ -235,7 +232,7 @@ async def run_test_enumerate(dut):
                 assert ti.bar[bar] == d.bar[bar]
                 assert ti.bar_raw[bar] == d.bar[bar]
                 assert ti.bar_addr[bar] == d.bar[bar] & ~0x3
-                assert ti.bar_size[bar] == (~d.bar_mask[bar]&0xfffffffc)+0x4
+                assert ti.bar_size[bar] == (~d.bar_mask[bar] & 0xfffffffc)+0x4
                 bar += 1
             elif d.bar[bar] & 4:
                 # 64 bit BAR
@@ -244,7 +241,7 @@ async def run_test_enumerate(dut):
                 assert ti.bar_raw[bar] == d.bar[bar]
                 assert ti.bar_raw[bar+1] == d.bar[bar+1]
                 assert ti.bar_addr[bar] == (d.bar[bar] | d.bar[bar+1] << 32) & ~0xf
-                assert ti.bar_size[bar] == (~(d.bar_mask[bar] | d.bar_mask[bar+1] << 32)&0xfffffffffffffff0)+0x10
+                assert ti.bar_size[bar] == (~(d.bar_mask[bar] | d.bar_mask[bar+1] << 32) & 0xfffffffffffffff0)+0x10
                 bar += 2
             else:
                 # 32 bit BAR
@@ -252,17 +249,17 @@ async def run_test_enumerate(dut):
                 assert ti.bar[bar] == d.bar[bar]
                 assert ti.bar_raw[bar] == d.bar[bar]
                 assert ti.bar_addr[bar] == d.bar[bar] & ~0xf
-                assert ti.bar_size[bar] == (~d.bar_mask[bar]&0xfffffff0)+0x10
+                assert ti.bar_size[bar] == (~d.bar_mask[bar] & 0xfffffff0)+0x10
                 bar += 1
 
         if d.expansion_rom_addr_mask == 0:
             assert ti.expansion_rom_raw == 0
-            assert ti.expansion_rom_addr == None
-            assert ti.expansion_rom_size == None
+            assert ti.expansion_rom_addr is None
+            assert ti.expansion_rom_size is None
         else:
             assert ti.expansion_rom_raw & 0xfffff800 == dev.expansion_rom_addr
             assert ti.expansion_rom_addr == dev.expansion_rom_addr
-            assert ti.expansion_rom_size == (~d.expansion_rom_addr_mask&0xfffff800)+0x800
+            assert ti.expansion_rom_size == (~d.expansion_rom_addr_mask & 0xfffff800)+0x800
 
         # TODO capabilities
 
@@ -279,15 +276,15 @@ async def run_test_enumerate(dut):
         tb.log.info("Revision ID: 0x%02x", ti.revision_id)
         tb.log.info("Class code: 0x%06x", ti.class_code)
 
-        tb.log.info("Primary bus %d" % ti.pri_bus_num)
-        tb.log.info("Secondary bus %d" % ti.sec_bus_num)
-        tb.log.info("Subordinate bus %d" % ti.sub_bus_num)
-        tb.log.info("IO base 0x%08x" % ti.io_base)
-        tb.log.info("IO limit 0x%08x" % ti.io_limit)
-        tb.log.info("Mem base 0x%08x" % ti.mem_base)
-        tb.log.info("Mem limit 0x%08x" % ti.mem_limit)
-        tb.log.info("Prefetchable mem base 0x%016x" % ti.prefetchable_mem_base)
-        tb.log.info("Prefetchable mem limit 0x%016x" % ti.prefetchable_mem_limit)
+        tb.log.info("Primary bus: %d", ti.pri_bus_num)
+        tb.log.info("Secondary bus: %d", ti.sec_bus_num)
+        tb.log.info("Subordinate bus: %d", ti.sub_bus_num)
+        tb.log.info("IO base: 0x%08x", ti.io_base)
+        tb.log.info("IO limit: 0x%08x", ti.io_limit)
+        tb.log.info("Mem base: 0x%08x", ti.mem_base)
+        tb.log.info("Mem limit: 0x%08x", ti.mem_limit)
+        tb.log.info("Prefetchable mem base: 0x%016x", ti.prefetchable_mem_base)
+        tb.log.info("Prefetchable mem limit: 0x%016x", ti.prefetchable_mem_limit)
 
         bus_regions = []
         io_regions = []
@@ -304,6 +301,7 @@ async def run_test_enumerate(dut):
             tb.log.info("Class code: 0x%06x", ci.class_code)
 
             if ci.header_type & 0x7f == 0x00:
+                # type 0 header
                 tb.log.info("Subsystem vendor ID: 0x%04x", ci.subsystem_vendor_id)
                 tb.log.info("Subsystem ID: 0x%04x", ci.subsystem_id)
 
@@ -314,36 +312,43 @@ async def run_test_enumerate(dut):
                 if ci.bar[bar] & 1:
                     # IO BAR
                     tb.log.info("BAR%d: IO BAR addr 0x%08x, size %d", bar, ci.bar_addr[bar], ci.bar_size[bar])
-                    assert ti.io_base <= ci.bar_addr[bar] and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.io_limit
+                    assert (ti.io_base <= ci.bar_addr[bar] and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.io_limit)
                     io_regions.append((ci.bar_addr[bar], ci.bar_addr[bar]+ci.bar_size[bar]-1))
                 elif ci.bar[bar] > 0xffffffff:
                     # prefetchable BAR
-                    tb.log.info("BAR%d: Mem BAR (prefetchable) addr 0x%08x, size %d", bar, ci.bar_addr[bar], ci.bar_size[bar])
-                    assert ti.prefetchable_mem_base <= ci.bar_addr[bar] and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.prefetchable_mem_limit
+                    tb.log.info("BAR%d: Mem BAR (prefetchable) addr 0x%08x, size %d",
+                        bar, ci.bar_addr[bar], ci.bar_size[bar])
+                    assert (ti.prefetchable_mem_base <= ci.bar_addr[bar]
+                        and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.prefetchable_mem_limit)
                     prefetchable_mem_regions.append((ci.bar_addr[bar], ci.bar_addr[bar]+ci.bar_size[bar]-1))
                 else:
                     # non-prefetchable BAR
-                    tb.log.info("BAR%d: Mem BAR (non-prefetchable) addr 0x%08x, size %d", bar, ci.bar_addr[bar], ci.bar_size[bar])
-                    assert ti.mem_base <= ci.bar_addr[bar] and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.mem_limit
+                    tb.log.info("BAR%d: Mem BAR (non-prefetchable) addr 0x%08x, size %d",
+                        bar, ci.bar_addr[bar], ci.bar_size[bar])
+                    assert (ti.mem_base <= ci.bar_addr[bar]
+                        and ci.bar_addr[bar]+ci.bar_size[bar]-1 <= ti.mem_limit)
                     mem_regions.append((ci.bar_addr[bar], ci.bar_addr[bar]+ci.bar_size[bar]-1))
 
             if ci.expansion_rom_addr:
                 # expansion ROM BAR
-                tb.log.info("Expansion ROM BAR: Mem BAR (non-prefetchable) addr 0x%08x, size %d", ci.expansion_rom_addr, ci.expansion_rom_size)
-                assert ti.mem_base <= ci.expansion_rom_addr and ci.expansion_rom_addr+ci.expansion_rom_size-1 <= ti.mem_limit
+                tb.log.info("Expansion ROM BAR: Mem BAR (non-prefetchable) addr 0x%08x, size %d",
+                    ci.expansion_rom_addr, ci.expansion_rom_size)
+                assert (ti.mem_base <= ci.expansion_rom_addr and
+                    ci.expansion_rom_addr+ci.expansion_rom_size-1 <= ti.mem_limit)
                 mem_regions.append((ci.expansion_rom_addr, ci.expansion_rom_addr+ci.expansion_rom_size-1))
 
             if ci.header_type & 0x7f == 0x01:
+                # type 1 header
 
-                tb.log.info("Primary bus %d" % ci.pri_bus_num)
-                tb.log.info("Secondary bus %d" % ci.sec_bus_num)
-                tb.log.info("Subordinate bus %d" % ci.sub_bus_num)
-                tb.log.info("IO base 0x%08x" % ci.io_base)
-                tb.log.info("IO limit 0x%08x" % ci.io_limit)
-                tb.log.info("Mem base 0x%08x" % ci.mem_base)
-                tb.log.info("Mem limit 0x%08x" % ci.mem_limit)
-                tb.log.info("Prefetchable mem base 0x%016x" % ci.prefetchable_mem_base)
-                tb.log.info("Prefetchable mem limit 0x%016x" % ci.prefetchable_mem_limit)
+                tb.log.info("Primary bus: %d", ci.pri_bus_num)
+                tb.log.info("Secondary bus: %d", ci.sec_bus_num)
+                tb.log.info("Subordinate bus: %d", ci.sub_bus_num)
+                tb.log.info("IO base: 0x%08x", ci.io_base)
+                tb.log.info("IO limit: 0x%08x", ci.io_limit)
+                tb.log.info("Mem base: 0x%08x", ci.mem_base)
+                tb.log.info("Mem limit: 0x%08x", ci.mem_limit)
+                tb.log.info("Prefetchable mem base: 0x%016x", ci.prefetchable_mem_base)
+                tb.log.info("Prefetchable mem limit: 0x%016x", ci.prefetchable_mem_limit)
 
                 # check that child switch apertures are within our apertures
                 assert ti.sec_bus_num <= ci.pri_bus_num <= ti.sub_bus_num
@@ -356,10 +361,9 @@ async def run_test_enumerate(dut):
                     assert ti.mem_base <= ci.mem_base and ci.mem_limit <= ti.mem_limit
                     mem_regions.append((ci.mem_base, ci.mem_limit))
                 if ci.prefetchable_mem_base:
-                    assert ti.prefetchable_mem_base <= ci.prefetchable_mem_base and ci.prefetchable_mem_limit <= ti.prefetchable_mem_limit
+                    assert (ti.prefetchable_mem_base <= ci.prefetchable_mem_base and
+                        ci.prefetchable_mem_limit <= ti.prefetchable_mem_limit)
                     prefetchable_mem_regions.append((ci.prefetchable_mem_base, ci.prefetchable_mem_limit))
-
-                # check_tree(ci)
 
         # check for assignment overlaps
         for lst in [bus_regions, io_regions, mem_regions, prefetchable_mem_regions]:
@@ -387,11 +391,11 @@ async def run_test_ep_mem(dut, ep_index=0):
     ep.log.setLevel(logging.DEBUG)
     ti = tb.rc.tree.find_child_dev(ep.pcie_id)
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
             addr = ti.bar_addr[0]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.mem_write(addr, test_data, 1000, 'ns')
             # wait for write to complete
@@ -400,11 +404,11 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
             addr = ti.bar_addr[1]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.mem_write(addr, test_data, 1000, 'ns')
             # wait for write to complete
@@ -413,11 +417,11 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1,32)):
+    for length in list(range(1, 32)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = ti.bar_addr[3]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.io_write(addr, test_data, 1000, 'ns')
             assert await ep.read_region(3, offset, length) == test_data
@@ -434,16 +438,15 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
     ep1 = tb.ep[ep1_index]
     ep1.log.setLevel(logging.DEBUG)
-    ti1 = tb.rc.tree.find_child_dev(ep1.pcie_id)
     ep2 = tb.ep[ep2_index]
     ep2.log.setLevel(logging.DEBUG)
     ti2 = tb.rc.tree.find_child_dev(ep2.pcie_id)
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[0]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await ep1.mem_write(addr, test_data, 1000, 'ns')
             # wait for write to complete
@@ -452,11 +455,11 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[1]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await ep1.mem_write(addr, test_data, 1000, 'ns')
             # wait for write to complete
@@ -465,11 +468,11 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1,32)):
+    for length in list(range(1, 32)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[3]+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await ep1.io_write(addr, test_data, 1000, 'ns')
             assert await ep2.read_region(3, offset, length) == test_data
@@ -490,11 +493,11 @@ async def run_test_dma(dut, ep_index=0):
     ep = tb.ep[ep_index]
     ep.log.setLevel(logging.DEBUG)
 
-    for length in list(range(1,32))+[1024]:
-        for offset in list(range(8))+list(range(4096-8,4096)):
+    for length in list(range(1, 32))+[1024]:
+        for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (DMA) length: %d offset: %d", length, offset)
             addr = mem_base+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await ep.mem_write(addr, test_data, 1000, 'ns')
             # wait for write to complete
@@ -503,11 +506,11 @@ async def run_test_dma(dut, ep_index=0):
 
             assert await ep.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1,32)):
+    for length in list(range(1, 32)):
         for offset in list(range(8)):
             tb.log.info("IO operation (DMA) length: %d offset: %d", length, offset)
             addr = io_base+offset
-            test_data = bytearray([x%256 for x in range(length)])
+            test_data = bytearray([x % 256 for x in range(length)])
 
             await ep.io_write(addr, test_data, 1000, 'ns')
             assert io_data[offset:offset+length] == test_data
@@ -537,10 +540,10 @@ async def run_test_msi(dut, ep_index=0):
 if cocotb.SIM_NAME:
 
     for test in [
-            run_test_rc_mem,
-            run_test_config,
-            run_test_enumerate,
-        ]:
+                run_test_rc_mem,
+                run_test_config,
+                run_test_enumerate,
+            ]:
 
         factory = TestFactory(test)
         factory.generate_tests()
@@ -567,6 +570,7 @@ if cocotb.SIM_NAME:
 
 tests_dir = os.path.dirname(__file__)
 
+
 def test_pcie(request):
     dut = "test_pcie"
     module = os.path.splitext(os.path.basename(__file__))[0]
@@ -586,4 +590,3 @@ def test_pcie(request):
         module=module,
         sim_build=sim_build,
     )
-

@@ -29,6 +29,7 @@ from .port import Port
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 
+
 class Device(object):
     """PCIe device, container for multiple functions"""
     def __init__(self, eps=None, *args, **kwargs):
@@ -48,7 +49,7 @@ class Device(object):
             try:
                 for ep in eps:
                     self.append_function(ep)
-            except:
+            except TypeError:
                 self.append_function(eps)
 
         super().__init__(*args, **kwargs)
@@ -132,7 +133,7 @@ class Device(object):
                 self.log.info("Function not found")
             else:
                 self.log.info("Device number mismatch")
-            
+
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
@@ -190,4 +191,3 @@ class Device(object):
 
     async def send(self, tlp):
         await self.upstream_send(tlp)
-

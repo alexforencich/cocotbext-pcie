@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 from collections import namedtuple
 
+
 def align(val, mask):
     if val & mask:
         return val + mask + 1 - (val & mask)
@@ -119,7 +120,7 @@ class TreeItem(object):
     @property
     def pcie_id(self):
         return self._pcie_id
-    
+
     @pcie_id.setter
     def pcie_id(self, val):
         self._pcie_id = PcieId(val)
@@ -206,7 +207,6 @@ class TreeItem(object):
 
     def __iter__(self):
         return self.children.__iter__()
-    
+
     def __len__(self):
         return len(self.children)
-

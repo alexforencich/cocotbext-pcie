@@ -27,6 +27,7 @@ import struct
 
 from .utils import PcieId
 
+
 # TLP formats
 class TlpFmt(enum.Enum):
     THREE_DW       = 0x0
@@ -34,6 +35,7 @@ class TlpFmt(enum.Enum):
     THREE_DW_DATA  = 0x2
     FOUR_DW_DATA   = 0x3
     TLP_PREFIX     = 0x4
+
 
 # TLP types
 class TlpType(enum.Enum):
@@ -78,6 +80,7 @@ class TlpType(enum.Enum):
     PREFIX_VENDOR_E0   = (TlpFmt.TLP_PREFIX,    0x1E)
     PREFIX_VENDOR_E1   = (TlpFmt.TLP_PREFIX,    0x1F)
 
+
 # Message types
 class MsgType(enum.IntEnum):
     UNLOCK         = 0x00
@@ -106,17 +109,20 @@ class MsgType(enum.IntEnum):
     VENDOR_0       = 0x7e
     VENDOR_1       = 0x7f
 
+
 # AT field
 class TlpAt(enum.IntEnum):
     DEFAULT       = 0x0
     TRANSLATE_REQ = 0x1
     TRANSLATED    = 0x2
 
+
 # Attr field
 class TlpAttr(enum.IntFlag):
-    NS  = 0x1 # no snoop
-    RO  = 0x2 # relaxed ordering
-    IDO = 0x4 # ID-based ordering
+    NS  = 0x1  # no snoop
+    RO  = 0x2  # relaxed ordering
+    IDO = 0x4  # ID-based ordering
+
 
 # TC field
 class TlpTc(enum.IntEnum):
@@ -129,12 +135,13 @@ class TlpTc(enum.IntEnum):
     TC6 = 0x6
     TC7 = 0x7
 
+
 # Completion status
 class CplStatus(enum.IntEnum):
-    SC  = 0x0 # successful completion
-    UR  = 0x1 # unsupported request
-    CRS = 0x2 # configuration request retry status
-    CA  = 0x4 # completer abort
+    SC  = 0x0  # successful completion
+    UR  = 0x1  # unsupported request
+    CRS = 0x2  # configuration request retry status
+    CA  = 0x4  # completer abort
 
 
 class Tlp(object):
@@ -199,7 +206,7 @@ class Tlp(object):
     @property
     def completer_id(self):
         return self._completer_id
-    
+
     @completer_id.setter
     def completer_id(self, val):
         self._completer_id = PcieId(val)
@@ -207,7 +214,7 @@ class Tlp(object):
     @property
     def requester_id(self):
         return self._requester_id
-    
+
     @requester_id.setter
     def requester_id(self, val):
         self._requester_id = PcieId(val)
@@ -215,7 +222,7 @@ class Tlp(object):
     @property
     def dest_id(self):
         return self._dest_id
-    
+
     @dest_id.setter
     def dest_id(self, val):
         self._dest_id = PcieId(val)
@@ -244,7 +251,7 @@ class Tlp(object):
                 print("TLP validation failed, invalid last BE for IO request: %s" % repr(self))
                 ret = False
         if (self.fmt_type == TlpType.CPL_DATA):
-            if (self.byte_count + (self.lower_address&3) + 3) < self.length*4:
+            if (self.byte_count + (self.lower_address & 3) + 3) < self.length*4:
                 print("TLP validation failed, completion byte count too small: %s" % repr(self))
                 ret = False
         return ret
@@ -375,17 +382,17 @@ class Tlp(object):
         """Pack TLP as DWORD array"""
         pkt = []
 
-        l = self.length & 0x3ff
-        l |= (self.at & 0x3) << 10
-        l |= (self.attr & 0x3) << 12
-        l |= (self.ep & 1) << 14
-        l |= (self.td & 1) << 15
-        l |= (self.th & 1) << 16
-        l |= (self.attr & 0x4) << 16
-        l |= (self.tc & 0x7) << 20
-        l |= (self.type & 0x1f) << 24
-        l |= (self.fmt & 0x7) << 29
-        pkt.append(l)
+        dw = self.length & 0x3ff
+        dw |= (self.at & 0x3) << 10
+        dw |= (self.attr & 0x3) << 12
+        dw |= (self.ep & 1) << 14
+        dw |= (self.td & 1) << 15
+        dw |= (self.th & 1) << 16
+        dw |= (self.attr & 0x4) << 16
+        dw |= (self.tc & 0x7) << 20
+        dw |= (self.type & 0x1f) << 24
+        dw |= (self.fmt & 0x7) << 29
+        pkt.append(dw)
 
         if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
                 self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1 or
@@ -393,35 +400,35 @@ class Tlp(object):
                 self.fmt_type == TlpType.MEM_READ_LOCKED or self.fmt_type == TlpType.MEM_READ_LOCKED_64 or
                 self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64 or
                 self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE):
-            l = self.first_be & 0xf
-            l |= (self.last_be & 0xf) << 4
-            l |= (self.tag & 0xff) << 8
-            l |= int(self.requester_id) << 16
-            pkt.append(l)
+            dw = self.first_be & 0xf
+            dw |= (self.last_be & 0xf) << 4
+            dw |= (self.tag & 0xff) << 8
+            dw |= int(self.requester_id) << 16
+            pkt.append(dw)
 
             if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
                     self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1):
-                l = (self.register_number & 0x3ff) << 2
-                l |= int(self.dest_id) << 16
-                pkt.append(l)
+                dw = (self.register_number & 0x3ff) << 2
+                dw |= int(self.dest_id) << 16
+                pkt.append(dw)
             else:
-                l = 0
+                dw = 0
                 if self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
-                    l |= (self.address >> 32) & 0xffffffff
-                    pkt.append(l)
-                l |= self.address & 0xfffffffc
-                pkt.append(l)
+                    dw |= (self.address >> 32) & 0xffffffff
+                    pkt.append(dw)
+                dw |= self.address & 0xfffffffc
+                pkt.append(dw)
         elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
                 self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
-            l = self.byte_count & 0xfff
-            l |= (self.bcm & 1) << 12
-            l |= (self.status & 0x7) << 13
-            l |= int(self.completer_id) << 16
-            pkt.append(l)
-            l = self.lower_address & 0x7f
-            l |= (self.tag & 0xff) << 8
-            l |= int(self.requester_id) << 16
-            pkt.append(l)
+            dw = self.byte_count & 0xfff
+            dw |= (self.bcm & 1) << 12
+            dw |= (self.status & 0x7) << 13
+            dw |= int(self.completer_id) << 16
+            pkt.append(dw)
+            dw = self.lower_address & 0x7f
+            dw |= (self.tag & 0xff) << 8
+            dw |= int(self.requester_id) << 16
+            pkt.append(dw)
         else:
             raise Exception("Unknown TLP type")
 
@@ -494,52 +501,51 @@ class Tlp(object):
     def __eq__(self, other):
         if isinstance(other, Tlp):
             return (
-                    self.data == other.data and
-                    self.fmt == other.fmt and
-                    self.type == other.type and
-                    self.tc == other.tc and
-                    self.td == other.td and
-                    self.ep == other.ep and
-                    self.attr == other.attr and
-                    self.at == other.at and
-                    self.length == other.length and
-                    self.completer_id == other.completer_id and
-                    self.status == other.status and
-                    self.bcm == other.bcm and
-                    self.byte_count == other.byte_count and
-                    self.requester_id == other.requester_id and
-                    self.dest_id == other.dest_id and
-                    self.tag == other.tag and
-                    self.first_be == other.first_be and
-                    self.last_be == other.last_be and
-                    self.lower_address == other.lower_address and
-                    self.address == other.address and
-                    self.register_number == other.register_number
-                )
+                self.data == other.data and
+                self.fmt == other.fmt and
+                self.type == other.type and
+                self.tc == other.tc and
+                self.td == other.td and
+                self.ep == other.ep and
+                self.attr == other.attr and
+                self.at == other.at and
+                self.length == other.length and
+                self.completer_id == other.completer_id and
+                self.status == other.status and
+                self.bcm == other.bcm and
+                self.byte_count == other.byte_count and
+                self.requester_id == other.requester_id and
+                self.dest_id == other.dest_id and
+                self.tag == other.tag and
+                self.first_be == other.first_be and
+                self.last_be == other.last_be and
+                self.lower_address == other.lower_address and
+                self.address == other.address and
+                self.register_number == other.register_number
+            )
         return False
 
     def __repr__(self):
         return (
-                f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], " +
-                f"fmt_type={self.fmt_type}, " +
-                f"tc={self.tc:#x}, " +
-                f"th={self.th:#x}, " +
-                f"td={self.td:#x}, " +
-                f"ep={self.ep:#x}, " +
-                f"attr={self.attr:#x}, " +
-                f"at={self.at:#x}, " +
-                f"length={self.length:#x}, " +
-                f"completer_id={repr(self.completer_id)}, " +
-                f"status={self.status!s}, " +
-                f"bcm={self.bcm:#x}, " +
-                f"byte_count={self.byte_count:#x}, " +
-                f"requester_id={repr(self.requester_id)}, " +
-                f"dest_id={repr(self.dest_id)}, " +
-                f"tag={self.tag:#x}, " +
-                f"first_be={self.first_be:#x}, " +
-                f"last_be={self.last_be:#x}, " +
-                f"lower_address={self.lower_address:#x}, " +
-                f"address={self.address:#x}, " +
-                f"register_number={self.register_number:#x})"
-            )
-
+            f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
+            f"fmt_type={self.fmt_type}, "
+            f"tc={self.tc:#x}, "
+            f"th={self.th:#x}, "
+            f"td={self.td:#x}, "
+            f"ep={self.ep:#x}, "
+            f"attr={self.attr:#x}, "
+            f"at={self.at:#x}, "
+            f"length={self.length:#x}, "
+            f"completer_id={repr(self.completer_id)}, "
+            f"status={self.status!s}, "
+            f"bcm={self.bcm:#x}, "
+            f"byte_count={self.byte_count:#x}, "
+            f"requester_id={repr(self.requester_id)}, "
+            f"dest_id={repr(self.dest_id)}, "
+            f"tag={self.tag:#x}, "
+            f"first_be={self.first_be:#x}, "
+            f"last_be={self.last_be:#x}, "
+            f"lower_address={self.lower_address:#x}, "
+            f"address={self.address:#x}, "
+            f"register_number={self.register_number:#x})"
+        )

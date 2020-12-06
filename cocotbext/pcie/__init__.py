@@ -29,4 +29,3 @@ from .endpoint import Endpoint, MemoryEndpoint
 from .device import Device
 from .switch import Switch
 from .rc import RootComplex
-

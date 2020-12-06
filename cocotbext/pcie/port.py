@@ -27,6 +27,8 @@ from cocotb.triggers import Event, Timer
 import cocotb.utils
 from collections import deque
 
+from .tlp import Tlp
+
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
     2: 5e9*8/10,
@@ -34,6 +36,7 @@ PCIE_GEN_RATE = {
     4: 16e9*128/130,
     5: 32e9*128/130,
 }
+
 
 class Port(object):
     """Basic port"""
@@ -54,6 +57,8 @@ class Port(object):
         self.cur_width = 1
         self.link_delay = 0
         self.link_delay_unit = None
+
+        self.time_scale = 10**cocotb.utils._get_simulator_precision()
 
         cocotb.fork(self._run_transmit())
 
@@ -88,7 +93,7 @@ class Port(object):
                 await self.tx_sync.wait()
 
             tlp = self.tx_queue.popleft()
-            d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_speed]*self.cur_width*(10**cocotb.utils._get_simulator_precision())))
+            d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_speed]*self.cur_width*self.time_scale))
             await Timer(d)
             cocotb.fork(self._transmit(tlp))
 
@@ -131,4 +136,3 @@ class BusPort(Port):
         await Timer(self.link_delay, self.link_delay_unit)
         for p in self.other:
             await p.ext_recv(Tlp(tlp))
-
