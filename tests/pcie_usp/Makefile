@@ -1,0 +1,87 @@
+# Copyright (c) 2020 Alex Forencich
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+TOPLEVEL_LANG = verilog
+
+SIM ?= icarus
+WAVES ?= 0
+
+COCOTB_HDL_TIMEUNIT = 1ns
+COCOTB_HDL_TIMEPRECISION = 1ps
+
+DUT      = test_pcie_usp
+TOPLEVEL = $(DUT)
+MODULE   = $(DUT)
+VERILOG_SOURCES  = $(DUT).v
+
+# module parameters
+export PARAM_DATA_WIDTH ?= 64
+export PARAM_KEEP_WIDTH ?= $(shell expr $(PARAM_DATA_WIDTH) / 32 )
+export PARAM_RQ_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),62,137)
+export PARAM_RC_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),75,161)
+export PARAM_CQ_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),88,183)
+export PARAM_CC_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),33,81)
+
+SIM_BUILD ?= sim_build_$(MODULE)-$(PARAM_DATA_WIDTH)
+
+ifeq ($(SIM), icarus)
+	PLUSARGS += -fst
+
+	COMPILE_ARGS += -P $(TOPLEVEL).DATA_WIDTH=$(PARAM_DATA_WIDTH)
+	COMPILE_ARGS += -P $(TOPLEVEL).KEEP_WIDTH=$(PARAM_KEEP_WIDTH)
+	COMPILE_ARGS += -P $(TOPLEVEL).RQ_USER_WIDTH=$(PARAM_RQ_USER_WIDTH)
+	COMPILE_ARGS += -P $(TOPLEVEL).RC_USER_WIDTH=$(PARAM_RC_USER_WIDTH)
+	COMPILE_ARGS += -P $(TOPLEVEL).CQ_USER_WIDTH=$(PARAM_CQ_USER_WIDTH)
+	COMPILE_ARGS += -P $(TOPLEVEL).CC_USER_WIDTH=$(PARAM_CC_USER_WIDTH)
+
+	ifeq ($(WAVES), 1)
+		VERILOG_SOURCES += iverilog_dump.v
+		COMPILE_ARGS += -s iverilog_dump
+	endif
+else ifeq ($(SIM), verilator)
+	COMPILE_ARGS += -Wno-SELRANGE -Wno-WIDTH
+
+	COMPILE_ARGS += -GDATA_WIDTH=$(PARAM_DATA_WIDTH)
+	COMPILE_ARGS += -GKEEP_WIDTH=$(PARAM_KEEP_WIDTH)
+	COMPILE_ARGS += -GRQ_USER_WIDTH=$(PARAM_RQ_USER_WIDTH)
+	COMPILE_ARGS += -GRC_USER_WIDTH=$(PARAM_RC_USER_WIDTH)
+	COMPILE_ARGS += -GCQ_USER_WIDTH=$(PARAM_CQ_USER_WIDTH)
+	COMPILE_ARGS += -GCC_USER_WIDTH=$(PARAM_CC_USER_WIDTH)
+
+	ifeq ($(WAVES), 1)
+		COMPILE_ARGS += --trace-fst
+	endif
+endif
+
+iverilog_dump.v:
+	echo 'module iverilog_dump();' > $@
+	echo 'initial begin' >> $@
+	echo '    $$dumpfile("$(TOPLEVEL).fst");' >> $@
+	echo '    $$dumpvars(0, $(TOPLEVEL));' >> $@
+	echo 'end' >> $@
+	echo 'endmodule' >> $@
+
+clean::
+	@rm -rf sim_build_*
+	@rm -rf iverilog_dump.v
+	@rm -rf dump.fst $(TOPLEVEL).fst
+
+include $(shell cocotb-config --makefiles)/Makefile.sim
+
