@@ -403,9 +403,7 @@ class RqSource(UsPcieSource):
                     transaction.tuser |= 0b01 << 20  # is_sop
                     transaction.tuser |= 0b00 << 22  # is_sop0_ptr
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 36  # discontinue
-
+                transaction.tuser |= bool(frame.discontinue) << 36
                 transaction.tuser |= (frame.seq_num & 0x3f) << 61
 
                 last_lane = 0
@@ -427,9 +425,7 @@ class RqSource(UsPcieSource):
                     transaction.tuser |= (frame.first_be & 0xf)
                     transaction.tuser |= (frame.last_be & 0xf) << 4
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 11  # discontinue
-
+                transaction.tuser |= bool(frame.discontinue) << 11
                 transaction.tuser |= (frame.seq_num & 0xf) << 24
 
                 if len(self.bus.tuser) == 62:
@@ -478,9 +474,7 @@ class RqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 8) & 0xf
 
-                if sample.tuser & (1 << 36):
-                    frame.discontinue = True
-
+                frame.discontinue = bool(sample.tuser & (1 << 36))
                 frame.seq_num = (sample.tuser >> 61) & 0x3f
 
                 last_lane = 0
@@ -495,9 +489,7 @@ class RqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 4) & 0xf
 
-                if sample.tuser & (1 << 11):
-                    frame.discontinue = True
-
+                frame.discontinue = bool(sample.tuser & (1 << 11))
                 frame.seq_num = (sample.tuser >> 24) & 0xf
 
                 if len(self.bus.tuser) == 62:
@@ -539,8 +531,7 @@ class RcSource(UsPcieSource):
                     transaction.tuser |= 0b0001 << 64  # is_sop
                     transaction.tuser |= 0b00 << 68  # is_sop0_ptr
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 96  # discontinue
+                transaction.tuser |= bool(frame.discontinue) << 96
 
                 last_lane = 0
 
@@ -561,8 +552,7 @@ class RcSource(UsPcieSource):
                 if first:
                     transaction.tuser |= 1 << 32  # is_sof_0
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 42  # discontinue
+                transaction.tuser |= bool(frame.discontinue) << 42
 
                 last_lane = 0
 
@@ -607,8 +597,7 @@ class RcSink(UsPcieSink):
             self.sample_obj = None
 
             if self.width == 512:
-                if sample.tuser & (1 << 96):
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & (1 << 96))
 
                 last_lane = 0
 
@@ -619,8 +608,7 @@ class RcSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (i*4+97)) & 0xf)
                         last_lane = i
             else:
-                if sample.tuser & (1 << 42):
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & (1 << 42))
 
                 last_lane = 0
 
@@ -664,8 +652,7 @@ class CqSource(UsPcieSource):
                     transaction.tuser |= 0b01 << 80  # is_sop
                     transaction.tuser |= 0b00 << 82  # is_sop0_ptr
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 96  # discontinue
+                transaction.tuser |= bool(frame.discontinue) << 96
 
                 last_lane = 0
 
@@ -688,8 +675,7 @@ class CqSource(UsPcieSource):
                     transaction.tuser |= (frame.last_be & 0xf) << 4
                     transaction.tuser |= 1 << 40  # sop
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 41  # discontinue
+                transaction.tuser |= bool(frame.discontinue) << 41
 
                 for i in range(self.byte_width):
                     if frame.data:
@@ -732,8 +718,7 @@ class CqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 8) & 0xf
 
-                if sample.tuser & (1 << 96):
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & (1 << 96))
 
                 last_lane = 0
 
@@ -748,8 +733,7 @@ class CqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 4) & 0xf
 
-                if sample.tuser & (1 << 41):
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & (1 << 41))
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):
@@ -788,8 +772,7 @@ class CcSource(UsPcieSource):
                     transaction.tuser |= 0b01 << 0  # is_sop
                     transaction.tuser |= 0b00 << 2  # is_sop0_ptr
 
-                if frame.discontinue:
-                    transaction.tuser |= 1 << 16  # discontinue
+                transaction.tuser |= bool(frame.discontinue) << 16
 
                 last_lane = 0
 
@@ -806,8 +789,7 @@ class CcSource(UsPcieSource):
                     transaction.tuser |= 0b01 << 6  # is_eop
                     transaction.tuser |= (last_lane & 0xf) << 8  # is_eop0_ptr
             else:
-                if frame.discontinue:
-                    transaction.tuser |= 1  # discontinue
+                transaction.tuser |= bool(frame.discontinue)
 
                 for i in range(self.byte_width):
                     if frame.data:
@@ -845,8 +827,7 @@ class CcSink(UsPcieSink):
             self.sample_obj = None
 
             if self.width == 512:
-                if sample.tuser & (1 << 16):
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & (1 << 16))
 
                 last_lane = 0
 
@@ -856,8 +837,7 @@ class CcSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (i*4+17)) & 0xf)
                         last_lane = i
             else:
-                if sample.tuser & 1:
-                    frame.discontinue = True
+                frame.discontinue = bool(sample.tuser & 1)
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):

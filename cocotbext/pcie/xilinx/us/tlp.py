@@ -236,8 +236,7 @@ class Tlp_us(Tlp):
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
             dw |= int(self.completer_id) << 8
-            if self.completer_id_enable:
-                dw |= 1 << 24
+            dw |= bool(self.completer_id_enable) << 24
             dw |= (self.tc & 0x7) << 25
             dw |= (self.attr & 0x7) << 28
             pkt.data.append(dw)
@@ -274,6 +273,7 @@ class Tlp_us(Tlp):
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.completer_id_enable = pkt.data[2] >> 24 & 1 != 0
         tlp.tag = pkt.data[2] & 0xff
+        tlp.completer_id_enable = bool(pkt.data[2] & (1 << 24))
         tlp.tc = (pkt.data[2] >> 25) & 0x7
         tlp.attr = (pkt.data[2] >> 28) & 0x7
 
@@ -340,8 +340,7 @@ class Tlp_us(Tlp):
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
             dw |= int(self.completer_id) << 8
-            if self.requester_id_enable:
-                dw |= 1 << 24
+            dw |= bool(self.requester_id_enable) << 24
             dw |= (self.tc & 0x7) << 25
             dw |= (self.attr & 0x7) << 28
             # TODO force ecrc
@@ -417,7 +416,7 @@ class Tlp_us(Tlp):
             else:
                 tlp.register_number = (pkt.data[0] >> 2) & 0x3ff
             tlp.completer_id = PcieId.from_int(pkt.data[3] >> 8)
-            tlp.requester_id_enable = pkt.data[3] >> 24 & 1 != 0
+            tlp.requester_id_enable = bool(pkt.data[3] & (1 << 24))
 
             tlp.first_be = pkt.first_be
             tlp.last_be = pkt.last_be
