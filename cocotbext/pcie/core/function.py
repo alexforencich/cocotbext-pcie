@@ -470,30 +470,30 @@ class Function(PmCapability, PcieCapability):
 
         return data[:length]
 
-    async def io_read_words(self, addr, count, ws=2, timeout=0, timeout_unit='ns'):
+    async def io_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         data = await self.io_read(addr, count*ws, timeout, timeout_unit)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def io_read_dwords(self, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.io_read_words(addr, count, 4, timeout, timeout_unit)
+    async def io_read_dwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.io_read_words(addr, count, byteorder, 4, timeout, timeout_unit)
 
-    async def io_read_qwords(self, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.io_read_words(addr, count, 8, timeout, timeout_unit)
+    async def io_read_qwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.io_read_words(addr, count, byteorder, 8, timeout, timeout_unit)
 
     async def io_read_byte(self, addr, timeout=0, timeout_unit='ns'):
         return (await self.io_read(addr, 1, timeout, timeout_unit))[0]
 
-    async def io_read_word(self, addr, ws=2, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_words(addr, 1, ws, timeout, timeout_unit))[0]
+    async def io_read_word(self, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        return (await self.io_read_words(addr, 1, byteorder, ws, timeout, timeout_unit))[0]
 
-    async def io_read_dword(self, addr, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_dwords(addr, 1, timeout, timeout_unit))[0]
+    async def io_read_dword(self, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.io_read_dwords(addr, 1, byteorder, timeout, timeout_unit))[0]
 
-    async def io_read_qword(self, addr, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_qwords(addr, 1, timeout, timeout_unit))[0]
+    async def io_read_qword(self, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.io_read_qwords(addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def io_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
@@ -526,30 +526,30 @@ class Function(PmCapability, PcieCapability):
             n += byte_length
             addr += byte_length
 
-    async def io_write_words(self, addr, data, ws=2, timeout=0, timeout_unit='ns'):
+    async def io_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.io_write(addr, data, timeout, timeout_unit)
 
-    async def io_write_dwords(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, data, 4, timeout, timeout_unit)
+    async def io_write_dwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, data, byteorder, 4, timeout, timeout_unit)
 
-    async def io_write_qwords(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, data, 8, timeout, timeout_unit)
+    async def io_write_qwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, data, byteorder, 8, timeout, timeout_unit)
 
     async def io_write_byte(self, addr, data, timeout=0, timeout_unit='ns'):
         await self.io_write(addr, [data], timeout, timeout_unit)
 
-    async def io_write_word(self, addr, data, ws=2, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, [data], ws, timeout, timeout_unit)
+    async def io_write_word(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, [data], byteorder, ws, timeout, timeout_unit)
 
-    async def io_write_dword(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_dwords(addr, [data], timeout, timeout_unit)
+    async def io_write_dword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_dwords(addr, [data], byteorder, timeout, timeout_unit)
 
-    async def io_write_qword(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_qwords(addr, [data], timeout, timeout_unit)
+    async def io_write_qword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_qwords(addr, [data], byteorder, timeout, timeout_unit)
 
     async def mem_read(self, addr, length, timeout=0, timeout_unit='ns', attr=0, tc=0):
         n = 0
@@ -611,30 +611,30 @@ class Function(PmCapability, PcieCapability):
 
         return data
 
-    async def mem_read_words(self, addr, count, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+    async def mem_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
         data = await self.mem_read(addr, count*ws, timeout, timeout_unit, attr, tc)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def mem_read_dwords(self, addr, count, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return await self.mem_read_words(addr, count, 4, timeout, timeout_unit, attr, tc)
+    async def mem_read_dwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return await self.mem_read_words(addr, count, byteorder, 4, timeout, timeout_unit, attr, tc)
 
-    async def mem_read_qwords(self, addr, count, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return await self.mem_read_words(addr, count, 8, timeout, timeout_unit, attr, tc)
+    async def mem_read_qwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return await self.mem_read_words(addr, count, byteorder, 8, timeout, timeout_unit, attr, tc)
 
     async def mem_read_byte(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
         return (await self.mem_read(addr, 1, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_word(self, addr, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_words(addr, 1, ws, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_word(self, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_words(addr, 1, byteorder, ws, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_dword(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_dwords(addr, 1, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_dword(self, addr, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_dwords(addr, 1, byteorder, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_qword(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_qwords(addr, 1, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_qword(self, addr, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_qwords(addr, 1, byteorder, timeout, timeout_unit, attr, tc))[0]
 
     async def mem_write(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
         n = 0
@@ -664,27 +664,27 @@ class Function(PmCapability, PcieCapability):
             n += byte_length
             addr += byte_length
 
-    async def mem_write_words(self, addr, data, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+    async def mem_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.mem_write(addr, data, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_dwords(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, data, 4, timeout, timeout_unit, attr, tc)
+    async def mem_write_dwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, data, byteorder, 4, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_qwords(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, data, 8, timeout, timeout_unit, attr, tc)
+    async def mem_write_qwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, data, byteorder, 8, timeout, timeout_unit, attr, tc)
 
     async def mem_write_byte(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
         await self.mem_write(addr, [data], timeout, timeout_unit, attr, tc)
 
-    async def mem_write_word(self, addr, data, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, [data], ws, timeout, timeout_unit, attr, tc)
+    async def mem_write_word(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, [data], byteorder, ws, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_dword(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_dwords(addr, [data], timeout, timeout_unit, attr, tc)
+    async def mem_write_dword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_dwords(addr, [data], byteorder, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_qword(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_qwords(addr, [data], timeout, timeout_unit, attr, tc)
+    async def mem_write_qword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_qwords(addr, [data], byteorder, timeout, timeout_unit, attr, tc)

@@ -492,30 +492,30 @@ class RootComplex(Switch):
 
         return data[:length]
 
-    async def config_read_words(self, dev, addr, count, ws=2, timeout=0, timeout_unit='ns'):
+    async def config_read_words(self, dev, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         data = await self.config_read(dev, addr, count*ws, timeout, timeout_unit)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def config_read_dwords(self, dev, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.config_read_words(dev, addr, count, 4, timeout, timeout_unit)
+    async def config_read_dwords(self, dev, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.config_read_words(dev, addr, count, byteorder, 4, timeout, timeout_unit)
 
-    async def config_read_qwords(self, dev, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.config_read_words(dev, addr, count, 8, timeout, timeout_unit)
+    async def config_read_qwords(self, dev, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.config_read_words(dev, addr, count, byteorder, 8, timeout, timeout_unit)
 
     async def config_read_byte(self, dev, addr, timeout=0, timeout_unit='ns'):
         return (await self.config_read(dev, addr, 1, timeout, timeout_unit))[0]
 
-    async def config_read_word(self, dev, addr, ws=2, timeout=0, timeout_unit='ns'):
-        return (await self.config_read_words(dev, addr, 1, ws, timeout, timeout_unit))[0]
+    async def config_read_word(self, dev, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        return (await self.config_read_words(dev, addr, 1, byteorder, ws, timeout, timeout_unit))[0]
 
-    async def config_read_dword(self, dev, addr, timeout=0, timeout_unit='ns'):
-        return (await self.config_read_dwords(dev, addr, 1, timeout, timeout_unit))[0]
+    async def config_read_dword(self, dev, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.config_read_dwords(dev, addr, 1, byteorder, timeout, timeout_unit))[0]
 
-    async def config_read_qword(self, dev, addr, timeout=0, timeout_unit='ns'):
-        return (await self.config_read_qwords(dev, addr, 1, timeout, timeout_unit))[0]
+    async def config_read_qword(self, dev, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.config_read_qwords(dev, addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def config_write(self, dev, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
@@ -542,30 +542,30 @@ class RootComplex(Switch):
             n += byte_length
             addr += byte_length
 
-    async def config_write_words(self, dev, addr, data, ws=2, timeout=0, timeout_unit='ns'):
+    async def config_write_words(self, dev, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.config_write(dev, addr, data, timeout, timeout_unit)
 
-    async def config_write_dwords(self, dev, addr, data, timeout=0, timeout_unit='ns'):
-        await self.config_write_words(dev, addr, data, 4, timeout, timeout_unit)
+    async def config_write_dwords(self, dev, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.config_write_words(dev, addr, data, byteorder, 4, timeout, timeout_unit)
 
-    async def config_write_qwords(self, dev, addr, data, timeout=0, timeout_unit='ns'):
-        await self.config_write_words(dev, addr, data, 8, timeout, timeout_unit)
+    async def config_write_qwords(self, dev, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.config_write_words(dev, addr, data, byteorder, 8, timeout, timeout_unit)
 
     async def config_write_byte(self, dev, addr, data, timeout=0, timeout_unit='ns'):
         await self.config_write(dev, addr, [data], timeout, timeout_unit)
 
-    async def config_write_word(self, dev, addr, data, ws=2, timeout=0, timeout_unit='ns'):
-        await self.config_write_words(dev, addr, [data], ws, timeout, timeout_unit)
+    async def config_write_word(self, dev, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        await self.config_write_words(dev, addr, [data], byteorder, ws, timeout, timeout_unit)
 
-    async def config_write_dword(self, dev, addr, data, timeout=0, timeout_unit='ns'):
-        await self.config_write_dwords(dev, addr, [data], timeout, timeout_unit)
+    async def config_write_dword(self, dev, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.config_write_dwords(dev, addr, [data], byteorder, timeout, timeout_unit)
 
-    async def config_write_qword(self, dev, addr, data, timeout=0, timeout_unit='ns'):
-        await self.config_write_qwords(dev, addr, [data], timeout, timeout_unit)
+    async def config_write_qword(self, dev, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.config_write_qwords(dev, addr, [data], byteorder, timeout, timeout_unit)
 
     async def capability_read(self, dev, cap_id, addr, length, timeout=0, timeout_unit='ns'):
         ti = self.tree.find_child_dev(dev)
@@ -580,30 +580,30 @@ class RootComplex(Switch):
 
         return await self.config_read(dev, addr+offset, length, timeout, timeout_unit)
 
-    async def capability_read_words(self, dev, cap_id, addr, count, ws=2, timeout=0, timeout_unit='ns'):
+    async def capability_read_words(self, dev, cap_id, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         data = await self.capability_read(dev, cap_id, addr, count*ws, timeout, timeout_unit)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def capability_read_dwords(self, dev, cap_id, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.capability_read_words(dev, cap_id, addr, count, 4, timeout, timeout_unit)
+    async def capability_read_dwords(self, dev, cap_id, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.capability_read_words(dev, cap_id, addr, count, byteorder, 4, timeout, timeout_unit)
 
-    async def capability_read_qwords(self, dev, cap_id, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.capability_read_words(dev, cap_id, addr, count, 8, timeout, timeout_unit)
+    async def capability_read_qwords(self, dev, cap_id, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.capability_read_words(dev, cap_id, addr, count, byteorder, 8, timeout, timeout_unit)
 
     async def capability_read_byte(self, dev, cap_id, addr, timeout=0, timeout_unit='ns'):
         return (await self.capability_read(dev, cap_id, addr, 1, timeout, timeout_unit))[0]
 
-    async def capability_read_word(self, dev, cap_id, addr, ws=2, timeout=0, timeout_unit='ns'):
-        return (await self.capability_read_words(dev, cap_id, addr, 1, ws, timeout, timeout_unit))[0]
+    async def capability_read_word(self, dev, cap_id, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        return (await self.capability_read_words(dev, cap_id, addr, 1, byteorder, ws, timeout, timeout_unit))[0]
 
-    async def capability_read_dword(self, dev, cap_id, addr, timeout=0, timeout_unit='ns'):
-        return (await self.capability_read_dwords(dev, cap_id, addr, 1, timeout, timeout_unit))[0]
+    async def capability_read_dword(self, dev, cap_id, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.capability_read_dwords(dev, cap_id, addr, 1, byteorder, timeout, timeout_unit))[0]
 
-    async def capability_read_qword(self, dev, cap_id, addr, timeout=0, timeout_unit='ns'):
-        return (await self.capability_read_qwords(dev, cap_id, addr, 1, timeout, timeout_unit))[0]
+    async def capability_read_qword(self, dev, cap_id, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.capability_read_qwords(dev, cap_id, addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def capability_write(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
         ti = self.tree.find_child_dev(dev)
@@ -618,30 +618,30 @@ class RootComplex(Switch):
 
         await self.config_write(dev, addr+offset, data, timeout, timeout_unit)
 
-    async def capability_write_words(self, dev, cap_id, addr, data, ws=2, timeout=0, timeout_unit='ns'):
+    async def capability_write_words(self, dev, cap_id, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.capability_write(dev, cap_id, addr, data, timeout, timeout_unit)
 
-    async def capability_write_dwords(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
-        await self.capability_write_words(dev, cap_id, addr, data, 4, timeout, timeout_unit)
+    async def capability_write_dwords(self, dev, cap_id, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.capability_write_words(dev, cap_id, addr, data, byteorder, 4, timeout, timeout_unit)
 
-    async def capability_write_qwords(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
-        await self.capability_write_words(dev, cap_id, addr, data, 8, timeout, timeout_unit)
+    async def capability_write_qwords(self, dev, cap_id, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.capability_write_words(dev, cap_id, addr, data, byteorder, 8, timeout, timeout_unit)
 
     async def capability_write_byte(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
         await self.capability_write(dev, cap_id, addr, [data], timeout, timeout_unit)
 
-    async def capability_write_word(self, dev, cap_id, addr, data, ws=2, timeout=0, timeout_unit='ns'):
-        await self.capability_write_words(dev, cap_id, addr, [data], ws, timeout, timeout_unit)
+    async def capability_write_word(self, dev, cap_id, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        await self.capability_write_words(dev, cap_id, addr, [data], byteorder, ws, timeout, timeout_unit)
 
-    async def capability_write_dword(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
-        await self.capability_write_dwords(dev, cap_id, addr, [data], timeout, timeout_unit)
+    async def capability_write_dword(self, dev, cap_id, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.capability_write_dwords(dev, cap_id, addr, [data], byteorder, timeout, timeout_unit)
 
-    async def capability_write_qword(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
-        await self.capability_write_qwords(dev, cap_id, addr, [data], timeout, timeout_unit)
+    async def capability_write_qword(self, dev, cap_id, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.capability_write_qwords(dev, cap_id, addr, [data], byteorder, timeout, timeout_unit)
 
     async def io_read(self, addr, length, timeout=0, timeout_unit='ns'):
         n = 0
@@ -682,30 +682,30 @@ class RootComplex(Switch):
 
         return data[:length]
 
-    async def io_read_words(self, addr, count, ws=2, timeout=0, timeout_unit='ns'):
+    async def io_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         data = await self.io_read(addr, count*ws, timeout, timeout_unit)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def io_read_dwords(self, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.io_read_words(addr, count, 4, timeout, timeout_unit)
+    async def io_read_dwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.io_read_words(addr, count, byteorder, 4, timeout, timeout_unit)
 
-    async def io_read_qwords(self, addr, count, timeout=0, timeout_unit='ns'):
-        return await self.io_read_words(addr, count, 8, timeout, timeout_unit)
+    async def io_read_qwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns'):
+        return await self.io_read_words(addr, count, byteorder, 8, timeout, timeout_unit)
 
     async def io_read_byte(self, addr, timeout=0, timeout_unit='ns'):
         return (await self.io_read(addr, 1, timeout, timeout_unit))[0]
 
-    async def io_read_word(self, addr, ws=2, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_words(addr, 1, ws, timeout, timeout_unit))[0]
+    async def io_read_word(self, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        return (await self.io_read_words(addr, 1, byteorder, ws, timeout, timeout_unit))[0]
 
-    async def io_read_dword(self, addr, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_dwords(addr, 1, timeout, timeout_unit))[0]
+    async def io_read_dword(self, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.io_read_dwords(addr, 1, byteorder, timeout, timeout_unit))[0]
 
-    async def io_read_qword(self, addr, timeout=0, timeout_unit='ns'):
-        return (await self.io_read_qwords(addr, 1, timeout, timeout_unit))[0]
+    async def io_read_qword(self, addr, byteorder='little', timeout=0, timeout_unit='ns'):
+        return (await self.io_read_qwords(addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def io_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
@@ -738,30 +738,30 @@ class RootComplex(Switch):
             n += byte_length
             addr += byte_length
 
-    async def io_write_words(self, addr, data, ws=2, timeout=0, timeout_unit='ns'):
+    async def io_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.io_write(addr, data, timeout, timeout_unit)
 
-    async def io_write_dwords(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, data, 4, timeout, timeout_unit)
+    async def io_write_dwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, data, byteorder, 4, timeout, timeout_unit)
 
-    async def io_write_qwords(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, data, 8, timeout, timeout_unit)
+    async def io_write_qwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, data, byteorder, 8, timeout, timeout_unit)
 
     async def io_write_byte(self, addr, data, timeout=0, timeout_unit='ns'):
         await self.io_write(addr, [data], timeout, timeout_unit)
 
-    async def io_write_word(self, addr, data, ws=2, timeout=0, timeout_unit='ns'):
-        await self.io_write_words(addr, [data], ws, timeout, timeout_unit)
+    async def io_write_word(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
+        await self.io_write_words(addr, [data], byteorder, ws, timeout, timeout_unit)
 
-    async def io_write_dword(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_dwords(addr, [data], timeout, timeout_unit)
+    async def io_write_dword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_dwords(addr, [data], byteorder, timeout, timeout_unit)
 
-    async def io_write_qword(self, addr, data, timeout=0, timeout_unit='ns'):
-        await self.io_write_qwords(addr, [data], timeout, timeout_unit)
+    async def io_write_qword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns'):
+        await self.io_write_qwords(addr, [data], byteorder, timeout, timeout_unit)
 
     async def mem_read(self, addr, length, timeout=0, timeout_unit='ns', attr=0, tc=0):
         n = 0
@@ -823,30 +823,30 @@ class RootComplex(Switch):
 
         return data
 
-    async def mem_read_words(self, addr, count, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+    async def mem_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
         data = await self.mem_read(addr, count*ws, timeout, timeout_unit, attr, tc)
         words = []
         for k in range(count):
-            words.append(int.from_bytes(data[ws*k:ws*(k+1)], 'little'))
+            words.append(int.from_bytes(data[ws*k:ws*(k+1)], byteorder))
         return words
 
-    async def mem_read_dwords(self, addr, count, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return await self.mem_read_words(addr, count, 4, timeout, timeout_unit, attr, tc)
+    async def mem_read_dwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return await self.mem_read_words(addr, count, byteorder, 4, timeout, timeout_unit, attr, tc)
 
-    async def mem_read_qwords(self, addr, count, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return await self.mem_read_words(addr, count, 8, timeout, timeout_unit, attr, tc)
+    async def mem_read_qwords(self, addr, count, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return await self.mem_read_words(addr, count, byteorder, 8, timeout, timeout_unit, attr, tc)
 
     async def mem_read_byte(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
         return (await self.mem_read(addr, 1, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_word(self, addr, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_words(addr, 1, ws, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_word(self, addr, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_words(addr, 1, byteorder, ws, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_dword(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_dwords(addr, 1, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_dword(self, addr, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_dwords(addr, 1, byteorder, timeout, timeout_unit, attr, tc))[0]
 
-    async def mem_read_qword(self, addr, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        return (await self.mem_read_qwords(addr, 1, timeout, timeout_unit, attr, tc))[0]
+    async def mem_read_qword(self, addr, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        return (await self.mem_read_qwords(addr, 1, byteorder, timeout, timeout_unit, attr, tc))[0]
 
     async def mem_write(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
         n = 0
@@ -876,30 +876,30 @@ class RootComplex(Switch):
             n += byte_length
             addr += byte_length
 
-    async def mem_write_words(self, addr, data, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+    async def mem_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
         words = data
         data = bytearray()
         for w in words:
-            data.extend(w.to_bytes(ws, 'little'))
+            data.extend(w.to_bytes(ws, byteorder))
         await self.mem_write(addr, data, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_dwords(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, data, 4, timeout, timeout_unit, attr, tc)
+    async def mem_write_dwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, data, byteorder, 4, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_qwords(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, data, 8, timeout, timeout_unit, attr, tc)
+    async def mem_write_qwords(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, data, byteorder, 8, timeout, timeout_unit, attr, tc)
 
     async def mem_write_byte(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
         await self.mem_write(addr, [data], timeout, timeout_unit, attr, tc)
 
-    async def mem_write_word(self, addr, data, ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_words(addr, [data], ws, timeout, timeout_unit, attr, tc)
+    async def mem_write_word(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_words(addr, [data], byteorder, ws, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_dword(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_dwords(addr, [data], timeout, timeout_unit, attr, tc)
+    async def mem_write_dword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_dwords(addr, [data], byteorder, timeout, timeout_unit, attr, tc)
 
-    async def mem_write_qword(self, addr, data, timeout=0, timeout_unit='ns', attr=0, tc=0):
-        await self.mem_write_qwords(addr, [data], timeout, timeout_unit, attr, tc)
+    async def mem_write_qword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=0, tc=0):
+        await self.mem_write_qwords(addr, [data], byteorder, timeout, timeout_unit, attr, tc)
 
     async def msi_region_read(self, addr, length):
         return b'\x00'*length
@@ -1031,7 +1031,7 @@ class RootComplex(Switch):
             self.log.info("Enumerating bus %d device %d", bus, d)
 
             # read vendor ID and device ID
-            val = await self.config_read_dword(PcieId(bus, d, 0), 0x000, timeout, timeout_unit)
+            val = await self.config_read_dword(PcieId(bus, d, 0), 0x000, 'little', timeout, timeout_unit)
 
             if val is None or val == 0xffffffff:
                 continue
@@ -1043,7 +1043,7 @@ class RootComplex(Switch):
                 cur_func = PcieId(bus, d, f)
 
                 # read vendor ID and device ID
-                val = await self.config_read_dword(cur_func, 0x000, timeout, timeout_unit)
+                val = await self.config_read_dword(cur_func, 0x000, 'little', timeout, timeout_unit)
 
                 if val is None or val == 0xffffffff:
                     continue
@@ -1058,7 +1058,7 @@ class RootComplex(Switch):
                 header_type = await self.config_read_byte(cur_func, 0x00e, timeout, timeout_unit)
                 ti.header_type = header_type
 
-                val = await self.config_read_dword(cur_func, 0x008, timeout, timeout_unit)
+                val = await self.config_read_dword(cur_func, 0x008, 'little', timeout, timeout_unit)
 
                 ti.revision_id = val & 0xff
                 ti.class_code = val >> 8
