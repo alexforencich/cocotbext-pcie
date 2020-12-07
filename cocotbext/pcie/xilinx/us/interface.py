@@ -151,19 +151,11 @@ class UsPcieBase(object):
         self.width = len(self.bus.tdata)
         self.byte_width = len(self.bus.tkeep)
 
-        self.bus.tdata.setimmediatevalue(0)
-        self.bus.tvalid.setimmediatevalue(0)
-        self.bus.tlast.setimmediatevalue(0)
-        self.bus.tkeep.setimmediatevalue(0)
-        self.bus.tuser.setimmediatevalue(0)
-
         self.byte_size = self.width // self.byte_width
         self.byte_mask = 2**self.byte_size-1
 
         assert self.width in [64, 128, 256, 512]
         assert self.byte_size == 32
-
-        self._init()
 
     def _init(self):
         pass
@@ -175,11 +167,10 @@ class UsPcieBase(object):
         return not self.queue
 
     def idle(self):
-        return self.empty() and not self.active
+        raise NotImplementedError()
 
     async def wait(self):
-        while not self.idle():
-            await RisingEdge(self.clock)
+        raise NotImplementedError()
 
     def set_pause_generator(self, generator=None):
         if self._pause_cr is not None:
@@ -200,7 +191,7 @@ class UsPcieBase(object):
             await RisingEdge(self.clock)
 
 
-class UsPcieSource(object):
+class UsPcieSource(UsPcieBase):
 
     _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
     _optional_signals = []
@@ -214,30 +205,10 @@ class UsPcieSource(object):
     _frame_obj = UsPcieFrame
 
     def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        self.log = SimLog("cocotb.%s.%s" % (entity._name, name))
-        self.entity = entity
-        self.clock = clock
-        self.reset = reset
-        self.bus = Bus(self.entity, name, self._signals, optional_signals=self._optional_signals, **kwargs)
-
-        super().__init__(*args, **kwargs)
-
-        self.active = False
-        self.queue = deque()
-        self.queue_sync = Event()
+        super().__init__(entity, name, clock, reset, *args, **kwargs)
 
         self.drive_obj = None
         self.drive_sync = Event()
-
-        self.pause = False
-        self._pause_generator = None
-        self._pause_cr = None
-
-        self.queue_occupancy_bytes = 0
-        self.queue_occupancy_frames = 0
-
-        self.width = len(self.bus.tdata)
-        self.byte_width = len(self.bus.tkeep)
 
         self.bus.tdata.setimmediatevalue(0)
         self.bus.tvalid.setimmediatevalue(0)
@@ -245,19 +216,10 @@ class UsPcieSource(object):
         self.bus.tkeep.setimmediatevalue(0)
         self.bus.tuser.setimmediatevalue(0)
 
-        self.byte_size = self.width // self.byte_width
-        self.byte_mask = 2**self.byte_size-1
-
-        assert self.width in [64, 128, 256, 512]
-        assert self.byte_size == 32
-
         self._init()
 
         cocotb.fork(self._run_source())
         cocotb.fork(self._run())
-
-    def _init(self):
-        pass
 
     async def _drive(self, obj):
         if self.drive_obj is not None:
@@ -273,31 +235,12 @@ class UsPcieSource(object):
         self.queue.append(frame)
         self.queue_sync.set()
 
-    def count(self):
-        return len(self.queue)
-
-    def empty(self):
-        return not self.queue
-
     def idle(self):
         return self.empty() and not self.active
 
     async def wait(self):
         while not self.idle():
             await RisingEdge(self.clock)
-
-    def set_pause_generator(self, generator=None):
-        if self._pause_cr is not None:
-            self._pause_cr.kill()
-            self._pause_cr = None
-
-        self._pause_generator = generator
-
-        if self._pause_generator is not None:
-            self._pause_cr = cocotb.fork(self._run_pause())
-
-    def clear_pause_generator(self):
-        self.set_pause_generator(None)
 
     async def _run_source(self):
         self.active = False
@@ -347,13 +290,8 @@ class UsPcieSource(object):
     async def _drive_frame(self, frame):
         raise NotImplementedError()
 
-    async def _run_pause(self):
-        for val in self._pause_generator:
-            self.pause = val
-            await RisingEdge(self.clock)
 
-
-class UsPcieSink(object):
+class UsPcieSink(UsPcieBase):
 
     _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
     _optional_signals = []
@@ -367,48 +305,20 @@ class UsPcieSink(object):
     _frame_obj = UsPcieFrame
 
     def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        self.log = SimLog("cocotb.%s.%s" % (entity._name, name))
-        self.entity = entity
-        self.clock = clock
-        self.reset = reset
-        self.bus = Bus(self.entity, name, self._signals, optional_signals=self._optional_signals, **kwargs)
-
-        super().__init__(*args, **kwargs)
-
-        self.active = False
-        self.queue = deque()
-        self.queue_sync = Event()
+        super().__init__(entity, name, clock, reset, *args, **kwargs)
 
         self.sample_obj = None
         self.sample_sync = Event()
 
-        self.pause = False
-        self._pause_generator = None
-        self._pause_cr = None
-
-        self.queue_occupancy_bytes = 0
-        self.queue_occupancy_frames = 0
         self.queue_occupancy_limit_bytes = None
         self.queue_occupancy_limit_frames = None
 
-        self.width = len(self.bus.tdata)
-        self.byte_width = len(self.bus.tkeep)
-
         self.bus.tready.setimmediatevalue(0)
-
-        self.byte_size = self.width // self.byte_width
-        self.byte_mask = 2**self.byte_size-1
-
-        assert self.width in [64, 128, 256, 512]
-        assert self.byte_size == 32
 
         self._init()
 
         cocotb.fork(self._run_sink())
         cocotb.fork(self._run())
-
-    def _init(self):
-        pass
 
     def recv(self):
         if self.queue:
@@ -417,12 +327,6 @@ class UsPcieSink(object):
             self.queue_occupancy_frames -= 1
             return frame
         return None
-
-    def count(self):
-        return len(self.queue)
-
-    def empty(self):
-        return not self.queue
 
     def full(self):
         if self.queue_occupancy_limit_bytes and self.queue_occupancy_bytes > self.queue_occupancy_limit_bytes:
@@ -443,19 +347,6 @@ class UsPcieSink(object):
             await First(self.queue_sync.wait(), Timer(timeout, timeout_unit))
         else:
             await self.queue_sync.wait()
-
-    def set_pause_generator(self, generator=None):
-        if self._pause_cr is not None:
-            self._pause_cr.kill()
-            self._pause_cr = None
-
-        self._pause_generator = generator
-
-        if self._pause_generator is not None:
-            self._pause_cr = cocotb.fork(self._run_pause())
-
-    def clear_pause_generator(self):
-        self.set_pause_generator(None)
 
     async def _run_sink(self):
         while True:
@@ -488,11 +379,6 @@ class UsPcieSink(object):
 
         self.queue.append(frame)
         self.queue_sync.set()
-
-    async def _run_pause(self):
-        for val in self._pause_generator:
-            self.pause = val
-            await RisingEdge(self.clock)
 
 
 class RqSource(UsPcieSource):
