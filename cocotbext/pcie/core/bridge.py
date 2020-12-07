@@ -130,12 +130,9 @@ class Bridge(Function):
         elif reg == 15:
             val = (self.intr_pin << 8) | self.intr_line
             # bridge control
-            if self.parity_error_response_enable:
-                val |= 1 << 16
-            if self.serr_enable:
-                val |= 1 << 17
-            if self.secondary_bus_reset:
-                val |= 1 << 22
+            val |= bool(self.parity_error_response_enable) << 16
+            val |= bool(self.serr_enable) << 17
+            val |= bool(self.secondary_bus_reset) << 22
             return val
         else:
             return await super().read_config_register(reg)
