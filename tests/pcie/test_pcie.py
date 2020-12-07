@@ -32,9 +32,9 @@ import cocotb
 from cocotb.log import SimLog
 from cocotb.regression import TestFactory
 
-from cocotbext.pcie import RootComplex, MemoryEndpoint, Device, Switch
-from cocotbext.pcie.caps import MsiCapability
-from cocotbext.pcie.utils import PcieId
+from cocotbext.pcie.core import RootComplex, MemoryEndpoint, Device, Switch
+from cocotbext.pcie.core.caps import MsiCapability
+from cocotbext.pcie.core.utils import PcieId
 
 
 class TestEndpoint(MemoryEndpoint, MsiCapability):
