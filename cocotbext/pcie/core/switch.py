@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 """
 
-from cocotb.log import SimLog
+import logging
 
 from .bridge import SwitchUpstreamPort, SwitchDownstreamPort
 from .utils import PcieId
@@ -33,7 +33,7 @@ class Switch(object):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log = SimLog(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
+        self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
         self.upstream_bridge = SwitchUpstreamPort()

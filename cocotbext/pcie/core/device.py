@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 """
 
-from cocotb.log import SimLog
+import logging
 
 from .endpoint import Endpoint
 from .port import Port
@@ -37,7 +37,7 @@ class Device(object):
         self._bus_num = 0
         self._device_num = 0
 
-        self.log = SimLog(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
+        self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
 
         self.default_function = Endpoint

@@ -22,8 +22,9 @@ THE SOFTWARE.
 
 """
 
+import logging
+
 import cocotb
-from cocotb.log import SimLog
 from cocotb.drivers import Bus
 from cocotb.triggers import RisingEdge, ReadOnly, Timer, First, Event
 
@@ -129,7 +130,7 @@ class UsPcieBase(object):
     _frame_obj = UsPcieFrame
 
     def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        self.log = SimLog("cocotb.%s.%s" % (entity._name, name))
+        self.log = logging.getLogger("cocotb.%s.%s" % (entity._name, name))
         self.entity = entity
         self.clock = clock
         self.reset = reset

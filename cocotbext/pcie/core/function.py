@@ -22,9 +22,9 @@ THE SOFTWARE.
 
 """
 
+import logging
 import struct
 
-from cocotb.log import SimLog
 from cocotb.triggers import Event, Timer, First
 from collections import deque
 
@@ -39,7 +39,7 @@ class Function(PmCapability, PcieCapability):
     def __init__(self, *args, **kwargs):
         self._pcie_id = PcieId()
 
-        self.log = SimLog(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
+        self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._pcie_id}]"
 
         self.upstream_tx_handler = None

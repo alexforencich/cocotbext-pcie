@@ -22,11 +22,11 @@ THE SOFTWARE.
 
 """
 
+import logging
 import mmap
 import struct
 
 import cocotb
-from cocotb.log import SimLog
 from cocotb.triggers import Event, Timer, First
 from collections import deque
 
@@ -42,7 +42,7 @@ class RootComplex(Switch):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log = SimLog(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
+        self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
         self.log.info("PCIe root complex model")
