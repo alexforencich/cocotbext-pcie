@@ -781,7 +781,7 @@ class UltraScalePlusPcieDevice(Device):
             while self.cq_np_queue and self.cq_np_req_count > 0:
                 tlp = self.cq_np_queue.popleft()
                 self.cq_np_req_count -= 1
-                self.cq_source.send(tlp.pack_us_cq())
+                await self.cq_source.send(tlp.pack_us_cq())
 
             # handle new requests
             while self.cq_queue:
@@ -793,13 +793,13 @@ class UltraScalePlusPcieDevice(Device):
                     if self.cq_np_req_count > 0:
                         # have credit, can forward
                         self.cq_np_req_count -= 1
-                        self.cq_source.send(tlp.pack_us_cq())
+                        await self.cq_source.send(tlp.pack_us_cq())
                     else:
                         # no credits, put it in the queue
                         self.cq_np_queue.append(tlp)
                 else:
                     # posted request
-                    self.cq_source.send(tlp.pack_us_cq())
+                    await self.cq_source.send(tlp.pack_us_cq())
 
             # output new cq_np_req_count
             if self.pcie_cq_np_req_count is not None:
@@ -807,9 +807,7 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_cc_logic(self):
         while True:
-            await self.cc_sink.wait()
-
-            tlp = Tlp_us.unpack_us_cc(self.cc_sink.recv(), self.enable_parity)
+            tlp = Tlp_us.unpack_us_cc(await self.cc_sink.recv(), self.enable_parity)
 
             if not tlp.completer_id_enable:
                 tlp.completer_id = PcieId(self.bus_num, self.device_num, tlp.completer_id.function)
@@ -819,9 +817,7 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_rq_logic(self):
         while True:
-            await self.rq_sink.wait()
-
-            tlp = Tlp_us.unpack_us_rq(self.rq_sink.recv(), self.enable_parity)
+            tlp = Tlp_us.unpack_us_rq(await self.rq_sink.recv(), self.enable_parity)
 
             if not tlp.requester_id_enable:
                 tlp.requester_id = PcieId(self.bus_num, self.device_num, tlp.requester_id.function)
@@ -865,7 +861,7 @@ class UltraScalePlusPcieDevice(Device):
 
             while self.rc_queue:
                 tlp = self.rc_queue.popleft()
-                self.rc_source.send(tlp.pack_us_rc())
+                await self.rc_source.send(tlp.pack_us_rc())
 
     async def _run_tx_fc_logic(self):
         while True:

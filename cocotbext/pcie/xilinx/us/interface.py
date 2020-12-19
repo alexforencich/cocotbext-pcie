@@ -229,7 +229,10 @@ class UsPcieSource(UsPcieBase):
 
         self.drive_obj = obj
 
-    def send(self, frame):
+    async def send(self, frame):
+        self.send_nowait(frame)
+
+    def send_nowait(self, frame):
         frame = UsPcieFrame(frame)
         self.queue_occupancy_bytes += len(frame)
         self.queue_occupancy_frames += 1
@@ -321,7 +324,13 @@ class UsPcieSink(UsPcieBase):
         cocotb.fork(self._run_sink())
         cocotb.fork(self._run())
 
-    def recv(self):
+    async def recv(self):
+        while self.empty():
+            self.queue_sync.clear()
+            await self.queue_sync.wait()
+        return self.recv_nowait()
+
+    def recv_nowait(self):
         if self.queue:
             frame = self.queue.popleft()
             self.queue_occupancy_bytes -= len(frame)

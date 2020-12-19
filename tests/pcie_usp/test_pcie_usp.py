@@ -316,9 +316,8 @@ class TB(object):
 
             tlp.tag = await self.alloc_tag()
 
-            self.rq_source.send(tlp.pack_us_rq())
-            await self.rc_sink.wait(timeout, timeout_unit)
-            pkt = self.rc_sink.recv()
+            await self.rq_source.send(tlp.pack_us_rq())
+            pkt = await self.rc_sink.recv()
 
             self.release_tag(tlp.tag)
 
@@ -348,9 +347,8 @@ class TB(object):
 
             tlp.tag = await self.alloc_tag()
 
-            self.rq_source.send(tlp.pack_us_rq())
-            await self.rc_sink.wait(timeout, timeout_unit)
-            pkt = self.rc_sink.recv()
+            await self.rq_source.send(tlp.pack_us_rq())
+            pkt = await self.rc_sink.recv()
 
             self.release_tag(tlp.tag)
 
@@ -390,7 +388,7 @@ class TB(object):
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
 
-            self.rq_source.send(tlp.pack_us_rq())
+            await self.rq_source.send(tlp.pack_us_rq())
 
             n += byte_length
             addr += byte_length
@@ -417,13 +415,12 @@ class TB(object):
 
             tlp.tag = await self.alloc_tag()
 
-            self.rq_source.send(tlp.pack_us_rq())
+            await self.rq_source.send(tlp.pack_us_rq())
 
             m = 0
 
             while m < byte_length:
-                await self.rc_sink.wait(timeout, timeout_unit)
-                pkt = self.rc_sink.recv()
+                pkt = await self.rc_sink.recv()
 
                 if not pkt:
                     raise Exception("Timeout")
@@ -452,8 +449,7 @@ class TB(object):
 
     async def _run_cq(self):
         while True:
-            await self.cq_sink.wait()
-            pkt = self.cq_sink.recv()
+            pkt = await self.cq_sink.recv()
 
             tlp = Tlp_us.unpack_us_cq(pkt)
 
@@ -492,7 +488,7 @@ class TB(object):
                 cpl.length = 1
 
                 self.log.debug("Completion: %s", repr(cpl))
-                self.cc_source.send(cpl.pack_us_cc())
+                await self.cc_source.send(cpl.pack_us_cc())
 
             elif (tlp.fmt_type == TlpType.IO_WRITE):
                 self.log.info("IO write")
@@ -523,7 +519,7 @@ class TB(object):
                     self.regions[region][addr+start_offset:addr+offset] = data[start_offset:offset]
 
                 self.log.debug("Completion: %s", repr(cpl))
-                self.cc_source.send(cpl.pack_us_cc())
+                await self.cc_source.send(cpl.pack_us_cc())
 
             if (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
                 self.log.info("Memory read")
@@ -561,7 +557,7 @@ class TB(object):
                     cpl.set_data(data[m*4:(m+cpl_dw_length)*4])
 
                     self.log.debug("Completion: %s", repr(cpl))
-                    self.cc_source.send(cpl.pack_us_cc())
+                    await self.cc_source.send(cpl.pack_us_cc())
 
                     m += cpl_dw_length
                     n += cpl_dw_length*4 - (addr & 3)
