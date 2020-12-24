@@ -26,7 +26,7 @@ from collections import deque
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ReadOnly, Timer, First
+from cocotb.triggers import RisingEdge, FallingEdge, Timer, First
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
@@ -876,7 +876,7 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_cfg_mgmt_logic(self):
         while True:
-            await ReadOnly()
+            await RisingEdge(self.user_clk)
 
             # configuration management
             function = self.cfg_mgmt_function_number.value.integer
@@ -885,8 +885,6 @@ class UltraScalePlusPcieDevice(Device):
             byte_enable = self.cfg_mgmt_byte_enable.value.integer
             cfg_mgmt_read = self.cfg_mgmt_read.value.integer
             cfg_mgmt_write = self.cfg_mgmt_write.value.integer
-
-            await RisingEdge(self.user_clk)
 
             if self.cfg_mgmt_read_write_done.value:
                 self.cfg_mgmt_read_write_done <= 0
@@ -981,14 +979,12 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_cfg_fc_logic(self):
         while True:
-            await ReadOnly()
+            await RisingEdge(self.user_clk)
 
             if isinstance(self.cfg_fc_sel, int):
                 sel = self.cfg_fc_sel
             else:
                 sel = self.cfg_fc_sel.value.integer
-
-            await RisingEdge(self.user_clk)
 
             if (sel == 0b010):
                 # Receive credits consumed
@@ -1050,7 +1046,7 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_cfg_ctrl_logic(self):
         while True:
-            await ReadOnly()
+            await RisingEdge(self.user_clk)
 
             if self.sys_reset is not None and not self.sys_reset.value:
                 self.config_space_enable = False
@@ -1059,8 +1055,6 @@ class UltraScalePlusPcieDevice(Device):
                     self.config_space_enable = bool(self.cfg_config_space_enable.value)
                 else:
                     self.config_space_enable = True
-
-            await RisingEdge(self.user_clk)
 
             # cfg_hot_reset_in
             # cfg_hot_reset_out
@@ -1087,7 +1081,7 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_cfg_int_logic(self):
         while True:
-            await ReadOnly()
+            await RisingEdge(self.user_clk)
 
             msi_int = 0
             msi_function_number = 0
@@ -1120,8 +1114,6 @@ class UltraScalePlusPcieDevice(Device):
                 msix_address = self.cfg_interrupt_msix_address.value.integer
             if self.cfg_interrupt_msix_data is not None:
                 msix_data = self.cfg_interrupt_msix_data.value.integer
-
-            await RisingEdge(self.user_clk)
 
             # INTx
             # cfg_interrupt_int

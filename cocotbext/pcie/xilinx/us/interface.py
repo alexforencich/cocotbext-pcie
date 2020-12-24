@@ -26,7 +26,7 @@ import logging
 
 import cocotb
 from cocotb.drivers import Bus
-from cocotb.triggers import RisingEdge, ReadOnly, Timer, First, Event
+from cocotb.triggers import RisingEdge, Timer, First, Event
 
 from collections import deque
 
@@ -250,14 +250,13 @@ class UsPcieSource(UsPcieBase):
         self.active = False
 
         while True:
-            await ReadOnly()
+            await RisingEdge(self.clock)
 
             # read handshake signals
             tready_sample = self.bus.tready.value
             tvalid_sample = self.bus.tvalid.value
 
             if self.reset is not None and self.reset.value:
-                await RisingEdge(self.clock)
                 self.active = False
                 self.bus.tdata <= 0
                 self.bus.tvalid <= 0
@@ -265,8 +264,6 @@ class UsPcieSource(UsPcieBase):
                 self.bus.tkeep <= 0
                 self.bus.tuser <= 0
                 continue
-
-            await RisingEdge(self.clock)
 
             if (tready_sample and tvalid_sample) or not tvalid_sample:
                 if self.drive_obj and not self.pause:
@@ -360,14 +357,13 @@ class UsPcieSink(UsPcieBase):
 
     async def _run_sink(self):
         while True:
-            await ReadOnly()
+            await RisingEdge(self.clock)
 
             # read handshake signals
             tready_sample = self.bus.tready.value
             tvalid_sample = self.bus.tvalid.value
 
             if self.reset is not None and self.reset.value:
-                await RisingEdge(self.clock)
                 self.bus.tready <= 0
                 continue
 
@@ -375,8 +371,6 @@ class UsPcieSink(UsPcieBase):
                 self.sample_obj = self._transaction_obj()
                 self.bus.sample(self.sample_obj)
                 self.sample_sync.set()
-
-            await RisingEdge(self.clock)
 
             self.bus.tready <= (not self.full() and not self.pause)
 
