@@ -38,7 +38,7 @@ PCIE_GEN_RATE = {
 }
 
 
-class Port(object):
+class Port:
     """Basic port"""
     def __init__(self, parent=None, rx_handler=None):
         self.parent = parent

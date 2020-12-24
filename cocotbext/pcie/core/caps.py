@@ -42,7 +42,7 @@ SEC_PCIE_EXT_CAP_ID = 0x0019
 SEC_PCIE_EXT_CAP_LEN = 3
 
 
-class PcieCap(object):
+class PcieCap:
     def __init__(self, cap_id, cap_ver=None, length=None, read=None, write=None, offset=None, next_cap=None):
         self.cap_id = cap_id
         self.cap_ver = cap_ver
@@ -80,7 +80,7 @@ class PcieExtCap(PcieCap):
         return await self.read(reg)
 
 
-class PcieCapList(object):
+class PcieCapList:
     def __init__(self):
         self.cap_type = PcieCap
         self.list = []
@@ -178,7 +178,7 @@ class PcieExtCapList(PcieCapList):
         self.end = 0x3ff
 
 
-class PmCapability(object):
+class PmCapability:
     """Power Management capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -211,7 +211,7 @@ class PmCapability(object):
         pass
 
 
-class PcieCapability(object):
+class PcieCapability:
     """PCI Express capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -739,7 +739,7 @@ class PcieCapability(object):
         pass
 
 
-class MsiCapability(object):
+class MsiCapability:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -870,7 +870,7 @@ class MsiCapability(object):
         await self.mem_write(self.msi_message_address, struct.pack('<L', data), attr=attr, tc=tc)
 
 
-class MsixCapability(object):
+class MsixCapability:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

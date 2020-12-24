@@ -55,7 +55,7 @@ class TestEndpoint(MemoryEndpoint, MsiCapability):
         self.add_io_region(1024)
 
 
-class TB(object):
+class TB:
     def __init__(self, dut):
         self.dut = dut
 

@@ -144,7 +144,7 @@ class CplStatus(enum.IntEnum):
     CA  = 0x4  # completer abort
 
 
-class Tlp(object):
+class Tlp:
     def __init__(self, tlp=None):
         self.fmt = 0
         self.type = 0

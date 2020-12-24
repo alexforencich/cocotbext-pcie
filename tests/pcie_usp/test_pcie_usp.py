@@ -45,7 +45,7 @@ from cocotbext.pcie.core.tlp import TlpType, CplStatus
 from cocotbext.pcie.core.utils import PcieId
 
 
-class TB(object):
+class TB:
     def __init__(self, dut):
         self.dut = dut
 

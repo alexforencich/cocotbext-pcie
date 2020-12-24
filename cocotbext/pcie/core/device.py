@@ -30,7 +30,7 @@ from .tlp import Tlp, TlpType
 from .utils import PcieId
 
 
-class Device(object):
+class Device:
     """PCIe device, container for multiple functions"""
     def __init__(self, eps=None, *args, **kwargs):
 

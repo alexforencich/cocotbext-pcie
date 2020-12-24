@@ -28,7 +28,7 @@ from .bridge import SwitchUpstreamPort, SwitchDownstreamPort
 from .utils import PcieId
 
 
-class Switch(object):
+class Switch:
     """Switch object, container for switch bridges and associated interconnect"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

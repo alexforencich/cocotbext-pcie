@@ -75,7 +75,7 @@ class PcieId(namedtuple("PcieId", ["bus", "device", "function"])):
         return f"{type(self).__name__}({self.bus}, {self.device}, {self.function})"
 
 
-class TreeItem(object):
+class TreeItem:
     def __init__(self):
         self._pcie_id = PcieId()
 

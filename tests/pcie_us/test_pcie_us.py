@@ -45,7 +45,7 @@ from cocotbext.pcie.xilinx.us.interface import RqSource, RcSink, CqSink, CcSourc
 from cocotbext.pcie.xilinx.us.tlp import Tlp_us
 
 
-class TB(object):
+class TB:
     def __init__(self, dut):
         self.dut = dut
 

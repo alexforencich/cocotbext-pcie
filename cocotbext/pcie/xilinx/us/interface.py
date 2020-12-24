@@ -45,7 +45,7 @@ def dword_parity(d):
     return p
 
 
-class UsPcieFrame(object):
+class UsPcieFrame:
     def __init__(self, frame=None):
         self.data = []
         self.byte_en = []
@@ -98,7 +98,7 @@ class UsPcieFrame(object):
         return len(self.data)
 
 
-class UsPcieTransaction(object):
+class UsPcieTransaction:
 
     _signals = ["tdata", "tlast", "tkeep", "tuser"]
 
@@ -116,7 +116,7 @@ class UsPcieTransaction(object):
         return f"{type(self).__name__}({', '.join(f'{s}={int(getattr(self, s))}' for s in self._signals)})"
 
 
-class UsPcieBase(object):
+class UsPcieBase:
 
     _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
     _optional_signals = []
