@@ -580,8 +580,8 @@ def test_pcie(request):
         os.path.join(os.path.dirname(__file__), f"{dut}.v"),
     ]
 
-    sim_build = os.path.join(tests_dir,
-        "sim_build_"+request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(tests_dir, "sim_build",
+        request.node.name.replace('[', '-').replace(']', ''))
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],

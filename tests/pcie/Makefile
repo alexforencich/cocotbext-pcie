@@ -31,7 +31,5 @@ TOPLEVEL = $(DUT)
 MODULE   = $(DUT)
 VERILOG_SOURCES += $(DUT).v
 
-SIM_BUILD ?= sim_build_$(MODULE)
-
 include $(shell cocotb-config --makefiles)/Makefile.sim
 

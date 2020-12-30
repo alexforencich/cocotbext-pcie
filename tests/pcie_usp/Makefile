@@ -39,8 +39,6 @@ export PARAM_RC_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),75,161)
 export PARAM_CQ_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),88,183)
 export PARAM_CC_USER_WIDTH ?= $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),33,81)
 
-SIM_BUILD ?= sim_build_$(MODULE)-$(PARAM_DATA_WIDTH)
-
 ifeq ($(SIM), icarus)
 	PLUSARGS += -fst
 
@@ -70,6 +68,8 @@ else ifeq ($(SIM), verilator)
 	endif
 endif
 
+include $(shell cocotb-config --makefiles)/Makefile.sim
+
 iverilog_dump.v:
 	echo 'module iverilog_dump();' > $@
 	echo 'initial begin' >> $@
@@ -79,9 +79,5 @@ iverilog_dump.v:
 	echo 'endmodule' >> $@
 
 clean::
-	@rm -rf sim_build_*
 	@rm -rf iverilog_dump.v
 	@rm -rf dump.fst $(TOPLEVEL).fst
-
-include $(shell cocotb-config --makefiles)/Makefile.sim
-
