@@ -258,7 +258,8 @@ class RootComplex(Switch):
 
     async def handle_io_read_tlp(self, tlp):
         if self.find_io_region(tlp.address):
-            self.log.info("IO read")
+            self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
+                tlp.address, tlp.first_be, tlp.tag)
 
             assert tlp.length == 1
 
@@ -304,7 +305,8 @@ class RootComplex(Switch):
 
     async def handle_io_write_tlp(self, tlp):
         if self.find_io_region(tlp.address):
-            self.log.info("IO write")
+            self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
+                tlp.address, tlp.first_be, tlp.tag, tlp.data[0])
 
             assert tlp.length == 1
 
@@ -348,7 +350,8 @@ class RootComplex(Switch):
 
     async def handle_mem_read_tlp(self, tlp):
         if self.find_region(tlp.address):
-            self.log.info("Memory read")
+            self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
 
             # perform operation
             addr = tlp.address
@@ -399,7 +402,8 @@ class RootComplex(Switch):
 
     async def handle_mem_write_tlp(self, tlp):
         if self.find_region(tlp.address):
-            self.log.info("Memory write")
+            self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
 
             # perform operation
             addr = tlp.address

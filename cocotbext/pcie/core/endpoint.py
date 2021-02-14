@@ -196,7 +196,8 @@ class MemoryEndpoint(Endpoint):
     async def handle_io_read_tlp(self, tlp):
         m = self.match_bar(tlp.address, True)
         if len(m) == 1:
-            self.log.info("IO read")
+            self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
+                tlp.address, tlp.first_be, tlp.tag)
 
             assert tlp.length == 1
 
@@ -244,7 +245,8 @@ class MemoryEndpoint(Endpoint):
     async def handle_io_write_tlp(self, tlp):
         m = self.match_bar(tlp.address, True)
         if len(m) == 1:
-            self.log.info("IO write")
+            self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
+                tlp.address, tlp.first_be, tlp.tag, tlp.data[0])
 
             assert tlp.length == 1
 
@@ -290,7 +292,8 @@ class MemoryEndpoint(Endpoint):
     async def handle_mem_read_tlp(self, tlp):
         m = self.match_bar(tlp.address)
         if len(m) == 1:
-            self.log.info("Memory read")
+            self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
 
             # perform operation
             region = m[0][0]
@@ -343,7 +346,8 @@ class MemoryEndpoint(Endpoint):
     async def handle_mem_write_tlp(self, tlp):
         m = self.match_bar(tlp.address)
         if len(m) == 1:
-            self.log.info("Memory write")
+            self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
 
             # perform operation
             region = m[0][0]
