@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 import enum
 
-from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType
+from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType, CplStatus
 from cocotbext.pcie.core.utils import PcieId
 from .interface import UsPcieFrame
 
@@ -268,7 +268,7 @@ class Tlp_us(Tlp):
         tlp.length = pkt.data[1] & 0x7ff
         if tlp.length > 0:
             tlp.fmt = TlpFmt.THREE_DW_DATA
-        tlp.status = (pkt.data[1] >> 11) & 7
+        tlp.status = CplStatus((pkt.data[1] >> 11) & 7)
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.completer_id_enable = pkt.data[2] >> 24 & 1 != 0
@@ -506,7 +506,7 @@ class Tlp_us(Tlp):
         tlp.length = pkt.data[1] & 0x7ff
         if tlp.length > 0:
             tlp.fmt = TlpFmt.THREE_DW_DATA
-        tlp.status = (pkt.data[1] >> 11) & 7
+        tlp.status = CplStatus((pkt.data[1] >> 11) & 7)
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.tag = pkt.data[2] & 0xff
