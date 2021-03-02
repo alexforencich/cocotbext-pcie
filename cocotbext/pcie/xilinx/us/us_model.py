@@ -26,7 +26,7 @@ from collections import deque
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, Timer, First
+from cocotb.triggers import RisingEdge, FallingEdge, Timer, First, Event
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
@@ -297,6 +297,14 @@ class UltraScalePcieDevice(Device):
         self.cq_np_queue = deque()
         self.cq_np_req_count = 0
         self.msg_queue = deque()
+
+        self.rq_np_queue = deque()
+        self.rq_np_queue_enqueue = Event()
+        self.rq_np_queue_dequeue = Event()
+        self.rq_np_limit = 16
+        self.cpld_credit_limit = 1024
+        self.cpld_credit_count = 0
+        self.cpld_credit_released = Event()
 
         self.config_space_enable = False
 
@@ -599,6 +607,7 @@ class UltraScalePcieDevice(Device):
 
         if self.rq_sink:
             cocotb.fork(self._run_rq_logic())
+            cocotb.fork(self._run_rq_np_queue_logic())
             cocotb.fork(self._run_rq_seq_num_logic())
         if self.rc_source:
             cocotb.fork(self._run_rc_logic())
@@ -664,6 +673,10 @@ class UltraScalePcieDevice(Device):
 
                         if tlp.status != CplStatus.SC:
                             tlp.error = ErrorCode.BAD_STATUS
+
+                        # TODO track individual operations
+                        self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
+                        self.cpld_credit_released.set()
 
                         self.rc_queue.append(tlp)
 
@@ -805,17 +818,53 @@ class UltraScalePcieDevice(Device):
         while True:
             tlp = Tlp_us.unpack_us_rq(await self.rq_sink.recv(), self.enable_parity)
 
+            if tlp.discontinue:
+                continue
+
             if not tlp.requester_id_enable:
                 tlp.requester_id = PcieId(self.bus_num, self.device_num, tlp.requester_id.function)
 
-            if not tlp.discontinue:
+            if (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE or
+                    tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
+                # non-posted request
+
+                while len(self.rq_np_queue) >= self.rq_np_limit:
+                    self.rq_np_queue_dequeue.clear()
+                    await self.rq_np_queue_dequeue.wait()
+
+                self.rq_np_queue.append(tlp)
+                self.rq_np_queue_enqueue.set()
+            else:
+                # posted request
+
                 if self.functions[tlp.requester_id.function].bus_master_enable:
-                    self.rq_seq_num.append(tlp.seq_num)
                     await self.send(Tlp(tlp))
+                    self.rq_seq_num.append(tlp.seq_num)
                 else:
                     self.log.warning("Bus mastering disabled")
-
                     # TODO: internal response
+
+    async def _run_rq_np_queue_logic(self):
+        while True:
+            self.rq_np_queue_enqueue.clear()
+            await self.rq_np_queue_enqueue.wait()
+
+            tlp = self.rq_np_queue.popleft()
+            self.rq_np_queue_dequeue.set()
+
+            # TODO track individual operations
+            while self.cpld_credit_count+tlp.get_data_credits() > self.cpld_credit_limit:
+                self.cpld_credit_released.clear()
+                await self.cpld_credit_released.wait()
+
+            self.cpld_credit_count += tlp.get_data_credits()
+
+            if self.functions[tlp.requester_id.function].bus_master_enable:
+                await self.send(Tlp(tlp))
+                self.rq_seq_num.append(tlp.seq_num)
+            else:
+                self.log.warning("Bus mastering disabled")
+                # TODO: internal response
 
     async def _run_rq_seq_num_logic(self):
         while True:
