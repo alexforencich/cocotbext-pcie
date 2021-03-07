@@ -37,6 +37,7 @@ from cocotb.log import SimLog
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event
 from cocotb.regression import TestFactory
 
+from cocotbext.axi import AxiStreamBus
 from cocotbext.pcie.core import RootComplex
 from cocotbext.pcie.core.tlp import TlpType, CplStatus
 from cocotbext.pcie.core.utils import PcieId
@@ -85,24 +86,20 @@ class TB:
             pcie_perstn1_out=dut.pcie_perstn1_out,
             phy_rdy_out=dut.phy_rdy_out,
 
-            rq_entity=dut,
-            rq_name="s_axis_rq",
+            rq_bus=AxiStreamBus.from_prefix(dut, "s_axis_rq"),
             pcie_rq_seq_num=dut.pcie_rq_seq_num,
             pcie_rq_seq_num_vld=dut.pcie_rq_seq_num_vld,
             pcie_rq_tag=dut.pcie_rq_tag,
             pcie_rq_tag_av=dut.pcie_rq_tag_av,
             pcie_rq_tag_vld=dut.pcie_rq_tag_vld,
 
-            rc_entity=dut,
-            rc_name="m_axis_rc",
+            rc_bus=AxiStreamBus.from_prefix(dut, "m_axis_rc"),
 
-            cq_entity=dut,
-            cq_name="m_axis_cq",
+            cq_bus=AxiStreamBus.from_prefix(dut, "m_axis_cq"),
             pcie_cq_np_req=dut.pcie_cq_np_req,
             pcie_cq_np_req_count=dut.pcie_cq_np_req_count,
 
-            cc_entity=dut,
-            cc_name="s_axis_cc",
+            cc_bus=AxiStreamBus.from_prefix(dut, "s_axis_cc"),
 
             pcie_tfc_nph_av=dut.pcie_tfc_nph_av,
             pcie_tfc_npd_av=dut.pcie_tfc_npd_av,
@@ -250,10 +247,10 @@ class TB:
         self.rc.make_port().connect(self.dev)
 
         # user logic
-        self.rq_source = RqSource(dut, "s_axis_rq", dut.user_clk, dut.user_reset)
-        self.rc_sink = RcSink(dut, "m_axis_rc", dut.user_clk, dut.user_reset)
-        self.cq_sink = CqSink(dut, "m_axis_cq", dut.user_clk, dut.user_reset)
-        self.cc_source = CcSource(dut, "s_axis_cc", dut.user_clk, dut.user_reset)
+        self.rq_source = RqSource(AxiStreamBus.from_prefix(dut, "s_axis_rq"), dut.user_clk, dut.user_reset)
+        self.rc_sink = RcSink(AxiStreamBus.from_prefix(dut, "m_axis_rc"), dut.user_clk, dut.user_reset)
+        self.cq_sink = CqSink(AxiStreamBus.from_prefix(dut, "m_axis_cq"), dut.user_clk, dut.user_reset)
+        self.cc_source = CcSource(AxiStreamBus.from_prefix(dut, "s_axis_cc"), dut.user_clk, dut.user_reset)
 
         self.regions = [None]*6
         self.regions[0] = mmap.mmap(-1, 1024*1024)

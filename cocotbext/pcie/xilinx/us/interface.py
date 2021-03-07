@@ -25,7 +25,6 @@ THE SOFTWARE.
 import logging
 
 import cocotb
-from cocotb.drivers import Bus
 from cocotb.triggers import RisingEdge, Timer, First, Event
 
 from collections import deque
@@ -118,9 +117,6 @@ class UsPcieTransaction:
 
 class UsPcieBase:
 
-    _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
-    _optional_signals = []
-
     _signal_widths = {"tvalid": 1, "tready": 1}
 
     _valid_signal = "tvalid"
@@ -129,12 +125,11 @@ class UsPcieBase:
     _transaction_obj = UsPcieTransaction
     _frame_obj = UsPcieFrame
 
-    def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        self.log = logging.getLogger("cocotb.%s.%s" % (entity._name, name))
-        self.entity = entity
+    def __init__(self, bus, clock, reset=None, *args, **kwargs):
+        self.bus = bus
         self.clock = clock
         self.reset = reset
-        self.bus = Bus(self.entity, name, self._signals, optional_signals=self._optional_signals, **kwargs)
+        self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}")
 
         super().__init__(*args, **kwargs)
 
@@ -194,9 +189,6 @@ class UsPcieBase:
 
 class UsPcieSource(UsPcieBase):
 
-    _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
-    _optional_signals = []
-
     _signal_widths = {"tvalid": 1, "tready": 1}
 
     _valid_signal = "tvalid"
@@ -205,8 +197,8 @@ class UsPcieSource(UsPcieBase):
     _transaction_obj = UsPcieTransaction
     _frame_obj = UsPcieFrame
 
-    def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        super().__init__(entity, name, clock, reset, *args, **kwargs)
+    def __init__(self, bus, clock, reset=None, *args, **kwargs):
+        super().__init__(bus, clock, reset, *args, **kwargs)
 
         self.drive_obj = None
         self.drive_sync = Event()
@@ -294,9 +286,6 @@ class UsPcieSource(UsPcieBase):
 
 class UsPcieSink(UsPcieBase):
 
-    _signals = ["tdata", "tlast", "tkeep", "tuser", "tvalid", "tready"]
-    _optional_signals = []
-
     _signal_widths = {"tvalid": 1, "tready": 1}
 
     _valid_signal = "tvalid"
@@ -305,8 +294,8 @@ class UsPcieSink(UsPcieBase):
     _transaction_obj = UsPcieTransaction
     _frame_obj = UsPcieFrame
 
-    def __init__(self, entity, name, clock, reset=None, *args, **kwargs):
-        super().__init__(entity, name, clock, reset, *args, **kwargs)
+    def __init__(self, bus, clock, reset=None, *args, **kwargs):
+        super().__init__(bus, clock, reset, *args, **kwargs)
 
         self.sample_obj = None
         self.sample_sync = Event()

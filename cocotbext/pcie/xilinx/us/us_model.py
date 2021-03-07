@@ -125,8 +125,7 @@ class UltraScalePcieDevice(Device):
             phy_rdy_out=None,
 
             # Requester reQuest Interface
-            rq_entity=None,
-            rq_name=None,
+            rq_bus=None,
             pcie_rq_seq_num=None,
             pcie_rq_seq_num_vld=None,
             pcie_rq_tag=None,
@@ -134,18 +133,15 @@ class UltraScalePcieDevice(Device):
             pcie_rq_tag_vld=None,
 
             # Requester Completion Interface
-            rc_entity=None,
-            rc_name=None,
+            rc_bus=None,
 
             # Completer reQuest Interface
-            cq_entity=None,
-            cq_name=None,
+            cq_bus=None,
             pcie_cq_np_req=None,
             pcie_cq_np_req_count=None,
 
             # Completer Completion Interface
-            cc_entity=None,
-            cc_name=None,
+            cc_bus=None,
 
             # Transmit Flow Control Interface
             pcie_tfc_nph_av=None,
@@ -347,15 +343,15 @@ class UltraScalePcieDevice(Device):
         self.pcie_rq_tag_av = init_signal(pcie_rq_tag_av, 2, 0)
         self.pcie_rq_tag_vld = init_signal(pcie_rq_tag_vld, 1, 0)
 
-        if rq_entity is not None and rq_name is not None:
-            self.rq_sink = RqSink(rq_entity, rq_name, self.user_clk, self.user_reset)
+        if rq_bus is not None:
+            self.rq_sink = RqSink(rq_bus, self.user_clk, self.user_reset)
             self.dw = self.rq_sink.width
 
         # Requester Completion Interface
         self.rc_source = None
 
-        if rc_entity is not None and rc_name is not None:
-            self.rc_source = RcSource(rc_entity, rc_name, self.user_clk, self.user_reset)
+        if rc_bus is not None:
+            self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset)
             self.dw = self.rc_source.width
 
         # Completer reQuest Interface
@@ -363,15 +359,15 @@ class UltraScalePcieDevice(Device):
         self.pcie_cq_np_req = init_signal(pcie_cq_np_req, 1)
         self.pcie_cq_np_req_count = init_signal(pcie_cq_np_req_count, 6, 0)
 
-        if cq_entity is not None and cq_name is not None:
-            self.cq_source = CqSource(cq_entity, cq_name, self.user_clk, self.user_reset)
+        if cq_bus is not None:
+            self.cq_source = CqSource(cq_bus, self.user_clk, self.user_reset)
             self.dw = self.cq_source.width
 
         # Completer Completion Interface
         self.cc_sink = None
 
-        if cc_entity is not None and cc_name is not None:
-            self.cc_sink = CcSink(cc_entity, cc_name, self.user_clk, self.user_reset)
+        if cc_bus is not None:
+            self.cc_sink = CcSink(cc_bus, self.user_clk, self.user_reset)
             self.dw = self.cc_sink.width
 
         # Transmit Flow Control Interface
