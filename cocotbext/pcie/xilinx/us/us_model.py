@@ -22,10 +22,9 @@ THE SOFTWARE.
 
 """
 
-from collections import deque
-
 import cocotb
 from cocotb.clock import Clock
+from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, First, Event
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
@@ -287,15 +286,14 @@ class UltraScalePcieDevice(Device):
 
         self.dw = None
 
-        self.rq_seq_num = deque()
-        self.rc_queue = deque()
-        self.cq_queue = deque()
-        self.cq_np_queue = deque()
+        self.rq_seq_num = Queue()
+        self.rc_queue = Queue()
+        self.cq_queue = Queue()
+        self.cq_np_queue = Queue()
         self.cq_np_req_count = 0
-        self.msg_queue = deque()
+        self.msg_queue = Queue()
 
-        self.rq_np_queue = deque()
-        self.rq_np_queue_enqueue = Event()
+        self.rq_np_queue = Queue()
         self.rq_np_queue_dequeue = Event()
         self.rq_np_limit = 16
         self.cpld_credit_limit = 1024
@@ -674,7 +672,7 @@ class UltraScalePcieDevice(Device):
                         self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
                         self.cpld_credit_released.set()
 
-                        self.rc_queue.append(tlp)
+                        self.rc_queue.put_nowait(tlp)
 
                         return
 
@@ -692,7 +690,7 @@ class UltraScalePcieDevice(Device):
                     tlp.bar_id = bar[0][0]
                     tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
                     tlp.completer_id = PcieId(self.bus_num, self.device_num, f.function_num)
-                    self.cq_queue.append(tlp)
+                    self.cq_queue.put_nowait(tlp)
 
                     return
 
@@ -718,7 +716,7 @@ class UltraScalePcieDevice(Device):
                     else:
                         tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
                     tlp.completer_id = PcieId(self.bus_num, self.device_num, f.function_num)
-                    self.cq_queue.append(tlp)
+                    self.cq_queue.put_nowait(tlp)
 
                     return
 
@@ -773,14 +771,14 @@ class UltraScalePcieDevice(Device):
 
             # handle completer requests
             # send any queued non-posted requests first
-            while self.cq_np_queue and self.cq_np_req_count > 0:
-                tlp = self.cq_np_queue.popleft()
+            while not self.cq_np_queue.empty() and self.cq_np_req_count > 0:
+                tlp = self.cq_np_queue.get_nowait()
                 self.cq_np_req_count -= 1
                 await self.cq_source.send(tlp.pack_us_cq())
 
             # handle new requests
-            while self.cq_queue:
-                tlp = self.cq_queue.popleft()
+            while not self.cq_queue.empty():
+                tlp = self.cq_queue.get_nowait()
 
                 if (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE or
                         tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
@@ -791,7 +789,7 @@ class UltraScalePcieDevice(Device):
                         await self.cq_source.send(tlp.pack_us_cq())
                     else:
                         # no credits, put it in the queue
-                        self.cq_np_queue.append(tlp)
+                        self.cq_np_queue.put_nowait(tlp)
                 else:
                     # posted request
                     await self.cq_source.send(tlp.pack_us_cq())
@@ -824,28 +822,24 @@ class UltraScalePcieDevice(Device):
                     tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
                 # non-posted request
 
-                while len(self.rq_np_queue) >= self.rq_np_limit:
+                while self.rq_np_queue.qsize() >= self.rq_np_limit:
                     self.rq_np_queue_dequeue.clear()
                     await self.rq_np_queue_dequeue.wait()
 
-                self.rq_np_queue.append(tlp)
-                self.rq_np_queue_enqueue.set()
+                self.rq_np_queue.put_nowait(tlp)
             else:
                 # posted request
 
                 if self.functions[tlp.requester_id.function].bus_master_enable:
                     await self.send(Tlp(tlp))
-                    self.rq_seq_num.append(tlp.seq_num)
+                    self.rq_seq_num.put_nowait(tlp.seq_num)
                 else:
                     self.log.warning("Bus mastering disabled")
                     # TODO: internal response
 
     async def _run_rq_np_queue_logic(self):
         while True:
-            self.rq_np_queue_enqueue.clear()
-            await self.rq_np_queue_enqueue.wait()
-
-            tlp = self.rq_np_queue.popleft()
+            tlp = await self.rq_np_queue.get()
             self.rq_np_queue_dequeue.set()
 
             # TODO track individual operations
@@ -857,7 +851,7 @@ class UltraScalePcieDevice(Device):
 
             if self.functions[tlp.requester_id.function].bus_master_enable:
                 await self.send(Tlp(tlp))
-                self.rq_seq_num.append(tlp.seq_num)
+                self.rq_seq_num.put_nowait(tlp.seq_num)
             else:
                 self.log.warning("Bus mastering disabled")
                 # TODO: internal response
@@ -868,11 +862,11 @@ class UltraScalePcieDevice(Device):
 
             if self.pcie_rq_seq_num is not None:
                 self.pcie_rq_seq_num_vld <= 0
-                if self.rq_seq_num:
-                    self.pcie_rq_seq_num <= self.rq_seq_num.popleft()
+                if not self.rq_seq_num.empty():
+                    self.pcie_rq_seq_num <= self.rq_seq_num.get_nowait()
                     self.pcie_rq_seq_num_vld <= 1
-            elif self.rq_seq_num:
-                self.rq_seq_num.popleft()
+            elif not self.rq_seq_num.empty():
+                self.rq_seq_num.get_nowait()
 
             # TODO pcie_rq_tag
 
@@ -880,9 +874,8 @@ class UltraScalePcieDevice(Device):
         while True:
             await RisingEdge(self.user_clk)
 
-            while self.rc_queue:
-                tlp = self.rc_queue.popleft()
-                await self.rc_source.send(tlp.pack_us_rc())
+            tlp = await self.rc_queue.get()
+            await self.rc_source.send(tlp.pack_us_rc())
 
     async def _run_tx_fc_logic(self):
         while True:

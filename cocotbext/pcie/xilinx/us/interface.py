@@ -25,9 +25,8 @@ THE SOFTWARE.
 import logging
 
 import cocotb
+from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, Timer, First, Event
-
-from collections import deque
 
 
 def dword_parity(d):
@@ -134,8 +133,10 @@ class UsPcieBase:
         super().__init__(*args, **kwargs)
 
         self.active = False
-        self.queue = deque()
-        self.queue_sync = Event()
+        self.queue = Queue()
+        self.idle_event = Event()
+        self.idle_event.set()
+        self.active_event = Event()
 
         self.pause = False
         self._pause_generator = None
@@ -157,10 +158,16 @@ class UsPcieBase:
         pass
 
     def count(self):
-        return len(self.queue)
+        return self.queue.qsize()
 
     def empty(self):
-        return not self.queue
+        return self.queue.empty()
+
+    def clear(self):
+        while not self.queue.empty():
+            self.queue.get_nowait()
+        self.idle_event.set()
+        self.active_event.clear()
 
     def idle(self):
         raise NotImplementedError()
@@ -222,21 +229,24 @@ class UsPcieSource(UsPcieBase):
         self.drive_obj = obj
 
     async def send(self, frame):
-        self.send_nowait(frame)
+        frame = UsPcieFrame(frame)
+        await self.queue.put(frame)
+        self.idle_event.clear()
+        self.queue_occupancy_bytes += len(frame)
+        self.queue_occupancy_frames += 1
 
     def send_nowait(self, frame):
         frame = UsPcieFrame(frame)
+        self.queue.put_nowait(frame)
+        self.idle_event.clear()
         self.queue_occupancy_bytes += len(frame)
         self.queue_occupancy_frames += 1
-        self.queue.append(frame)
-        self.queue_sync.set()
 
     def idle(self):
         return self.empty() and not self.active
 
     async def wait(self):
-        while not self.idle():
-            await RisingEdge(self.clock)
+        await self.idle_event.wait()
 
     async def _run_source(self):
         self.active = False
@@ -267,14 +277,12 @@ class UsPcieSource(UsPcieBase):
                 else:
                     self.bus.tvalid <= 0
                     self.active = bool(self.drive_obj)
+                    if not self.drive_obj:
+                        self.idle_event.set()
 
     async def _run(self):
         while True:
-            while not self.queue:
-                self.queue_sync.clear()
-                await self.queue_sync.wait()
-
-            frame = self.queue.popleft()
+            frame = await self.queue.get()
             self.queue_occupancy_bytes -= len(frame)
             self.queue_occupancy_frames -= 1
 
@@ -311,14 +319,18 @@ class UsPcieSink(UsPcieBase):
         cocotb.fork(self._run())
 
     async def recv(self):
-        while self.empty():
-            self.queue_sync.clear()
-            await self.queue_sync.wait()
-        return self.recv_nowait()
+        frame = await self.queue.get()
+        if self.queue.empty():
+            self.active_event.clear()
+        self.queue_occupancy_bytes -= len(frame)
+        self.queue_occupancy_frames -= 1
+        return frame
 
     def recv_nowait(self):
-        if self.queue:
-            frame = self.queue.popleft()
+        if not self.queue.empty():
+            frame = self.queue.get_nowait()
+            if self.queue.empty():
+                self.active_event.clear()
             self.queue_occupancy_bytes -= len(frame)
             self.queue_occupancy_frames -= 1
             return frame
@@ -338,11 +350,10 @@ class UsPcieSink(UsPcieBase):
     async def wait(self, timeout=0, timeout_unit='ns'):
         if not self.empty():
             return
-        self.queue_sync.clear()
         if timeout:
-            await First(self.queue_sync.wait(), Timer(timeout, timeout_unit))
+            await First(self.active_event.wait(), Timer(timeout, timeout_unit))
         else:
-            await self.queue_sync.wait()
+            await self.active_event.wait()
 
     async def _run_sink(self):
         while True:
@@ -370,8 +381,8 @@ class UsPcieSink(UsPcieBase):
         self.queue_occupancy_bytes += len(frame)
         self.queue_occupancy_frames += 1
 
-        self.queue.append(frame)
-        self.queue_sync.set()
+        self.queue.put_nowait(frame)
+        self.active_event.set()
 
 
 class RqSource(UsPcieSource):
