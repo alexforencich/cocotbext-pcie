@@ -308,8 +308,8 @@ class UsPcieSink(UsPcieBase):
         self.sample_obj = None
         self.sample_sync = Event()
 
-        self.queue_occupancy_limit_bytes = None
-        self.queue_occupancy_limit_frames = None
+        self.queue_occupancy_limit_bytes = -1
+        self.queue_occupancy_limit_frames = -1
 
         self.bus.tready.setimmediatevalue(0)
 
@@ -334,9 +334,9 @@ class UsPcieSink(UsPcieBase):
         return self._recv(frame)
 
     def full(self):
-        if self.queue_occupancy_limit_bytes and self.queue_occupancy_bytes > self.queue_occupancy_limit_bytes:
+        if self.queue_occupancy_limit_bytes > 0 and self.queue_occupancy_bytes > self.queue_occupancy_limit_bytes:
             return True
-        elif self.queue_occupancy_limit_frames and self.queue_occupancy_frames > self.queue_occupancy_limit_frames:
+        elif self.queue_occupancy_limit_frames > 0 and self.queue_occupancy_frames > self.queue_occupancy_limit_frames:
             return True
         else:
             return False
