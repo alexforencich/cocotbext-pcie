@@ -318,23 +318,20 @@ class UsPcieSink(UsPcieBase):
         cocotb.fork(self._run_sink())
         cocotb.fork(self._run())
 
-    async def recv(self):
-        frame = await self.queue.get()
+    def _recv(self, frame):
         if self.queue.empty():
             self.active_event.clear()
         self.queue_occupancy_bytes -= len(frame)
         self.queue_occupancy_frames -= 1
         return frame
 
+    async def recv(self):
+        frame = await self.queue.get()
+        return self._recv(frame)
+
     def recv_nowait(self):
-        if not self.queue.empty():
-            frame = self.queue.get_nowait()
-            if self.queue.empty():
-                self.active_event.clear()
-            self.queue_occupancy_bytes -= len(frame)
-            self.queue_occupancy_frames -= 1
-            return frame
-        return None
+        frame = self.queue.get_nowait()
+        return self._recv(frame)
 
     def full(self):
         if self.queue_occupancy_limit_bytes and self.queue_occupancy_bytes > self.queue_occupancy_limit_bytes:
