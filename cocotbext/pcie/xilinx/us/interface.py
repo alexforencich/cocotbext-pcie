@@ -25,7 +25,7 @@ THE SOFTWARE.
 import logging
 
 import cocotb
-from cocotb.queue import Queue
+from cocotb.queue import Queue, QueueFull
 from cocotb.triggers import RisingEdge, Timer, First, Event
 
 
@@ -134,6 +134,7 @@ class UsPcieBase:
 
         self.active = False
         self.queue = Queue()
+        self.dequeue_event = Event()
         self.idle_event = Event()
         self.idle_event.set()
         self.active_event = Event()
@@ -210,6 +211,9 @@ class UsPcieSource(UsPcieBase):
         self.drive_obj = None
         self.drive_sync = Event()
 
+        self.queue_occupancy_limit_bytes = -1
+        self.queue_occupancy_limit_frames = -1
+
         self.bus.tdata.setimmediatevalue(0)
         self.bus.tvalid.setimmediatevalue(0)
         self.bus.tlast.setimmediatevalue(0)
@@ -229,6 +233,9 @@ class UsPcieSource(UsPcieBase):
         self.drive_obj = obj
 
     async def send(self, frame):
+        while self.full():
+            self.dequeue_event.clear()
+            await self.dequeue_event.wait()
         frame = UsPcieFrame(frame)
         await self.queue.put(frame)
         self.idle_event.clear()
@@ -236,11 +243,21 @@ class UsPcieSource(UsPcieBase):
         self.queue_occupancy_frames += 1
 
     def send_nowait(self, frame):
+        if self.full():
+            raise QueueFull()
         frame = UsPcieFrame(frame)
         self.queue.put_nowait(frame)
         self.idle_event.clear()
         self.queue_occupancy_bytes += len(frame)
         self.queue_occupancy_frames += 1
+
+    def full(self):
+        if self.queue_occupancy_limit_bytes > 0 and self.queue_occupancy_bytes > self.queue_occupancy_limit_bytes:
+            return True
+        elif self.queue_occupancy_limit_frames > 0 and self.queue_occupancy_frames > self.queue_occupancy_limit_frames:
+            return True
+        else:
+            return False
 
     def idle(self):
         return self.empty() and not self.active
@@ -283,6 +300,7 @@ class UsPcieSource(UsPcieBase):
     async def _run(self):
         while True:
             frame = await self.queue.get()
+            self.dequeue_event.set()
             self.queue_occupancy_bytes -= len(frame)
             self.queue_occupancy_frames -= 1
 
