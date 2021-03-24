@@ -94,7 +94,7 @@ class Port:
 
             tlp = self.tx_queue.popleft()
             d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_speed]*self.cur_width*self.time_scale))
-            await Timer(d)
+            await Timer(d, 'step')
             cocotb.fork(self._transmit(tlp))
 
     async def _transmit(self, tlp):
