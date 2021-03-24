@@ -33,7 +33,6 @@ import cocotb_test.simulator
 import pytest
 
 import cocotb
-from cocotb.log import SimLog
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event
 from cocotb.regression import TestFactory
 
@@ -50,7 +49,7 @@ class TB:
     def __init__(self, dut):
         self.dut = dut
 
-        self.log = SimLog("cocotb.tb")
+        self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
 
         # PCIe
