@@ -354,6 +354,7 @@ class UltraScalePlusPcieDevice(Device):
 
         if rq_bus is not None:
             self.rq_sink = RqSink(rq_bus, self.user_clk, self.user_reset)
+            self.rq_sink.queue_occupancy_limit_frames = 2
             self.dw = self.rq_sink.width
 
         # Requester Completion Interface
@@ -361,6 +362,7 @@ class UltraScalePlusPcieDevice(Device):
 
         if rc_bus is not None:
             self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset)
+            self.rc_source.queue_occupancy_limit_frames = 2
             self.dw = self.rc_source.width
 
         # Completer reQuest Interface
@@ -370,6 +372,7 @@ class UltraScalePlusPcieDevice(Device):
 
         if cq_bus is not None:
             self.cq_source = CqSource(cq_bus, self.user_clk, self.user_reset)
+            self.cq_source.queue_occupancy_limit_frames = 2
             self.dw = self.cq_source.width
 
         # Completer Completion Interface
@@ -377,6 +380,7 @@ class UltraScalePlusPcieDevice(Device):
 
         if cc_bus is not None:
             self.cc_sink = CcSink(cc_bus, self.user_clk, self.user_reset)
+            self.cc_sink.queue_occupancy_limit_frames = 2
             self.dw = self.cc_sink.width
 
         # Transmit Flow Control Interface
