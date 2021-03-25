@@ -840,13 +840,30 @@ class UltraScalePlusPcieDevice(Device):
                     tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
                 # non-posted request
 
-                while self.rq_np_queue.qsize() >= self.rq_np_limit:
-                    self.rq_np_queue_dequeue.clear()
-                    await self.rq_np_queue_dequeue.wait()
+                if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
+                    # queue empty and have data credits; skip queue and send immediately to preserve ordering
 
-                self.rq_np_queue.put_nowait(tlp)
+                    # TODO track individual operations
+
+                    if self.functions[tlp.requester_id.function].bus_master_enable:
+                        self.cpld_credit_count += tlp.get_data_credits()
+
+                        await self.send(Tlp(tlp))
+                        self.rq_seq_num.put_nowait(tlp.seq_num)
+                    else:
+                        self.log.warning("Bus mastering disabled")
+                        # TODO: internal response
+                else:
+                    # queue not empty or insufficient data credits; enqueue
+
+                    # block to wait for space in queue
+                    while self.rq_np_queue.qsize() >= self.rq_np_limit:
+                        self.rq_np_queue_dequeue.clear()
+                        await self.rq_np_queue_dequeue.wait()
+
+                    self.rq_np_queue.put_nowait(tlp)
             else:
-                # posted request
+                # posted request; send immediately
 
                 if self.functions[tlp.requester_id.function].bus_master_enable:
                     await self.send(Tlp(tlp))
@@ -861,13 +878,15 @@ class UltraScalePlusPcieDevice(Device):
             self.rq_np_queue_dequeue.set()
 
             # TODO track individual operations
+
+            # wait for data credits
             while self.cpld_credit_count+tlp.get_data_credits() > self.cpld_credit_limit:
                 self.cpld_credit_released.clear()
                 await self.cpld_credit_released.wait()
 
-            self.cpld_credit_count += tlp.get_data_credits()
-
             if self.functions[tlp.requester_id.function].bus_master_enable:
+                self.cpld_credit_count += tlp.get_data_credits()
+
                 await self.send(Tlp(tlp))
                 self.rq_seq_num.put_nowait(tlp.seq_num)
             else:
