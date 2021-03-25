@@ -56,7 +56,7 @@ class Port:
         self.cur_speed = 1
         self.cur_width = 1
         self.link_delay = 0
-        self.link_delay_unit = None
+        self.link_delay_unit = 'ns'
 
         self.time_scale = 10**cocotb.utils._get_simulator_precision()
 
