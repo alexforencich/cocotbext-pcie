@@ -492,9 +492,9 @@ class RqSink(UsPcieSink):
                 if first:
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 8) & 0xf
+                    frame.seq_num = (sample.tuser >> 61) & 0x3f
 
                 frame.discontinue = bool(sample.tuser & (1 << 36))
-                frame.seq_num = (sample.tuser >> 61) & 0x3f
 
                 last_lane = 0
 
@@ -507,12 +507,12 @@ class RqSink(UsPcieSink):
                 if first:
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 4) & 0xf
+                    frame.seq_num = (sample.tuser >> 24) & 0xf
+
+                    if len(self.bus.tuser) == 62:
+                        frame.seq_num |= ((sample.tuser >> 60) & 0x3) << 4
 
                 frame.discontinue = bool(sample.tuser & (1 << 11))
-                frame.seq_num = (sample.tuser >> 24) & 0xf
-
-                if len(self.bus.tuser) == 62:
-                    frame.seq_num |= ((sample.tuser >> 60) & 0x3) << 4
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):
