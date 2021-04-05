@@ -58,7 +58,7 @@ class Port:
         self.link_delay = 0
         self.link_delay_unit = 'ns'
 
-        self.time_scale = 10**cocotb.utils._get_simulator_precision()
+        self.time_scale = cocotb.utils.get_sim_steps(1, 'sec')
 
         cocotb.fork(self._run_transmit())
 
