@@ -494,7 +494,7 @@ class RqSink(UsPcieSink):
                     frame.last_be = (sample.tuser >> 8) & 0xf
                     frame.seq_num = (sample.tuser >> 61) & 0x3f
 
-                frame.discontinue = bool(sample.tuser & (1 << 36))
+                frame.discontinue |= bool(sample.tuser & (1 << 36))
 
                 last_lane = 0
 
@@ -512,7 +512,7 @@ class RqSink(UsPcieSink):
                     if len(self.bus.tuser) == 62:
                         frame.seq_num |= ((sample.tuser >> 60) & 0x3) << 4
 
-                frame.discontinue = bool(sample.tuser & (1 << 11))
+                frame.discontinue |= bool(sample.tuser & (1 << 11))
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):
@@ -616,7 +616,7 @@ class RcSink(UsPcieSink):
             self.sample_obj = None
 
             if self.width == 512:
-                frame.discontinue = bool(sample.tuser & (1 << 96))
+                frame.discontinue |= bool(sample.tuser & (1 << 96))
 
                 last_lane = 0
 
@@ -627,7 +627,7 @@ class RcSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (i*4+97)) & 0xf)
                         last_lane = i
             else:
-                frame.discontinue = bool(sample.tuser & (1 << 42))
+                frame.discontinue |= bool(sample.tuser & (1 << 42))
 
                 last_lane = 0
 
@@ -737,7 +737,7 @@ class CqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 8) & 0xf
 
-                frame.discontinue = bool(sample.tuser & (1 << 96))
+                frame.discontinue |= bool(sample.tuser & (1 << 96))
 
                 last_lane = 0
 
@@ -752,7 +752,7 @@ class CqSink(UsPcieSink):
                     frame.first_be = sample.tuser & 0xf
                     frame.last_be = (sample.tuser >> 4) & 0xf
 
-                frame.discontinue = bool(sample.tuser & (1 << 41))
+                frame.discontinue |= bool(sample.tuser & (1 << 41))
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):
@@ -846,7 +846,7 @@ class CcSink(UsPcieSink):
             self.sample_obj = None
 
             if self.width == 512:
-                frame.discontinue = bool(sample.tuser & (1 << 16))
+                frame.discontinue |= bool(sample.tuser & (1 << 16))
 
                 last_lane = 0
 
@@ -856,7 +856,7 @@ class CcSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (i*4+17)) & 0xf)
                         last_lane = i
             else:
-                frame.discontinue = bool(sample.tuser & 1)
+                frame.discontinue |= bool(sample.tuser & 1)
 
                 for i in range(self.byte_width):
                     if sample.tkeep & (1 << i):
