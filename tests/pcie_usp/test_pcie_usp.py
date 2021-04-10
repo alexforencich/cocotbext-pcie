@@ -626,7 +626,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
     dev_bar1 = tb.rc.tree[0][0].bar_addr[1]
     dev_bar3 = tb.rc.tree[0][0].bar_addr[3]
 
-    for length in list(range(1, 32)):
+    for length in list(range(1, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = dev_bar3+offset
@@ -695,7 +695,7 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
             assert await tb.dma_mem_read(addr, length, 5000, 'ns') == test_data
 
-    for length in list(range(1, 32)):
+    for length in list(range(1, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation (DMA) length: %d offset: %d", length, offset)
             addr = io_base+offset

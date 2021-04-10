@@ -416,7 +416,7 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1, 32)):
+    for length in list(range(1, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = ti.bar_addr[3]+offset
@@ -467,7 +467,7 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1, 32)):
+    for length in list(range(1, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[3]+offset
@@ -505,7 +505,7 @@ async def run_test_dma(dut, ep_index=0):
 
             assert await ep.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1, 32)):
+    for length in list(range(1, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation (DMA) length: %d offset: %d", length, offset)
             addr = io_base+offset
