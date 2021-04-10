@@ -166,6 +166,7 @@ class Tlp:
         self.last_be = 0
         self.lower_address = 0
         self.address = 0
+        self.ph = 0
         self.register_number = 0
         self.data = []
 
@@ -189,6 +190,7 @@ class Tlp:
             self.last_be = tlp.last_be
             self.lower_address = tlp.lower_address
             self.address = tlp.address
+            self.ph = tlp.ph
             self.register_number = tlp.register_number
             self.data = tlp.data
 
@@ -415,6 +417,7 @@ class Tlp:
                 if self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
                     pkt.append((self.address >> 32) & 0xffffffff)
                 dw = self.address & 0xfffffffc
+                dw |= self.ph & 0x3
                 pkt.append(dw)
         elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
                 self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
@@ -472,8 +475,10 @@ class Tlp:
                 tlp.dest_id = PcieId.from_int(pkt[2] >> 16)
             elif tlp.fmt == TlpFmt.THREE_DW or tlp.fmt == TlpFmt.THREE_DW_DATA:
                 tlp.address = pkt[2] & 0xfffffffc
+                tlp.ph = pkt[2] & 0x3
             elif tlp.fmt == TlpFmt.FOUR_DW or tlp.fmt == TlpFmt.FOUR_DW_DATA:
                 tlp.address = (pkt[2] & 0xffffffff) << 32 | pkt[3] & 0xfffffffc
+                tlp.ph = pkt[3] & 0x3
         elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
             tlp.byte_count = pkt[1] & 0xfff
@@ -519,6 +524,7 @@ class Tlp:
                 self.last_be == other.last_be and
                 self.lower_address == other.lower_address and
                 self.address == other.address and
+                self.ph == other.ph and
                 self.register_number == other.register_number
             )
         return False
@@ -545,5 +551,6 @@ class Tlp:
             f"last_be={self.last_be:#x}, "
             f"lower_address={self.lower_address:#x}, "
             f"address={self.address:#x}, "
+            f"ph={self.ph}, "
             f"register_number={self.register_number:#x})"
         )
