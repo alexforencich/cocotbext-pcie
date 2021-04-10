@@ -749,6 +749,8 @@ class MsiCapability:
         self.msi_multiple_message_enable = 0
         self.msi_64bit_address_capable = 0
         self.msi_per_vector_mask_capable = 0
+        self.msi_extended_message_data_capable = 0
+        self.msi_extended_message_data_enable = 0
         self.msi_message_address = 0
         self.msi_message_data = 0
         self.msi_mask_bits = 0
@@ -765,7 +767,7 @@ class MsiCapability:
     +---------------------------------+----------------+----------------+
     |                          Message Address                          |   1   0x04
     +---------------------------------+---------------------------------+
-    |                                 |           Message Data          |   2   0x08
+    |      Extended Message Data      |           Message Data          |   2   0x08
     +---------------------------------+---------------------------------+
 
     MSI Capability (64 bit)
@@ -778,7 +780,7 @@ class MsiCapability:
     +-------------------------------------------------------------------+
     |                       Message Upper Address                       |   2   0x08
     +---------------------------------+---------------------------------+
-    |                                 |           Message Data          |   3   0x0C
+    |      Extended Message Data      |           Message Data          |   3   0x0C
     +---------------------------------+---------------------------------+
 
     MSI Capability (32 bit with per-vector masking)
@@ -789,7 +791,7 @@ class MsiCapability:
     +---------------------------------+----------------+----------------+
     |                          Message Address                          |   1   0x04
     +-------------------------------------------------------------------+
-    |                                 |           Message Data          |   2   0x08
+    |      Extended Message Data      |           Message Data          |   2   0x08
     +---------------------------------+---------------------------------+
     |                             Mask Bits                             |   3   0x0C
     +-------------------------------------------------------------------+
@@ -806,7 +808,7 @@ class MsiCapability:
     +-------------------------------------------------------------------+
     |                       Message Upper Address                       |   2   0x08
     +---------------------------------+---------------------------------+
-    |                                 |           Message Data          |   3   0x0C
+    |      Extended Message Data      |           Message Data          |   3   0x0C
     +---------------------------------+---------------------------------+
     |                             Mask Bits                             |   4   0x10
     +-------------------------------------------------------------------+
@@ -822,6 +824,8 @@ class MsiCapability:
             val |= (self.msi_multiple_message_enable & 0x7) << 20
             val |= bool(self.msi_64bit_address_capable) << 23
             val |= bool(self.msi_per_vector_mask_capable) << 24
+            val |= bool(self.msi_extended_message_data_capable) << 25
+            val |= bool(self.msi_extended_message_data_enable) << 26
             return val
         elif reg == 1:
             # Message address
@@ -831,7 +835,10 @@ class MsiCapability:
             return (self.msi_message_address >> 32) & 0xffffffff
         elif reg == (3 if self.msi_64bit_address_capable else 2):
             # Message data
-            return self.msi_message_data & 0xffff
+            if self.msi_extended_message_data_capable:
+                return self.msi_message_data & 0xffffffff
+            else:
+                return self.msi_message_data & 0xffff
         elif reg == (4 if self.msi_64bit_address_capable else 3) and self.msi_per_vector_mask_capable:
             # Mask bits
             return self.msi_mask_bits & 0xffffffff
@@ -845,6 +852,8 @@ class MsiCapability:
             if mask & 0x4:
                 self.msi_enable = (data & 1 << 16 != 0)
                 self.msi_multiple_message_enable = (data >> 20) & 0x7
+                if self.msi_extended_message_data_capable:
+                    self.msi_extended_message_data_enable = (data & 1 << 16 != 0)
         elif reg == 1:
             # Message address
             self.msi_message_address = byte_mask_update(self.msi_message_address, mask, data & 0xfffffffc)
@@ -853,7 +862,10 @@ class MsiCapability:
             self.msi_message_address = byte_mask_update(self.msi_message_address, mask << 4, data << 32)
         elif reg == (3 if self.msi_64bit_address_capable else 2):
             # Message data
-            self.msi_message_data = byte_mask_update(self.msi_message_data, mask & 0x3, data) & 0xffff
+            if self.msi_extended_message_data_capable:
+                self.msi_message_data = byte_mask_update(self.msi_message_data, mask, data) & 0xffffffff
+            else:
+                self.msi_message_data = byte_mask_update(self.msi_message_data, mask & 0x3, data) & 0xffff
         elif reg == (4 if self.msi_64bit_address_capable else 3) and self.msi_per_vector_mask_capable:
             # Mask bits
             self.msi_mask_bits = byte_mask_update(self.msi_mask_bits, mask, data) & 0xffffffff
@@ -866,7 +878,12 @@ class MsiCapability:
             print("MSI message number out of range")
             return
 
-        data = self.msi_message_data & ~(2**self.msi_multiple_message_enable-1) | number
+        if self.msi_extended_message_data_capable and self.msi_extended_message_data_enable:
+            data = self.msi_message_data
+        else:
+            data = self.msi_message_data & 0xffff
+
+        data = (data & ~(2**self.msi_multiple_message_enable-1)) | number
         await self.mem_write(self.msi_message_address, struct.pack('<L', data), attr=attr, tc=tc)
 
 
