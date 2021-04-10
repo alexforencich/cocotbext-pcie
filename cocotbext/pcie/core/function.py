@@ -61,6 +61,8 @@ class Function(PmCapability, PcieCapability):
         self.vendor_id = 0
         self.device_id = 0
         # command register
+        self.io_space_enable = False
+        self.memory_space_enable = False
         self.bus_master_enable = False
         self.parity_error_response = False
         self.serr_enable = False
@@ -165,6 +167,8 @@ class Function(PmCapability, PcieCapability):
         elif reg == 1:
             val = 0
             # command
+            val |= bool(self.io_space_enable) << 0
+            val |= bool(self.memory_space_enable) << 1
             val |= bool(self.bus_master_enable) << 2
             val |= bool(self.parity_error_response) << 6
             val |= bool(self.serr_enable) << 8
@@ -198,6 +202,8 @@ class Function(PmCapability, PcieCapability):
         if reg == 1:
             # command
             if mask & 0x1:
+                self.io_space_enable = (data & 1 << 0 != 0)
+                self.memory_space_enable = (data & 1 << 1 != 0)
                 self.bus_master_enable = (data & 1 << 2 != 0)
                 self.parity_error_response = (data & 1 << 6 != 0)
             if mask & 0x2:
