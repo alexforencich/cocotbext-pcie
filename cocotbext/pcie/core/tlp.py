@@ -29,7 +29,7 @@ from .utils import PcieId
 
 
 # TLP formats
-class TlpFmt(enum.Enum):
+class TlpFmt(enum.IntEnum):
     THREE_DW       = 0x0
     FOUR_DW        = 0x1
     THREE_DW_DATA  = 0x2
