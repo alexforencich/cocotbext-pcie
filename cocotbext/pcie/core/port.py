@@ -23,6 +23,7 @@ THE SOFTWARE.
 """
 
 import cocotb
+from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer
 import cocotb.utils
 from collections import deque
@@ -45,8 +46,7 @@ class Port:
         self.other = None
         self.rx_handler = rx_handler
 
-        self.tx_queue = deque()
-        self.tx_sync = Event()
+        self.tx_queue = Queue()
         self.tx_scheduled = False
 
         self.max_speed = 3
@@ -83,16 +83,11 @@ class Port:
         self.link_delay = self.port_delay + port.port_delay
 
     async def send(self, tlp):
-        self.tx_queue.append(tlp)
-        self.tx_sync.set()
+        await self.tx_queue.put(tlp)
 
     async def _run_transmit(self):
         while True:
-            while not self.tx_queue:
-                self.tx_sync.clear()
-                await self.tx_sync.wait()
-
-            tlp = self.tx_queue.popleft()
+            tlp = await self.tx_queue.get()
             d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_speed]*self.cur_width*self.time_scale))
             await Timer(d, 'step')
             cocotb.fork(self._transmit(tlp))

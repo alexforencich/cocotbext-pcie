@@ -27,8 +27,8 @@ import mmap
 import struct
 
 import cocotb
+from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
-from collections import deque
 
 from .version import __version__
 from .bridge import HostBridge, RootPort
@@ -61,7 +61,7 @@ class RootComplex(Switch):
 
         self.downstream_tag_recv_queues = {}
 
-        self.rx_cpl_queues = [deque() for k in range(256)]
+        self.rx_cpl_queues = [Queue() for k in range(256)]
         self.rx_cpl_sync = [Event() for k in range(256)]
 
         self.rx_tlp_handler = {}
@@ -208,7 +208,7 @@ class RootComplex(Switch):
     async def handle_tlp(self, tlp):
         if (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
-            self.rx_cpl_queues[tlp.tag].append(tlp)
+            self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
             await self.rx_tlp_handler[tlp.fmt_type](tlp)
@@ -222,8 +222,8 @@ class RootComplex(Switch):
         queue = self.rx_cpl_queues[tag]
         sync = self.rx_cpl_sync[tag]
 
-        if queue:
-            return queue.popleft()
+        if not queue.empty():
+            return queue.get_nowait()
 
         sync.clear()
         if timeout:
@@ -231,8 +231,8 @@ class RootComplex(Switch):
         else:
             await sync.wait()
 
-        if queue:
-            return queue.popleft()
+        if not queue.empty():
+            return queue.get_nowait()
 
         return None
 

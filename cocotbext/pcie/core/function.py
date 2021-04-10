@@ -25,8 +25,8 @@ THE SOFTWARE.
 import logging
 import struct
 
+from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
-from collections import deque
 
 from .caps import PcieCapList, PcieExtCapList
 from .caps import PmCapability, PcieCapability
@@ -49,7 +49,7 @@ class Function(PmCapability, PcieCapability):
         self.tag_active = [False]*256
         self.tag_release = Event()
 
-        self.rx_cpl_queues = [deque() for k in range(256)]
+        self.rx_cpl_queues = [Queue() for k in range(256)]
         self.rx_cpl_sync = [Event() for k in range(256)]
 
         self.rx_tlp_handler = {}
@@ -336,7 +336,7 @@ class Function(PmCapability, PcieCapability):
         if (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
             # completion
-            self.rx_cpl_queues[tlp.tag].append(tlp)
+            self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
             # call registered handler
@@ -352,8 +352,8 @@ class Function(PmCapability, PcieCapability):
         queue = self.rx_cpl_queues[tag]
         sync = self.rx_cpl_sync[tag]
 
-        if queue:
-            return queue.popleft()
+        if not queue.empty():
+            return queue.get_nowait()
 
         sync.clear()
         if timeout:
@@ -361,8 +361,8 @@ class Function(PmCapability, PcieCapability):
         else:
             await sync.wait()
 
-        if queue:
-            return queue.popleft()
+        if not queue.empty():
+            return queue.get_nowait()
 
         return None
 
