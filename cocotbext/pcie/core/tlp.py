@@ -394,7 +394,9 @@ class Tlp:
         dw |= (self.th & 1) << 16
         dw |= (self.ln & 1) << 17
         dw |= (self.attr & 0x4) << 16
+        dw |= (self.tag & 0x100) << 11
         dw |= (self.tc & 0x7) << 20
+        dw |= (self.tag & 0x200) << 14
         dw |= (self.type & 0x1f) << 24
         dw |= (self.fmt & 0x7) << 29
         pkt.append(dw)
@@ -407,7 +409,7 @@ class Tlp:
                 self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE):
             dw = self.first_be & 0xf
             dw |= (self.last_be & 0xf) << 4
-            dw |= (self.tag & 0xff) << 8
+            dw |= (self.tag & 0x0ff) << 8
             dw |= int(self.requester_id) << 16
             pkt.append(dw)
 
@@ -430,7 +432,7 @@ class Tlp:
             dw |= int(self.completer_id) << 16
             pkt.append(dw)
             dw = self.lower_address & 0x7f
-            dw |= (self.tag & 0xff) << 8
+            dw |= (self.tag & 0x0ff) << 8
             dw |= int(self.requester_id) << 16
             pkt.append(dw)
         else:
@@ -454,7 +456,9 @@ class Tlp:
         tlp.th = (pkt[0] >> 16) & 1
         tlp.ln = (pkt[0] >> 17) & 1
         tlp.attr |= (pkt[0] >> 16) & 0x4
+        tlp.tag = (pkt[0] >> 11) & 0x100
         tlp.tc = (pkt[0] >> 20) & 0x7
+        tlp.tag |= (pkt[0] >> 14) & 0x200
         tlp.type = (pkt[0] >> 24) & 0x1f
         tlp.fmt = (pkt[0] >> 29) & 0x7
 
@@ -470,7 +474,7 @@ class Tlp:
                 tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
             tlp.first_be = pkt[1] & 0xf
             tlp.last_be = (pkt[1] >> 4) & 0xf
-            tlp.tag = (pkt[1] >> 8) & 0xff
+            tlp.tag |= (pkt[1] >> 8) & 0x0ff
             tlp.requester_id = PcieId.from_int(pkt[1] >> 16)
 
             if (tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0 or
@@ -490,7 +494,7 @@ class Tlp:
             tlp.status = (pkt[1] >> 13) & 0x7
             tlp.completer_id = PcieId.from_int(pkt[1] >> 16)
             tlp.lower_address = pkt[2] & 0x7f
-            tlp.tag = (pkt[2] >> 8) & 0xff
+            tlp.tag |= (pkt[2] >> 8) & 0x0ff
             tlp.requester_id = PcieId.from_int(pkt[2] >> 16)
 
             if tlp.byte_count == 0:
