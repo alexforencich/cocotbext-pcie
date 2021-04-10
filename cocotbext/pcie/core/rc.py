@@ -1276,10 +1276,17 @@ class RootComplex(Switch):
 
                 await self.capability_write_dword(cur_func, PCIE_CAP_ID, 8, new_dev_ctrl)
 
+                # configure command register
+                val = await self.config_read_word(cur_func, 0x04)
+
+                # enable IO and memory space
+                val |= (1 << 0) | (1 << 1)
+
                 if enable_bus_mastering:
                     # enable bus mastering
-                    val = await self.config_read_word(cur_func, 0x04)
-                    await self.config_write_word(cur_func, 0x04, val | 4)
+                    val |= 1 << 2
+
+                await self.config_write_word(cur_func, 0x04, val | 4)
 
                 if configure_msi:
                     # configure MSI
