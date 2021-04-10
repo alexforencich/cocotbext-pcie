@@ -412,11 +412,9 @@ class Tlp:
                 dw |= int(self.dest_id) << 16
                 pkt.append(dw)
             else:
-                dw = 0
                 if self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
-                    dw |= (self.address >> 32) & 0xffffffff
-                    pkt.append(dw)
-                dw |= self.address & 0xfffffffc
+                    pkt.append((self.address >> 32) & 0xffffffff)
+                dw = self.address & 0xfffffffc
                 pkt.append(dw)
         elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
                 self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
