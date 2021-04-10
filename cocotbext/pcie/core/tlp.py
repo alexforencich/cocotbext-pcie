@@ -149,6 +149,7 @@ class Tlp:
         self.fmt = 0
         self.type = 0
         self.tc = 0
+        self.ln = 0
         self.th = 0
         self.td = 0
         self.ep = 0
@@ -174,6 +175,7 @@ class Tlp:
             self.fmt = tlp.fmt
             self.type = tlp.type
             self.tc = tlp.tc
+            self.ln = tlp.ln
             self.td = tlp.td
             self.ep = tlp.ep
             self.attr = tlp.attr
@@ -390,6 +392,7 @@ class Tlp:
         dw |= (self.ep & 1) << 14
         dw |= (self.td & 1) << 15
         dw |= (self.th & 1) << 16
+        dw |= (self.ln & 1) << 17
         dw |= (self.attr & 0x4) << 16
         dw |= (self.tc & 0x7) << 20
         dw |= (self.type & 0x1f) << 24
@@ -449,6 +452,7 @@ class Tlp:
         tlp.ep = (pkt[0] >> 14) & 1
         tlp.td = (pkt[0] >> 15) & 1
         tlp.th = (pkt[0] >> 16) & 1
+        tlp.ln = (pkt[0] >> 17) & 1
         tlp.attr |= (pkt[0] >> 16) & 0x4
         tlp.tc = (pkt[0] >> 20) & 0x7
         tlp.type = (pkt[0] >> 24) & 0x1f
@@ -508,6 +512,7 @@ class Tlp:
                 self.fmt == other.fmt and
                 self.type == other.type and
                 self.tc == other.tc and
+                self.ln == other.ln and
                 self.td == other.td and
                 self.ep == other.ep and
                 self.attr == other.attr and
@@ -534,6 +539,7 @@ class Tlp:
             f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
             f"fmt_type={self.fmt_type}, "
             f"tc={self.tc:#x}, "
+            f"ln={self.ln:#x}, "
             f"th={self.th:#x}, "
             f"td={self.td:#x}, "
             f"ep={self.ep:#x}, "
