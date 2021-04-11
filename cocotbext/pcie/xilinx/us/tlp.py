@@ -271,7 +271,6 @@ class Tlp_us(Tlp):
         tlp.status = CplStatus((pkt.data[1] >> 11) & 7)
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
-        tlp.completer_id_enable = pkt.data[2] >> 24 & 1 != 0
         tlp.tag = pkt.data[2] & 0xff
         tlp.completer_id_enable = bool(pkt.data[2] & (1 << 24))
         tlp.tc = (pkt.data[2] >> 25) & 0x7
