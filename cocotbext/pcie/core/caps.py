@@ -647,17 +647,17 @@ class PcieCapability:
         if reg == 2:
             # Device control
             if mask & 0x1:
-                self.correctable_error_reporting_enable = (data & 1 << 0 != 0)
-                self.non_fatal_error_reporting_enable = (data & 1 << 1 != 0)
-                self.fatal_error_reporting_enable = (data & 1 << 2 != 0)
-                self.unsupported_request_reporting_enable = (data & 1 << 3 != 0)
-                self.enable_relaxed_ordering = (data & 1 << 4 != 0)
+                self.correctable_error_reporting_enable = bool(data & 1 << 0)
+                self.non_fatal_error_reporting_enable = bool(data & 1 << 1)
+                self.fatal_error_reporting_enable = bool(data & 1 << 2)
+                self.unsupported_request_reporting_enable = bool(data & 1 << 3)
+                self.enable_relaxed_ordering = bool(data & 1 << 4)
                 self.max_payload_size = (data >> 5) & 0x7
             if mask & 0x2:
-                self.extended_tag_field_enable = (data & 1 << 8 != 0)
-                self.phantom_functions_enable = (data & 1 << 9 != 0)
-                self.aux_power_pm_enable = (data & 1 << 10 != 0)
-                self.enable_no_snoop = (data & 1 << 11 != 0)
+                self.extended_tag_field_enable = bool(data & 1 << 8)
+                self.phantom_functions_enable = bool(data & 1 << 9)
+                self.aux_power_pm_enable = bool(data & 1 << 10)
+                self.enable_no_snoop = bool(data & 1 << 11)
                 self.max_read_request_size = (data >> 12) & 0x7
                 if data & 1 << 15:
                     await self.initiate_function_level_reset()
@@ -677,16 +677,16 @@ class PcieCapability:
             # Link control
             if mask & 0x1:
                 self.aspm_control = data & 3
-                self.read_completion_boundary = (data & 1 << 4 != 0)
+                self.read_completion_boundary = bool(data & 1 << 4)
                 if data & 1 << 5:
                     await self.initiate_retrain_link()
-                self.common_clock_configuration = (data & 1 << 6 != 0)
-                self.extended_synch = (data & 1 << 7 != 0)
+                self.common_clock_configuration = bool(data & 1 << 6)
+                self.extended_synch = bool(data & 1 << 7)
             if mask & 0x2:
-                self.enable_clock_power_management = (data & 1 << 8 != 0)
-                self.hardware_autonomous_width_disable = (data & 1 << 9 != 0)
-                self.link_bandwidth_management_interrupt_enable = (data & 1 << 10 != 0)
-                self.link_autonomous_bandwidth_interrupt_enable = (data & 1 << 11 != 0)
+                self.enable_clock_power_management = bool(data & 1 << 8)
+                self.hardware_autonomous_width_disable = bool(data & 1 << 9)
+                self.link_bandwidth_management_interrupt_enable = bool(data & 1 << 10)
+                self.link_autonomous_bandwidth_interrupt_enable = bool(data & 1 << 11)
                 self.drs_signalling_control = (data >> 14) & 0x3
             # Link status
             if mask & 0x8:
@@ -697,19 +697,19 @@ class PcieCapability:
         elif reg == 6:
             # Slot control
             if mask & 0x1:
-                self.attention_button_pressed_enable = (data & 1 << 0 != 0)
-                self.power_fault_detected_enable = (data & 1 << 1 != 0)
-                self.mrl_sensor_changed_enable = (data & 1 << 2 != 0)
-                self.presence_detect_changed_enable = (data & 1 << 3 != 0)
-                self.command_completed_interrupt_enable = (data & 1 << 4 != 0)
-                self.hot_plug_interrupt_enable = (data & 1 << 5 != 0)
+                self.attention_button_pressed_enable = bool(data & 1 << 0)
+                self.power_fault_detected_enable = bool(data & 1 << 1)
+                self.mrl_sensor_changed_enable = bool(data & 1 << 2)
+                self.presence_detect_changed_enable = bool(data & 1 << 3)
+                self.command_completed_interrupt_enable = bool(data & 1 << 4)
+                self.hot_plug_interrupt_enable = bool(data & 1 << 5)
                 self.attention_indicator_control = (data >> 6) & 0x3
             if mask & 0x2:
                 self.power_indicator_control = (data >> 8) & 0x3
-                self.power_controller_control = (data & 1 << 10 != 0)
-                self.electromechanical_interlock_control = (data & 1 << 11 != 0)
-                self.data_link_layer_state_changed_enable = (data & 1 << 12 != 0)
-                self.auto_slot_power_limit_disable = (data & 1 << 13 != 0)
+                self.power_controller_control = bool(data & 1 << 10)
+                self.electromechanical_interlock_control = bool(data & 1 << 11)
+                self.data_link_layer_state_changed_enable = bool(data & 1 << 12)
+                self.auto_slot_power_limit_disable = bool(data & 1 << 13)
             # Slot status
             if mask & 0x4:
                 if data & 1 << 16:
@@ -727,11 +727,11 @@ class PcieCapability:
         elif reg == 7:
             # Root control
             if mask & 0x1:
-                self.system_error_on_correctable_error_enable = (data & 1 << 0 != 0)
-                self.system_error_on_non_fatal_error_enable = (data & 1 << 1 != 0)
-                self.system_error_on_fatal_error_enable = (data & 1 << 2 != 0)
-                self.pme_interrupt_enable = (data & 1 << 3 != 0)
-                self.crs_software_visibility_enable = (data & 1 << 4 != 0)
+                self.system_error_on_correctable_error_enable = bool(data & 1 << 0)
+                self.system_error_on_non_fatal_error_enable = bool(data & 1 << 1)
+                self.system_error_on_fatal_error_enable = bool(data & 1 << 2)
+                self.pme_interrupt_enable = bool(data & 1 << 3)
+                self.crs_software_visibility_enable = bool(data & 1 << 4)
         elif reg == 8:
             # Root status
             if mask & 0x4:
@@ -741,34 +741,34 @@ class PcieCapability:
             # Device control 2
             if mask & 0x1:
                 self.completion_timeout_value = data & 0xf
-                self.completion_timeout_disable = (data & 1 << 4 != 0)
-                self.ari_forwarding_enable = (data & 1 << 5 != 0)
-                self.atomic_op_requester_enable = (data & 1 << 6 != 0)
-                self.atomic_op_egress_blocking = (data & 1 << 7 != 0)
+                self.completion_timeout_disable = bool(data & 1 << 4)
+                self.ari_forwarding_enable = bool(data & 1 << 5)
+                self.atomic_op_requester_enable = bool(data & 1 << 6)
+                self.atomic_op_egress_blocking = bool(data & 1 << 7)
             if mask & 0x2:
-                self.ido_request_enable = (data & 1 << 8 != 0)
-                self.ido_completion_enable = (data & 1 << 9 != 0)
-                self.ltr_mechanism_enable = (data & 1 << 10 != 0)
-                self.emergency_power_reduction_request = (data & 1 << 11 != 0)
-                self.ten_bit_tag_requester_enable = (data & 1 << 12 != 0)
+                self.ido_request_enable = bool(data & 1 << 8)
+                self.ido_completion_enable = bool(data & 1 << 9)
+                self.ltr_mechanism_enable = bool(data & 1 << 10)
+                self.emergency_power_reduction_request = bool(data & 1 << 11)
+                self.ten_bit_tag_requester_enable = bool(data & 1 << 12)
                 self.obff_enable = (data >> 13) & 0x3
-                self.end_end_tlp_prefix_blocking = (data & 1 << 15 != 0)
+                self.end_end_tlp_prefix_blocking = bool(data & 1 << 15)
             # Device status 2
         elif reg == 12:
             # Link control 2
             if mask & 0x1:
                 self.target_link_speed = data & 0xf
-                self.enter_compliance = (data & 1 << 4 != 0)
-                self.hardware_autonomous_speed_disable = (data & 1 << 5 != 0)
+                self.enter_compliance = bool(data & 1 << 4)
+                self.hardware_autonomous_speed_disable = bool(data & 1 << 5)
                 self.transmit_margin = self.transmit_margin & 0x6 | (data >> 7) & 0x1
             if mask & 0x2:
                 self.transmit_margin = self.transmit_margin & 0x1 | (data >> 7) & 0x6
-                self.enter_modified_compliance = (data & 1 << 10 != 0)
-                self.compliance_sos = (data & 1 << 11 != 0)
+                self.enter_modified_compliance = bool(data & 1 << 10)
+                self.compliance_sos = bool(data & 1 << 11)
                 self.compliance_preset_deemphasis = (data >> 12) & 0xff
             # Link status 2
             if mask & 0x4:
-                self.link_equalization_8gt_request = (data & 1 << 21 != 0)
+                self.link_equalization_8gt_request = bool(data & 1 << 21)
                 if data & 1 << 31:
                     self.drs_message_received = False
 
@@ -890,10 +890,10 @@ class MsiCapability:
         if reg == 0:
             # Message control
             if mask & 0x4:
-                self.msi_enable = (data & 1 << 16 != 0)
+                self.msi_enable = bool(data & 1 << 16)
                 self.msi_multiple_message_enable = (data >> 20) & 0x7
                 if self.msi_extended_message_data_capable:
-                    self.msi_extended_message_data_enable = (data & 1 << 16 != 0)
+                    self.msi_extended_message_data_enable = bool(data & 1 << 16)
         elif reg == 1:
             # Message address
             self.msi_message_address = byte_mask_update(self.msi_message_address, mask, data & 0xfffffffc)
@@ -976,8 +976,8 @@ class MsixCapability:
         if reg == 0:
             # Message control
             if mask & 0x8:
-                self.msix_function_mask = (data & 1 << 30 != 0)
-                self.msix_enable = (data & 1 << 31 != 0)
+                self.msix_function_mask = bool(data & 1 << 30)
+                self.msix_enable = bool(data & 1 << 31)
 
     async def issue_msix_interrupt(self, addr, data, attr=0, tc=0):
         if not self.msix_enable:
