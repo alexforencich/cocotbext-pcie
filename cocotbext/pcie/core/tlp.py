@@ -149,16 +149,16 @@ class Tlp:
         self.fmt = 0
         self.type = 0
         self.tc = 0
-        self.ln = 0
-        self.th = 0
-        self.td = 0
-        self.ep = 0
+        self.ln = False
+        self.th = False
+        self.td = False
+        self.ep = False
         self.attr = 0
         self.at = 0
         self.length = 0
         self.completer_id = PcieId(0, 0, 0)
         self.status = 0
-        self.bcm = 0
+        self.bcm = False
         self.byte_count = 0
         self.requester_id = PcieId(0, 0, 0)
         self.dest_id = PcieId(0, 0, 0)
@@ -389,10 +389,10 @@ class Tlp:
         dw = self.length & 0x3ff
         dw |= (self.at & 0x3) << 10
         dw |= (self.attr & 0x3) << 12
-        dw |= (self.ep & 1) << 14
-        dw |= (self.td & 1) << 15
-        dw |= (self.th & 1) << 16
-        dw |= (self.ln & 1) << 17
+        dw |= bool(self.ep) << 14
+        dw |= bool(self.td) << 15
+        dw |= bool(self.th) << 16
+        dw |= bool(self.ln) << 17
         dw |= (self.attr & 0x4) << 16
         dw |= (self.tag & 0x100) << 11
         dw |= (self.tc & 0x7) << 20
@@ -427,7 +427,7 @@ class Tlp:
         elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
                 self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
             dw = self.byte_count & 0xfff
-            dw |= (self.bcm & 1) << 12
+            dw |= bool(self.bcm) << 12
             dw |= (self.status & 0x7) << 13
             dw |= int(self.completer_id) << 16
             pkt.append(dw)
@@ -451,10 +451,10 @@ class Tlp:
         tlp.length = pkt[0] & 0x3ff
         tlp.at = (pkt[0] >> 10) & 0x3
         tlp.attr = (pkt[0] >> 12) & 0x3
-        tlp.ep = (pkt[0] >> 14) & 1
-        tlp.td = (pkt[0] >> 15) & 1
-        tlp.th = (pkt[0] >> 16) & 1
-        tlp.ln = (pkt[0] >> 17) & 1
+        tlp.ep = bool(pkt[0] & 1 << 14)
+        tlp.td = bool(pkt[0] & 1 << 15)
+        tlp.th = bool(pkt[0] & 1 << 16)
+        tlp.ln = bool(pkt[0] & 1 << 17)
         tlp.attr |= (pkt[0] >> 16) & 0x4
         tlp.tag = (pkt[0] >> 11) & 0x100
         tlp.tc = (pkt[0] >> 20) & 0x7
@@ -490,7 +490,7 @@ class Tlp:
         elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
             tlp.byte_count = pkt[1] & 0xfff
-            tlp.bcm = (pkt[1] >> 12) & 1
+            tlp.bcm = bool(pkt[1] & 1 << 12)
             tlp.status = (pkt[1] >> 13) & 0x7
             tlp.completer_id = PcieId.from_int(pkt[1] >> 16)
             tlp.lower_address = pkt[2] & 0x7f
