@@ -251,6 +251,7 @@ class PcieCapability:
         self.unsupported_request_detected = False
         self.aux_power_detected = False
         self.transactions_pending = False
+        self.emergency_power_reduction_detected = False
         # Link capabilities
         self.max_link_speed = 0
         self.max_link_width = 0
@@ -273,6 +274,7 @@ class PcieCapability:
         self.hardware_autonomous_width_disable = False
         self.link_bandwidth_management_interrupt_enable = False
         self.link_autonomous_bandwidth_interrupt_enable = False
+        self.drs_signalling_control = 0
         # Link status
         self.current_link_speed = 0
         self.negotiated_link_width = 0
@@ -306,6 +308,7 @@ class PcieCapability:
         self.power_controller_control = False
         self.electromechanical_interlock_control = False
         self.data_link_layer_state_changed_enable = False
+        self.auto_slot_power_limit_disable = False
         # Slot status
         self.attention_button_pressed = False
         self.power_fault_detected = False
@@ -343,6 +346,9 @@ class PcieCapability:
         self.extended_fmt_field_supported = False
         self.end_end_tlp_prefix_supported = False
         self.max_end_end_tlp_prefix = 0
+        self.emergency_power_reduction_supported = 0
+        self.emergency_power_reduction_initialization_required = False
+        self.frs_supported = False
         # Device control 2
         self.completion_timeout_value = 0
         self.completion_timeout_disable = False
@@ -352,28 +358,40 @@ class PcieCapability:
         self.ido_request_enable = False
         self.ido_completion_enable = False
         self.ltr_mechanism_enable = False
+        self.emergency_power_reduction_request = False
+        self.ten_bit_tag_requester_enable = False
         self.obff_enable = 0
         self.end_end_tlp_prefix_blocking = False
         # Device status 2
         # Link capabilities 2
         self.supported_link_speeds = 0
         self.crosslink_supported = False
+        self.lower_skp_os_generation_supported_speeds = 0
+        self.lower_skp_os_reception_supported_speeds = 0
+        self.retimer_presence_detect_supported = False
+        self.two_retimers_presence_detect_supported = False
+        self.drs_supported = False
         # Link control 2
         self.target_link_speed = 0
         self.enter_compliance = False
         self.hardware_autonomous_speed_disable = False
-        self.selectable_de_emphasis = False
+        self.selectable_deemphasis = False
         self.transmit_margin = 0
         self.enter_modified_compliance = False
         self.compliance_sos = False
-        self.compliance_preset_de_emphasis = 0
+        self.compliance_preset_deemphasis = 0
         # Link status 2
-        self.current_de_emphasis_level = False
-        self.equalization_complete = False
-        self.equalization_phase_1_successful = False
-        self.equalization_phase_2_successful = False
-        self.equalization_phase_3_successful = False
-        self.link_equalization_request = False
+        self.current_deemphasis_level = False
+        self.equalization_8gt_complete = False
+        self.equalization_8gt_phase_1_successful = False
+        self.equalization_8gt_phase_2_successful = False
+        self.equalization_8gt_phase_3_successful = False
+        self.link_equalization_8gt_request = False
+        self.retimer_presence_detected = False
+        self.two_retimers_presence_detected = False
+        self.crosslink_resolution = 0
+        self.downstream_component_presence = 0
+        self.drs_message_received = False
         # Slot capabilities 2
         # Slot control 2
         # Slot status 2
@@ -457,6 +475,7 @@ class PcieCapability:
             val |= bool(self.unsupported_request_detected) << 19
             val |= bool(self.aux_power_detected) << 20
             val |= bool(self.transactions_pending) << 21
+            val |= bool(self.emergency_power_reduction_detected) << 22
             return val
         elif reg == 3:
             # Link capabilities
@@ -483,6 +502,7 @@ class PcieCapability:
             val |= bool(self.hardware_autonomous_width_disable) << 9
             val |= bool(self.link_bandwidth_management_interrupt_enable) << 10
             val |= bool(self.link_autonomous_bandwidth_interrupt_enable) << 11
+            val |= (self.drs_signalling_control & 0x3) << 14
             # Link status
             val |= (self.current_link_speed & 0xf) << 16
             val |= (self.negotiated_link_width & 0x3f) << 20
@@ -522,6 +542,7 @@ class PcieCapability:
             val |= bool(self.power_controller_control) << 10
             val |= bool(self.electromechanical_interlock_control) << 11
             val |= bool(self.data_link_layer_state_changed_enable) << 12
+            val |= bool(self.auto_slot_power_limit_disable) << 13
             # Slot status
             val |= bool(self.attention_button_pressed) << 16
             val |= bool(self.power_fault_detected) << 17
@@ -566,6 +587,9 @@ class PcieCapability:
             val |= bool(self.extended_fmt_field_supported) << 20
             val |= bool(self.end_end_tlp_prefix_supported) << 21
             val |= (self.max_end_end_tlp_prefix & 0x3) << 22
+            val |= (self.emergency_power_reduction_supported & 0x3) << 24
+            val |= bool(self.emergency_power_reduction_initialization_required) << 26
+            val |= bool(self.frs_supported) << 31
             return val
         elif reg == 10:
             # Device control 2
@@ -577,6 +601,8 @@ class PcieCapability:
             val |= bool(self.ido_request_enable) << 8
             val |= bool(self.ido_completion_enable) << 9
             val |= bool(self.ltr_mechanism_enable) << 10
+            val |= bool(self.emergency_power_reduction_request) << 11
+            val |= bool(self.ten_bit_tag_requester_enable) << 12
             val |= (self.obff_enable & 0x3) << 13
             val |= bool(self.end_end_tlp_prefix_blocking) << 15
             # Device status 2
@@ -585,24 +611,34 @@ class PcieCapability:
             # Link capabilities 2
             val = (self.supported_link_speeds & 0x7f) << 1
             val |= bool(self.crosslink_supported) << 8
+            val |= (self.lower_skp_os_generation_supported_speeds & 0x7f) << 9
+            val |= (self.lower_skp_os_reception_supported_speeds & 0x7f) << 16
+            val |= bool(self.retimer_presence_detect_supported) << 23
+            val |= bool(self.two_retimers_presence_detect_supported) << 24
+            val |= bool(self.drs_supported) << 31
             return val
         elif reg == 12:
             # Link control 2
             val = self.target_link_speed & 0xf
             val |= bool(self.enter_compliance) << 4
             val |= bool(self.hardware_autonomous_speed_disable) << 5
-            val |= bool(self.selectable_de_emphasis) << 6
+            val |= bool(self.selectable_deemphasis) << 6
             val |= (self.transmit_margin & 0x7) << 7
             val |= bool(self.enter_modified_compliance) << 10
             val |= bool(self.compliance_sos) << 11
-            val |= (self.compliance_preset_de_emphasis & 0xf) << 12
+            val |= (self.compliance_preset_deemphasis & 0xf) << 12
             # Link status 2
-            val |= bool(self.current_de_emphasis_level) << 16
-            val |= bool(self.equalization_complete) << 17
-            val |= bool(self.equalization_phase_1_successful) << 18
-            val |= bool(self.equalization_phase_2_successful) << 19
-            val |= bool(self.equalization_phase_3_successful) << 20
-            val |= bool(self.link_equalization_request) << 21
+            val |= bool(self.current_deemphasis_level) << 16
+            val |= bool(self.equalization_8gt_complete) << 17
+            val |= bool(self.equalization_8gt_phase_1_successful) << 18
+            val |= bool(self.equalization_8gt_phase_2_successful) << 19
+            val |= bool(self.equalization_8gt_phase_3_successful) << 20
+            val |= bool(self.link_equalization_8gt_request) << 21
+            val |= bool(self.retimer_presence_detected) << 22
+            val |= bool(self.two_retimers_presence_detected) << 23
+            val |= (self.crosslink_resolution & 0x3) << 24
+            val |= (self.downstream_component_presence & 0x7) << 27
+            val |= bool(self.drs_message_received) << 31
             return val
         else:
             return 0
@@ -635,10 +671,8 @@ class PcieCapability:
                     self.fatal_error_detected = False
                 if data & 1 << 19:
                     self.unsupported_request_detected = False
-                if data & 1 << 20:
-                    self.aux_power_detected = False
-                if data & 1 << 21:
-                    self.transactions_pending = False
+                if data & 1 << 22:
+                    self.emergency_power_reduction_detected = False
         elif reg == 4:
             # Link control
             if mask & 0x1:
@@ -653,6 +687,7 @@ class PcieCapability:
                 self.hardware_autonomous_width_disable = (data & 1 << 9 != 0)
                 self.link_bandwidth_management_interrupt_enable = (data & 1 << 10 != 0)
                 self.link_autonomous_bandwidth_interrupt_enable = (data & 1 << 11 != 0)
+                self.drs_signalling_control = (data >> 14) & 0x3
             # Link status
             if mask & 0x8:
                 if data & 1 << 30:
@@ -674,6 +709,7 @@ class PcieCapability:
                 self.power_controller_control = (data & 1 << 10 != 0)
                 self.electromechanical_interlock_control = (data & 1 << 11 != 0)
                 self.data_link_layer_state_changed_enable = (data & 1 << 12 != 0)
+                self.auto_slot_power_limit_disable = (data & 1 << 13 != 0)
             # Slot status
             if mask & 0x4:
                 if data & 1 << 16:
@@ -713,6 +749,8 @@ class PcieCapability:
                 self.ido_request_enable = (data & 1 << 8 != 0)
                 self.ido_completion_enable = (data & 1 << 9 != 0)
                 self.ltr_mechanism_enable = (data & 1 << 10 != 0)
+                self.emergency_power_reduction_request = (data & 1 << 11 != 0)
+                self.ten_bit_tag_requester_enable = (data & 1 << 12 != 0)
                 self.obff_enable = (data >> 13) & 0x3
                 self.end_end_tlp_prefix_blocking = (data & 1 << 15 != 0)
             # Device status 2
@@ -727,10 +765,12 @@ class PcieCapability:
                 self.transmit_margin = self.transmit_margin & 0x1 | (data >> 7) & 0x6
                 self.enter_modified_compliance = (data & 1 << 10 != 0)
                 self.compliance_sos = (data & 1 << 11 != 0)
-                self.compliance_preset_de_emphasis = (data >> 12) & 0xff
+                self.compliance_preset_deemphasis = (data >> 12) & 0xff
             # Link status 2
             if mask & 0x4:
-                self.link_equalization_request = (data & 1 << 21 != 0)
+                self.link_equalization_8gt_request = (data & 1 << 21 != 0)
+                if data & 1 << 31:
+                    self.drs_message_received = False
 
     async def initiate_function_level_reset(self):
         pass
