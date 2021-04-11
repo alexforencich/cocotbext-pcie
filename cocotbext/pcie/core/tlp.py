@@ -148,16 +148,16 @@ class Tlp:
     def __init__(self, tlp=None):
         self.fmt = 0
         self.type = 0
-        self.tc = 0
+        self.tc = TlpTc.TC0
         self.ln = False
         self.th = False
         self.td = False
         self.ep = False
-        self.attr = 0
-        self.at = 0
+        self.attr = TlpAttr(0)
+        self.at = TlpAt.DEFAULT
         self.length = 0
         self.completer_id = PcieId(0, 0, 0)
-        self.status = 0
+        self.status = CplStatus.SC
         self.bcm = False
         self.byte_count = 0
         self.requester_id = PcieId(0, 0, 0)
@@ -449,15 +449,15 @@ class Tlp:
         tlp = cls()
 
         tlp.length = pkt[0] & 0x3ff
-        tlp.at = (pkt[0] >> 10) & 0x3
+        tlp.at = TlpAt((pkt[0] >> 10) & 0x3)
         tlp.attr = (pkt[0] >> 12) & 0x3
         tlp.ep = bool(pkt[0] & 1 << 14)
         tlp.td = bool(pkt[0] & 1 << 15)
         tlp.th = bool(pkt[0] & 1 << 16)
         tlp.ln = bool(pkt[0] & 1 << 17)
-        tlp.attr |= (pkt[0] >> 16) & 0x4
+        tlp.attr = TlpAttr(tlp.attr | (pkt[0] >> 16) & 0x4)
         tlp.tag = (pkt[0] >> 11) & 0x100
-        tlp.tc = (pkt[0] >> 20) & 0x7
+        tlp.tc = TlpTc((pkt[0] >> 20) & 0x7)
         tlp.tag |= (pkt[0] >> 14) & 0x200
         tlp.type = (pkt[0] >> 24) & 0x1f
         tlp.fmt = (pkt[0] >> 29) & 0x7
@@ -491,7 +491,7 @@ class Tlp:
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
             tlp.byte_count = pkt[1] & 0xfff
             tlp.bcm = bool(pkt[1] & 1 << 12)
-            tlp.status = (pkt[1] >> 13) & 0x7
+            tlp.status = CplStatus((pkt[1] >> 13) & 0x7)
             tlp.completer_id = PcieId.from_int(pkt[1] >> 16)
             tlp.lower_address = pkt[2] & 0x7f
             tlp.tag |= (pkt[2] >> 8) & 0x0ff
@@ -542,13 +542,13 @@ class Tlp:
         return (
             f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
             f"fmt_type={self.fmt_type}, "
-            f"tc={self.tc}, "
+            f"tc={self.tc!s}, "
             f"ln={self.ln}, "
             f"th={self.th}, "
             f"td={self.td}, "
             f"ep={self.ep}, "
-            f"attr={self.attr}, "
-            f"at={self.at}, "
+            f"attr={self.attr!s}, "
+            f"at={self.at!s}, "
             f"length={self.length}, "
             f"completer_id={repr(self.completer_id)}, "
             f"status={self.status!s}, "

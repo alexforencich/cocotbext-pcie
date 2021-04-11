@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 import enum
 
-from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType, CplStatus
+from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType, TlpAt, TlpAttr, TlpTc, CplStatus
 from cocotbext.pcie.core.utils import PcieId
 from .interface import UsPcieFrame
 
@@ -173,12 +173,12 @@ class Tlp_us(Tlp):
         tlp.length = pkt.data[2] & 0x7ff
         tlp.requester_id = PcieId.from_int(pkt.data[2] >> 16)
         tlp.tag = pkt.data[3] & 0xff
-        tlp.tc = (pkt.data[3] >> 25) & 0x7
-        tlp.attr = (pkt.data[3] >> 28) & 0x7
+        tlp.tc = TlpTc((pkt.data[3] >> 25) & 0x7)
+        tlp.attr = TlpAttr((pkt.data[3] >> 28) & 0x7)
 
         if req_type & 8 == 0:
             # memory, IO, or atomic operation
-            tlp.at = pkt.data[0] & 3
+            tlp.at = TlpAt(pkt.data[0] & 3)
             tlp.address = (pkt.data[1] << 32) | (pkt.data[0] & 0xfffffffc)
             if tlp.address > 0xffffffff:
                 if tlp.fmt == TlpFmt.THREE_DW:
@@ -260,7 +260,7 @@ class Tlp_us(Tlp):
         tlp.fmt_type = TlpType.CPL
 
         tlp.lower_address = pkt.data[0] & 0x7f
-        tlp.at = (pkt.data[0] >> 8) & 3
+        tlp.at = TlpAt((pkt.data[0] >> 8) & 3)
         tlp.byte_count = (pkt.data[0] >> 16) & 0x1fff
         if pkt.data[0] & (1 << 29):
             tlp.fmt_type = TlpType.CPL_LOCKED
@@ -273,8 +273,8 @@ class Tlp_us(Tlp):
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.tag = pkt.data[2] & 0xff
         tlp.completer_id_enable = bool(pkt.data[2] & (1 << 24))
-        tlp.tc = (pkt.data[2] >> 25) & 0x7
-        tlp.attr = (pkt.data[2] >> 28) & 0x7
+        tlp.tc = TlpTc((pkt.data[2] >> 25) & 0x7)
+        tlp.attr = TlpAttr((pkt.data[2] >> 28) & 0x7)
 
         tlp.discontinue = pkt.discontinue
 
@@ -399,13 +399,13 @@ class Tlp_us(Tlp):
         # TODO poisoned
         tlp.requester_id = PcieId.from_int(pkt.data[2] >> 16)
         tlp.tag = pkt.data[3] & 0xff
-        tlp.tc = (pkt.data[3] >> 25) & 0x7
-        tlp.attr = (pkt.data[3] >> 28) & 0x7
+        tlp.tc = TlpTc((pkt.data[3] >> 25) & 0x7)
+        tlp.attr = TlpAttr((pkt.data[3] >> 28) & 0x7)
 
         if req_type < 12:
             if req_type < 8:
                 # memory, IO, or atomic operation
-                tlp.at = pkt.data[0] & 3
+                tlp.at = TlpAt(pkt.data[0] & 3)
                 tlp.address = (pkt.data[1] << 32) | (pkt.data[0] & 0xfffffffc)
                 if tlp.address > 0xffffffff:
                     if tlp.fmt == TlpFmt.THREE_DW:
@@ -509,8 +509,8 @@ class Tlp_us(Tlp):
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.tag = pkt.data[2] & 0xff
-        tlp.tc = (pkt.data[2] >> 25) & 0x7
-        tlp.attr = (pkt.data[2] >> 28) & 0x7
+        tlp.tc = TlpTc((pkt.data[2] >> 25) & 0x7)
+        tlp.attr = TlpAttr((pkt.data[2] >> 28) & 0x7)
 
         tlp.discontinue = pkt.discontinue
 
@@ -579,13 +579,13 @@ class Tlp_us(Tlp):
         return (
             f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
             f"fmt_type={self.fmt_type}, "
-            f"tc={self.tc}, "
+            f"tc={self.tc!s}, "
             f"ln={self.ln}, "
             f"th={self.th}, "
             f"td={self.td}, "
             f"ep={self.ep}, "
-            f"attr={self.attr}, "
-            f"at={self.at}, "
+            f"attr={self.attr!s}, "
+            f"at={self.at!s}, "
             f"length={self.length}, "
             f"completer_id={repr(self.completer_id)}, "
             f"status={self.status!s}, "
