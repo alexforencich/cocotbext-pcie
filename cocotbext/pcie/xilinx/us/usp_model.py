@@ -31,7 +31,7 @@ from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
 from cocotbext.pcie.core.caps import PM_CAP_ID, MSI_CAP_ID, MSIX_CAP_ID, PCIE_CAP_ID
 from cocotbext.pcie.core.utils import PcieId
-from cocotbext.pcie.core.tlp import Tlp, TlpType, CplStatus
+from cocotbext.pcie.core.tlp import Tlp, TlpType, TlpAttr, CplStatus
 
 from .interface import RqSink, RcSource, CqSource, CcSink
 from .tlp import Tlp_us, ErrorCode
@@ -1144,7 +1144,7 @@ class UltraScalePlusPcieDevice(Device):
 
             msi_int = 0
             msi_function_number = 0
-            msi_attr = 0
+            msi_attr = TlpAttr(0)
             msi_select = 0
             msi_pending_status_data_enable = 0
             msi_pending_status_function_num = 0
@@ -1158,7 +1158,7 @@ class UltraScalePlusPcieDevice(Device):
             if self.cfg_interrupt_msi_function_number is not None:
                 msi_function_number = self.cfg_interrupt_msi_function_number.value.integer
             if self.cfg_interrupt_msi_attr is not None:
-                msi_attr = self.cfg_interrupt_msi_attr.value.integer
+                msi_attr = TlpAttr(self.cfg_interrupt_msi_attr.value.integer)
             if self.cfg_interrupt_msi_select is not None:
                 msi_select = self.cfg_interrupt_msi_select.value.integer
             if self.cfg_interrupt_msi_pending_status_data_enable is not None:
