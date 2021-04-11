@@ -304,7 +304,7 @@ class TB:
         while n < len(data):
             tlp = Tlp_us()
             tlp.fmt_type = TlpType.IO_WRITE
-            tlp.requester_id = PcieId(self.dev.bus_num, self.dev.device_num, 0)
+            tlp.requester_id = PcieId(0, 0, 0)
 
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
@@ -335,7 +335,7 @@ class TB:
         while n < length:
             tlp = Tlp_us()
             tlp.fmt_type = TlpType.IO_READ
-            tlp.requester_id = PcieId(self.dev.bus_num, self.dev.device_num, 0)
+            tlp.requester_id = PcieId(0, 0, 0)
 
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
@@ -374,7 +374,7 @@ class TB:
                 tlp.fmt_type = TlpType.MEM_WRITE_64
             else:
                 tlp.fmt_type = TlpType.MEM_WRITE
-            tlp.requester_id = PcieId(self.dev.bus_num, self.dev.device_num, 0)
+            tlp.requester_id = PcieId(0, 0, 0)
 
             first_pad = addr % 4
             byte_length = len(data)-n
@@ -399,7 +399,7 @@ class TB:
                 tlp.fmt_type = TlpType.MEM_READ_64
             else:
                 tlp.fmt_type = TlpType.MEM_READ
-            tlp.requester_id = PcieId(self.dev.bus_num, self.dev.device_num, 0)
+            tlp.requester_id = PcieId(0, 0, 0)
 
             first_pad = addr % 4
             byte_length = length-n
