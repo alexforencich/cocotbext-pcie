@@ -553,6 +553,7 @@ class Tlp_us(Tlp):
                 self.fmt == other.fmt and
                 self.type == other.type and
                 self.tc == other.tc and
+                self.ln == other.ln and
                 self.td == other.td and
                 self.ep == other.ep and
                 self.attr == other.attr and
@@ -569,6 +570,7 @@ class Tlp_us(Tlp):
                 self.last_be == other.last_be and
                 self.lower_address == other.lower_address and
                 self.address == other.address and
+                self.ph == other.ph and
                 self.register_number == other.register_number
             )
         return False
@@ -577,23 +579,25 @@ class Tlp_us(Tlp):
         return (
             f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
             f"fmt_type={self.fmt_type}, "
-            f"tc={self.tc:#x}, "
-            f"th={self.th:#x}, "
-            f"td={self.td:#x}, "
-            f"ep={self.ep:#x}, "
-            f"attr={self.attr:#x}, "
-            f"at={self.at:#x}, "
-            f"length={self.length:#x}, "
+            f"tc={self.tc}, "
+            f"ln={self.ln}, "
+            f"th={self.th}, "
+            f"td={self.td}, "
+            f"ep={self.ep}, "
+            f"attr={self.attr}, "
+            f"at={self.at}, "
+            f"length={self.length}, "
             f"completer_id={repr(self.completer_id)}, "
             f"status={self.status!s}, "
-            f"bcm={self.bcm:#x}, "
-            f"byte_count={self.byte_count:#x}, "
+            f"bcm={self.bcm}, "
+            f"byte_count={self.byte_count}, "
             f"requester_id={repr(self.requester_id)}, "
             f"dest_id={repr(self.dest_id)}, "
-            f"tag={self.tag:#x}, "
+            f"tag={self.tag}, "
             f"first_be={self.first_be:#x}, "
             f"last_be={self.last_be:#x}, "
             f"lower_address={self.lower_address:#x}, "
             f"address={self.address:#x}, "
+            f"ph={self.ph}, "
             f"register_number={self.register_number:#x})"
         )
