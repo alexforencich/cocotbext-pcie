@@ -379,7 +379,7 @@ class TB:
             first_pad = addr % 4
             byte_length = len(data)-n
             # max payload size
-            byte_length = min(byte_length, (128 << self.dev.functions[0].max_payload_size)-first_pad)
+            byte_length = min(byte_length, (128 << self.dut.cfg_max_payload.value.integer)-first_pad)
             # 4k address align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
@@ -404,7 +404,7 @@ class TB:
             first_pad = addr % 4
             byte_length = length-n
             # max read request size
-            byte_length = min(byte_length, (128 << self.dev.functions[0].max_read_request_size)-first_pad)
+            byte_length = min(byte_length, (128 << self.dut.cfg_max_read_req.value.integer)-first_pad)
             # 4k address align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be(addr, byte_length)
@@ -542,9 +542,9 @@ class TB:
                     cpl_dw_length = dw_length - m
                     cpl_byte_length = byte_length - n
                     cpl.byte_count = cpl_byte_length
-                    if cpl_dw_length > 32 << self.dev.functions[0].max_payload_size:
+                    if cpl_dw_length > 32 << self.dut.cfg_max_payload.value.integer:
                         # max payload size
-                        cpl_dw_length = 32 << self.dev.functions[0].max_payload_size
+                        cpl_dw_length = 32 << self.dut.cfg_max_payload.value.integer
                         # RCB align
                         cpl_dw_length -= (addr & 0x7c) >> 2
 
