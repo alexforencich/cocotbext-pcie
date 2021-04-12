@@ -1256,13 +1256,33 @@ class RootComplex(Switch):
 
                 while ptr > 0:
                     val = await self.config_read(cur_func, ptr, 2)
-                    self.log.info("Found capability 0x%02x at offset 0x%02x, next ptr 0x%02x",
-                        val[0], ptr, val[1] & 0xfc)
-                    ti.capabilities.append((val[0], ptr))
-                    ptr = val[1] & 0xfc
+
+                    cap_id = val[0]
+                    next_ptr = val[1] & 0xfc
+
+                    self.log.info("Found capability ID 0x%02x at offset 0x%02x, next ptr 0x%02x",
+                        cap_id, ptr, next_ptr)
+
+                    ti.capabilities.append((cap_id, ptr))
+                    ptr = next_ptr
 
                 # walk extended capabilities
-                # TODO
+                ptr = 0x100
+
+                while True:
+                    val = await self.config_read_dword(cur_func, ptr)
+                    if not val:
+                        break
+
+                    cap_id = val & 0xffff
+                    cap_ver = (val >> 16) & 0xf
+                    next_ptr = (val >> 20) & 0xffc
+
+                    self.log.info("Found extended capability ID 0x%04x version %d at offset 0x%03x, next ptr 0x%03x",
+                        cap_id, cap_ver, ptr, next_ptr)
+
+                    ti.ext_capabilities.append((cap_id, ptr))
+                    ptr = next_ptr
 
                 # set max payload size, max read request size, and extended tag enable
                 dev_cap = await self.capability_read_dword(cur_func, PcieCapId.EXP, 4)
