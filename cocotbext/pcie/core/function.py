@@ -34,7 +34,7 @@ from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId, byte_mask_update
 
 
-class Function(PmCapability, PcieCapability):
+class Function:
     """PCIe function, implements config TLP handling"""
     def __init__(self, *args, **kwargs):
         self._pcie_id = PcieId()
@@ -95,6 +95,12 @@ class Function(PmCapability, PcieCapability):
 
         self.register_rx_tlp_handler(TlpType.CFG_READ_0, self.handle_config_0_read_tlp)
         self.register_rx_tlp_handler(TlpType.CFG_WRITE_0, self.handle_config_0_write_tlp)
+
+        self.pm_cap = PmCapability()
+        self.register_capability(self.pm_cap)
+
+        self.pcie_cap = PcieCapability()
+        self.register_capability(self.pcie_cap)
 
         super().__init__(*args, **kwargs)
 
@@ -241,8 +247,9 @@ class Function(PmCapability, PcieCapability):
     async def write_capability_register(self, reg, data, mask):
         await self.capabilities.write_register(reg, data, mask)
 
-    def register_capability(self, cap_id, length=None, read=None, write=None, offset=None):
-        self.capabilities.register(cap_id, 0, length, read, write, offset)
+    def register_capability(self, cap, offset=None):
+        cap.parent = self
+        self.capabilities.register(cap, offset)
         if self.capabilities.list:
             self.cap_ptr = self.capabilities.list[0].offset*4
         else:
@@ -254,8 +261,9 @@ class Function(PmCapability, PcieCapability):
     async def write_extended_capability_register(self, reg, data, mask):
         await self.ext_capabilities.write_register(reg, data, mask)
 
-    def register_extended_capability(self, cap_id, cap_ver, length=None, read=None, write=None, offset=None):
-        self.ext_capabilities.register(cap_id, cap_ver, length, read, write, offset)
+    def register_extended_capability(self, cap, offset=None):
+        cap.parent = self
+        self.ext_capabilities.register(cap, offset)
 
     def configure_bar(self, idx, size, ext=False, prefetch=False, io=False):
         mask = 2**((size-1).bit_length())-1
@@ -373,7 +381,7 @@ class Function(PmCapability, PcieCapability):
         return None
 
     async def alloc_tag(self):
-        tag_count = min(256 if self.extended_tag_field_enable else 32, self.tag_count)
+        tag_count = min(256 if self.pcie_cap.extended_tag_field_enable else 32, self.tag_count)
 
         while True:
             tag = self.current_tag
@@ -577,7 +585,7 @@ class Function(PmCapability, PcieCapability):
 
             first_pad = addr % 4
             byte_length = length-n
-            byte_length = min(byte_length, (128 << self.max_read_request_size)-first_pad)  # max read request size
+            byte_length = min(byte_length, (128 << self.pcie_cap.max_read_request_size)-first_pad)  # max read request size
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
             tlp.set_addr_be(addr, byte_length)
 
@@ -661,7 +669,7 @@ class Function(PmCapability, PcieCapability):
 
             first_pad = addr % 4
             byte_length = len(data)-n
-            byte_length = min(byte_length, (128 << self.max_payload_size)-first_pad)  # max payload size
+            byte_length = min(byte_length, (128 << self.pcie_cap.max_payload_size)-first_pad)  # max payload size
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
 

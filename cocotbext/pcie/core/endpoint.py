@@ -320,8 +320,8 @@ class MemoryEndpoint(Endpoint):
                 cpl_dw_length = dw_length - m
                 cpl_byte_length = byte_length - n
                 cpl.byte_count = cpl_byte_length
-                if cpl_dw_length > 32 << self.max_payload_size:
-                    cpl_dw_length = 32 << self.max_payload_size  # max payload size
+                if cpl_dw_length > 32 << self.pcie_cap.max_payload_size:
+                    cpl_dw_length = 32 << self.pcie_cap.max_payload_size  # max payload size
                     cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
 
                 cpl.lower_address = addr & 0x7f

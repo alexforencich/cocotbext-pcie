@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020 Alex Forencich
+Copyright (c) 2021 Alex Forencich
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,199 +22,15 @@ THE SOFTWARE.
 
 """
 
-import struct
-
-from .utils import byte_mask_update
-
-# PCIe capabilities
-MSI_CAP_ID = 0x05
-MSI_CAP_LEN = 6
-MSIX_CAP_ID = 0x11
-MSIX_CAP_LEN = 3
-
-PM_CAP_ID = 0x01
-PM_CAP_LEN = 2
-
-PCIE_CAP_ID = 0x10
-PCIE_CAP_LEN = 15
-
-SEC_PCIE_EXT_CAP_ID = 0x0019
-SEC_PCIE_EXT_CAP_LEN = 3
+from .common import PcieCapId, PcieCap
 
 
-class PcieCap:
-    def __init__(self, cap_id, cap_ver=None, length=None, read=None, write=None, offset=None, next_cap=None):
-        self.cap_id = cap_id
-        self.cap_ver = cap_ver
-        self.length = length
-        self.read = read
-        self.write = write
-        self.offset = offset
-        self.next_cap = next_cap
-
-    async def read_register(self, reg):
-        val = await self.read(reg)
-        if reg == 0:
-            val = (val & 0xffff0000) | ((self.next_cap & 0xff) << 8) | (self.cap_id & 0xff)
-        return val
-
-    async def write_register(self, reg, data, mask):
-        await self.write(reg, data, mask)
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(cap_id={self.cap_id:#x}, "
-            f"cap_ver={self.cap_ver}, "
-            f"length={self.length}, "
-            f"read={self.read}, "
-            f"write={self.write}, "
-            f"offset={self.offset}, "
-            f"next_cap={self.next_cap})"
-        )
-
-
-class PcieExtCap(PcieCap):
-    async def read_register(self, reg):
-        if reg == 0:
-            return ((self.next_cap & 0xfff) << 20) | ((self.cap_ver & 0xf) << 16) | (self.cap_id & 0xffff)
-        return await self.read(reg)
-
-
-class PcieCapList:
-    def __init__(self):
-        self.cap_type = PcieCap
-        self.list = []
-        self.start = 0x10
-        self.end = 0x3f
-
-    def find_by_id(self, cap_id):
-        for cap in self.list:
-            if cap.cap_id == cap_id:
-                return cap
-        return None
-
-    def find_by_reg(self, reg):
-        for cap in self.list:
-            if cap.offset <= reg < cap.offset+cap.length:
-                return cap
-        return None
-
-    async def read_register(self, reg):
-        cap = self.find_by_reg(reg)
-        if cap:
-            return await cap.read_register(reg-cap.offset)
-        return 0
-
-    async def write_register(self, reg, data, mask):
-        cap = self.find_by_reg(reg)
-        if cap:
-            await cap.write_register(reg-cap.offset, data, mask)
-
-    def register(self, cap_id, cap_ver=None, length=None, read=None, write=None, offset=None):
-        if isinstance(cap_id, self.cap_type):
-            new_cap = cap_id
-        else:
-            new_cap = self.find_by_id(cap_id)
-
-            if new_cap:
-                # re-registering cap
-
-                # remove from list
-                self.list.remove(new_cap)
-
-                # update parameters
-                if cap_ver is not None:
-                    new_cap.cap_ver = cap_ver
-                if length:
-                    new_cap.length = length
-                if read:
-                    new_cap.read = read
-                if write:
-                    new_cap.write = write
-                if offset:
-                    new_cap.offset = offset
-
-        if not new_cap:
-            new_cap = self.cap_type(cap_id, cap_ver, length, read, write, offset)
-
-        if not new_cap.length or not new_cap.read or not new_cap.write:
-            raise Exception("Missing required parameter")
-
-        bump_list = []
-
-        if new_cap.offset:
-            for cap in self.list:
-                if cap.offset <= new_cap.offset+new_cap.length-1 and new_cap.offset <= cap.offset+cap.length-1:
-                    bump_list.append(cap)
-            for cap in bump_list:
-                self.list.remove(cap)
-        else:
-            new_cap.offset = self.start
-            for cap in self.list:
-                if cap.offset < new_cap.offset+new_cap.length-1 and new_cap.offset <= cap.offset+cap.length-1:
-                    new_cap.offset = cap.offset+cap.length
-
-        self.list.append(new_cap)
-
-        # sort list by offset
-        self.list.sort(key=lambda x: x.offset)
-
-        # update list next cap pointers
-        for k in range(1, len(self.list)):
-            self.list[k-1].next_cap = self.list[k].offset*4
-            self.list[k].next_cap = 0
-
-        # re-insert bumped caps
-        for cap in bump_list:
-            cap.offset = None
-            self.register(cap)
-
-
-class PcieExtCapList(PcieCapList):
-    def __init__(self):
-        super().__init__()
-        self.cap_type = PcieExtCap
-        self.start = 0x40
-        self.end = 0x3ff
-
-
-class PmCapability:
-    """Power Management capability"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Power management capability registers
-        self.pm_capabilities = 0
-        self.pm_control_status = 0
-        self.pm_data = 0
-
-        self.register_capability(PM_CAP_ID, PM_CAP_LEN, self.read_pm_cap_register, self.write_pm_cap_register)
-
-    """
-    PCI Power Management Capability
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         PM Capabilities         |    Next Cap    |     PM Cap     |   0   0x00
-    +----------------+----------------+----------------+----------------+
-    |    PM Data     |                |        PM Control/Status        |   1   0x04
-    +----------------+----------------+---------------------------------+
-    """
-    async def read_pm_cap_register(self, reg):
-        if reg == 0:
-            return self.pm_capabilities << 16
-        elif reg == 1:
-            return (self.pm_data << 24) | self.pm_control_status
-
-    async def write_pm_cap_register(self, reg, data, mask):
-        # TODO
-        pass
-
-
-class PcieCapability:
+class PcieCapability(PcieCap):
     """PCI Express capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.cap_id = PcieCapId.EXP
+        self.length = 15
 
         # PCIe capability registers
         # PCIe capabilities
@@ -396,8 +212,6 @@ class PcieCapability:
         # Slot control 2
         # Slot status 2
 
-        self.register_capability(PCIE_CAP_ID, PCIE_CAP_LEN, self.read_pcie_cap_register, self.write_pcie_cap_register)
-
     """
     PCIe Capability
 
@@ -434,7 +248,7 @@ class PcieCapability:
     |          Slot Status 2          |         Slot Control 2          |  14   0x38
     +---------------------------------+---------------------------------+
     """
-    async def read_pcie_cap_register(self, reg):
+    async def _read_register(self, reg):
         if reg == 0:
             # PCIe capabilities
             val = 2 << 16
@@ -643,7 +457,7 @@ class PcieCapability:
         else:
             return 0
 
-    async def write_pcie_cap_register(self, reg, data, mask):
+    async def _write_register(self, reg, data, mask):
         if reg == 2:
             # Device control
             if mask & 0x1:
@@ -777,211 +591,3 @@ class PcieCapability:
 
     async def initiate_retrain_link(self):
         pass
-
-
-class MsiCapability:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # MSI Capability Registers
-        self.msi_enable = False
-        self.msi_multiple_message_capable = 0
-        self.msi_multiple_message_enable = 0
-        self.msi_64bit_address_capable = 0
-        self.msi_per_vector_mask_capable = 0
-        self.msi_extended_message_data_capable = 0
-        self.msi_extended_message_data_enable = 0
-        self.msi_message_address = 0
-        self.msi_message_data = 0
-        self.msi_mask_bits = 0
-        self.msi_pending_bits = 0
-
-        self.register_capability(MSI_CAP_ID, MSI_CAP_LEN, self.read_msi_cap_register, self.write_msi_cap_register)
-
-    """
-    MSI Capability (32 bit)
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         Message Control         |    Next Cap    |     Cap ID     |   0   0x00
-    +---------------------------------+----------------+----------------+
-    |                          Message Address                          |   1   0x04
-    +---------------------------------+---------------------------------+
-    |      Extended Message Data      |           Message Data          |   2   0x08
-    +---------------------------------+---------------------------------+
-
-    MSI Capability (64 bit)
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         Message Control         |    Next Cap    |     Cap ID     |   0   0x00
-    +---------------------------------+----------------+----------------+
-    |                          Message Address                          |   1   0x04
-    +-------------------------------------------------------------------+
-    |                       Message Upper Address                       |   2   0x08
-    +---------------------------------+---------------------------------+
-    |      Extended Message Data      |           Message Data          |   3   0x0C
-    +---------------------------------+---------------------------------+
-
-    MSI Capability (32 bit with per-vector masking)
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         Message Control         |    Next Cap    |     Cap ID     |   0   0x00
-    +---------------------------------+----------------+----------------+
-    |                          Message Address                          |   1   0x04
-    +-------------------------------------------------------------------+
-    |      Extended Message Data      |           Message Data          |   2   0x08
-    +---------------------------------+---------------------------------+
-    |                             Mask Bits                             |   3   0x0C
-    +-------------------------------------------------------------------+
-    |                           Pending Bits                            |   4   0x10
-    +-------------------------------------------------------------------+
-
-    MSI Capability (64 bit with per-vector masking)
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         Message Control         |    Next Cap    |     Cap ID     |   0   0x00
-    +---------------------------------+----------------+----------------+
-    |                          Message Address                          |   1   0x04
-    +-------------------------------------------------------------------+
-    |                       Message Upper Address                       |   2   0x08
-    +---------------------------------+---------------------------------+
-    |      Extended Message Data      |           Message Data          |   3   0x0C
-    +---------------------------------+---------------------------------+
-    |                             Mask Bits                             |   4   0x10
-    +-------------------------------------------------------------------+
-    |                           Pending Bits                            |   5   0x14
-    +-------------------------------------------------------------------+
-    """
-    async def read_msi_cap_register(self, reg):
-        if reg == 0:
-            # Message control
-            val = 0x00000000
-            val |= bool(self.msi_enable) << 16
-            val |= (self.msi_multiple_message_capable & 0x7) << 17
-            val |= (self.msi_multiple_message_enable & 0x7) << 20
-            val |= bool(self.msi_64bit_address_capable) << 23
-            val |= bool(self.msi_per_vector_mask_capable) << 24
-            val |= bool(self.msi_extended_message_data_capable) << 25
-            val |= bool(self.msi_extended_message_data_enable) << 26
-            return val
-        elif reg == 1:
-            # Message address
-            return self.msi_message_address & 0xfffffffc
-        elif reg == 2 and self.msi_64bit_address_capable:
-            # Message upper address
-            return (self.msi_message_address >> 32) & 0xffffffff
-        elif reg == (3 if self.msi_64bit_address_capable else 2):
-            # Message data
-            if self.msi_extended_message_data_capable:
-                return self.msi_message_data & 0xffffffff
-            else:
-                return self.msi_message_data & 0xffff
-        elif reg == (4 if self.msi_64bit_address_capable else 3) and self.msi_per_vector_mask_capable:
-            # Mask bits
-            return self.msi_mask_bits & 0xffffffff
-        elif reg == (5 if self.msi_64bit_address_capable else 4) and self.msi_per_vector_mask_capable:
-            # Pending bits
-            return self.msi_pending_bits & 0xffffffff
-
-    async def write_msi_cap_register(self, reg, data, mask):
-        if reg == 0:
-            # Message control
-            if mask & 0x4:
-                self.msi_enable = bool(data & 1 << 16)
-                self.msi_multiple_message_enable = (data >> 20) & 0x7
-                if self.msi_extended_message_data_capable:
-                    self.msi_extended_message_data_enable = bool(data & 1 << 16)
-        elif reg == 1:
-            # Message address
-            self.msi_message_address = byte_mask_update(self.msi_message_address, mask, data & 0xfffffffc)
-        elif reg == 2 and self.msi_64bit_address_capable:
-            # Message upper address
-            self.msi_message_address = byte_mask_update(self.msi_message_address, mask << 4, data << 32)
-        elif reg == (3 if self.msi_64bit_address_capable else 2):
-            # Message data
-            if self.msi_extended_message_data_capable:
-                self.msi_message_data = byte_mask_update(self.msi_message_data, mask, data) & 0xffffffff
-            else:
-                self.msi_message_data = byte_mask_update(self.msi_message_data, mask & 0x3, data) & 0xffff
-        elif reg == (4 if self.msi_64bit_address_capable else 3) and self.msi_per_vector_mask_capable:
-            # Mask bits
-            self.msi_mask_bits = byte_mask_update(self.msi_mask_bits, mask, data) & 0xffffffff
-
-    async def issue_msi_interrupt(self, number=0, attr=0, tc=0):
-        if not self.msi_enable:
-            print("MSI disabled")
-            return
-        if number < 0 or number >= 2**min(self.msi_multiple_message_enable, self.msi_multiple_message_capable):
-            print("MSI message number out of range")
-            return
-
-        if self.msi_extended_message_data_capable and self.msi_extended_message_data_enable:
-            data = self.msi_message_data
-        else:
-            data = self.msi_message_data & 0xffff
-
-        data = (data & ~(2**self.msi_multiple_message_enable-1)) | number
-        await self.mem_write(self.msi_message_address, struct.pack('<L', data), attr=attr, tc=tc)
-
-
-class MsixCapability:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # MSI-X Capability Registers
-        self.msix_table_size = 0
-        self.msix_function_mask = False
-        self.msix_enable = False
-        self.msix_table_bar_indicator_register = 0
-        self.msix_table_offset = 0
-        self.msix_pba_bar_indicator_register = 0
-        self.msix_pba_offset = 0
-
-        self.register_capability(MSIX_CAP_ID, MSIX_CAP_LEN, self.read_msix_cap_register, self.write_msix_cap_register)
-
-    """
-    MSI-X Capability
-
-    31                                                                  0
-    +---------------------------------+----------------+----------------+
-    |         Message Control         |    Next Cap    |     Cap ID     |   0   0x00
-    +---------------------------------+----------------+----------+-----+
-    |                         Table Offset                        | BIR |   1   0x04
-    +-------------------------------------------------------------+-----+
-    |                          PBA Offset                         | BIR |   2   0x08
-    +-------------------------------------------------------------+-----+
-    """
-    async def read_msix_cap_register(self, reg):
-        if reg == 0:
-            # Message control
-            val = (self.msix_table_size & 0x7ff) << 16
-            val |= bool(self.msix_function_mask) << 30
-            val |= bool(self.msix_enable) << 31
-            return val
-        elif reg == 1:
-            # Table offset and BIR
-            val = self.msix_table_bar_indicator_register & 0x7
-            val |= self.msix_table_offset & 0xfffffff8
-            return val
-        elif reg == 2:
-            # Pending bit array offset and BIR
-            val = self.msix_pba_bar_indicator_register & 0x7
-            val |= self.msix_pba_offset & 0xfffffff8
-            return val
-
-    async def write_msix_cap_register(self, reg, data, mask):
-        if reg == 0:
-            # Message control
-            if mask & 0x8:
-                self.msix_function_mask = bool(data & 1 << 30)
-                self.msix_enable = bool(data & 1 << 31)
-
-    async def issue_msix_interrupt(self, addr, data, attr=0, tc=0):
-        if not self.msix_enable:
-            print("MSI-X disabled")
-            return
-
-        await self.mem_write(addr, struct.pack('<L', data), attr=attr, tc=tc)

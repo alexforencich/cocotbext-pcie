@@ -36,7 +36,7 @@ from cocotbext.pcie.core.caps import MsiCapability
 from cocotbext.pcie.core.utils import PcieId
 
 
-class TestEndpoint(MemoryEndpoint, MsiCapability):
+class TestEndpoint(MemoryEndpoint):
     __test__ = False
 
     def __init__(self, *args, **kwargs):
@@ -45,9 +45,11 @@ class TestEndpoint(MemoryEndpoint, MsiCapability):
         self.vendor_id = 0x1234
         self.device_id = 0x5678
 
-        self.msi_multiple_message_capable = 5
-        self.msi_64bit_address_capable = 1
-        self.msi_per_vector_mask_capable = 1
+        self.msi_cap = MsiCapability()
+        self.msi_cap.msi_multiple_message_capable = 5
+        self.msi_cap.msi_64bit_address_capable = 1
+        self.msi_cap.msi_per_vector_mask_capable = 1
+        self.register_capability(self.msi_cap)
 
         self.add_mem_region(1024*1024)
         self.add_prefetchable_mem_region(1024*1024)
@@ -530,7 +532,7 @@ async def run_test_msi(dut, ep_index=0):
     for k in range(32):
         tb.log.info("Send MSI %d", k)
 
-        await ep.issue_msi_interrupt(k)
+        await ep.msi_cap.issue_msi_interrupt(k)
 
         event = tb.rc.msi_get_event(ep.pcie_id, k)
         event.clear()

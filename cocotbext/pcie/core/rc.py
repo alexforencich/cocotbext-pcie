@@ -32,7 +32,7 @@ from cocotb.triggers import Event, Timer, First
 
 from .version import __version__
 from .bridge import HostBridge, RootPort
-from .caps import PCIE_CAP_ID, MSI_CAP_ID
+from .caps import PcieCapId
 from .switch import Switch
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId, TreeItem, align
@@ -927,7 +927,7 @@ class RootComplex(Switch):
         ti = self.tree.find_child_dev(dev)
         if not ti:
             raise Exception("Invalid device")
-        if ti.get_capability_offset(MSI_CAP_ID) is None:
+        if ti.get_capability_offset(PcieCapId.MSI) is None:
             raise Exception("Device does not support MSI")
         if ti.msi_addr is not None and ti.msi_data is not None:
             # already configured
@@ -935,28 +935,28 @@ class RootComplex(Switch):
 
         self.log.info("Configure MSI on %s", ti.pcie_id)
 
-        msg_ctrl = await self.capability_read_dword(dev, MSI_CAP_ID, 0)
+        msg_ctrl = await self.capability_read_dword(dev, PcieCapId.MSI, 0)
 
         msi_64bit = msg_ctrl >> 23 & 1
         msi_mmcap = msg_ctrl >> 17 & 7
 
         # message address
-        await self.capability_write_dword(dev, MSI_CAP_ID, 4, self.msi_addr & 0xfffffffc)
+        await self.capability_write_dword(dev, PcieCapId.MSI, 4, self.msi_addr & 0xfffffffc)
 
         if msi_64bit:
             # 64 bit message address
             # message upper address
-            await self.capability_write_dword(dev, MSI_CAP_ID, 8, (self.msi_addr >> 32) & 0xffffffff)
+            await self.capability_write_dword(dev, PcieCapId.MSI, 8, (self.msi_addr >> 32) & 0xffffffff)
             # message data
-            await self.capability_write_dword(dev, MSI_CAP_ID, 12, self.msi_msg_limit)
+            await self.capability_write_dword(dev, PcieCapId.MSI, 12, self.msi_msg_limit)
 
         else:
             # 32 bit message address
             # message data
-            await self.capability_write_dword(dev, MSI_CAP_ID, 8, self.msi_msg_limit)
+            await self.capability_write_dword(dev, PcieCapId.MSI, 8, self.msi_msg_limit)
 
         # enable and set enabled messages
-        await self.capability_write_dword(dev, MSI_CAP_ID, 0, (msg_ctrl & ~(7 << 20)) | 1 << 16 | msi_mmcap << 20)
+        await self.capability_write_dword(dev, PcieCapId.MSI, 0, (msg_ctrl & ~(7 << 20)) | 1 << 16 | msi_mmcap << 20)
 
         ti.msi_count = 2**msi_mmcap
         ti.msi_addr = self.msi_addr
@@ -1265,8 +1265,8 @@ class RootComplex(Switch):
                 # TODO
 
                 # set max payload size, max read request size, and extended tag enable
-                dev_cap = await self.capability_read_dword(cur_func, PCIE_CAP_ID, 4)
-                dev_ctrl_sta = await self.capability_read_dword(cur_func, PCIE_CAP_ID, 8)
+                dev_cap = await self.capability_read_dword(cur_func, PcieCapId.EXP, 4)
+                dev_ctrl_sta = await self.capability_read_dword(cur_func, PcieCapId.EXP, 8)
 
                 max_payload = min(0x5, min(self.max_payload_size, dev_cap & 7))
                 ext_tag = bool(self.extended_tag_field_enable and (dev_cap & (1 << 5)))
@@ -1274,7 +1274,7 @@ class RootComplex(Switch):
 
                 new_dev_ctrl = (dev_ctrl_sta & 0x00008e1f) | (max_payload << 5) | (ext_tag << 8) | (max_read_req << 12)
 
-                await self.capability_write_dword(cur_func, PCIE_CAP_ID, 8, new_dev_ctrl)
+                await self.capability_write_dword(cur_func, PcieCapId.EXP, 8, new_dev_ctrl)
 
                 # configure command register
                 val = await self.config_read_word(cur_func, 0x04)

@@ -29,7 +29,6 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer, First, Event
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
-from cocotbext.pcie.core.caps import PM_CAP_ID, MSI_CAP_ID, MSIX_CAP_ID, PCIE_CAP_ID
 from cocotbext.pcie.core.utils import PcieId
 from cocotbext.pcie.core.tlp import Tlp, TlpType, TlpAttr, CplStatus
 
@@ -77,17 +76,21 @@ valid_configs = [
 ]
 
 
-class UltraScalePlusPcieFunction(Endpoint, MsiCapability, MsixCapability):
+class UltraScalePlusPcieFunction(Endpoint):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.msi_64bit_address_capable = 1
-        self.msi_per_vector_mask_capable = 0
+        self.register_capability(self.pm_cap, offset=0x10)
 
-        self.register_capability(PM_CAP_ID, offset=0x10)
-        self.register_capability(MSI_CAP_ID, offset=0x12)
-        self.register_capability(MSIX_CAP_ID, offset=0x18)
-        self.register_capability(PCIE_CAP_ID, offset=0x1c)
+        self.msi_cap = MsiCapability()
+        self.msi_cap.msi_64bit_address_capable = 1
+        self.msi_cap.msi_per_vector_mask_capable = 0
+        self.register_capability(self.msi_cap, offset=0x12)
+
+        self.msix_cap = MsixCapability()
+        self.register_capability(self.msix_cap, offset=0x18)
+
+        self.register_capability(self.pcie_cap, offset=0x1c)
 
 
 def init_signal(sig, width=None, initval=None):
@@ -975,13 +978,13 @@ class UltraScalePlusPcieDevice(Device):
 
             # cfg_phy_link_status
             if self.cfg_negotiated_width is not None:
-                self.cfg_negotiated_width <= min(max((self.functions[0].negotiated_link_width).bit_length()-1, 0), 4)
+                self.cfg_negotiated_width <= min(max((self.functions[0].pcie_cap.negotiated_link_width).bit_length()-1, 0), 4)
             if self.cfg_current_speed is not None:
-                self.cfg_current_speed <= min(max(self.functions[0].current_link_speed-1, 0), 3)
+                self.cfg_current_speed <= min(max(self.functions[0].pcie_cap.current_link_speed-1, 0), 3)
             if self.cfg_max_payload is not None:
-                self.cfg_max_payload <= self.functions[0].max_payload_size & 3
+                self.cfg_max_payload <= self.functions[0].pcie_cap.max_payload_size & 3
             if self.cfg_max_read_req is not None:
-                self.cfg_max_read_req <= self.functions[0].max_read_request_size
+                self.cfg_max_read_req <= self.functions[0].pcie_cap.max_read_request_size
 
             if self.cfg_function_status is not None:
                 status = 0
@@ -1183,7 +1186,7 @@ class UltraScalePlusPcieDevice(Device):
             if self.cfg_interrupt_msi_enable is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
-                    if self.functions[k].msi_enable:
+                    if self.functions[k].msi_cap.msi_enable:
                         val |= 1 << k
                 self.cfg_interrupt_msi_enable <= val
 
@@ -1194,14 +1197,14 @@ class UltraScalePlusPcieDevice(Device):
             if (msi_int):
                 bits = [i for i in range(32) if msi_int >> i & 1]
                 if len(bits) == 1 and msi_function_number < len(self.functions):
-                    await self.functions[msi_function_number].issue_msi_interrupt(bits[0], attr=msi_attr)
+                    await self.functions[msi_function_number].msi_cap.issue_msi_interrupt(bits[0], attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
                         self.cfg_interrupt_msi_sent <= 1
 
             if self.cfg_interrupt_msi_mmenable is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
-                    val |= (self.functions[k].msi_multiple_message_enable & 0x7) << k*3
+                    val |= (self.functions[k].msi_cap.msi_multiple_message_enable & 0x7) << k*3
                 self.cfg_interrupt_msi_mmenable <= val
 
             # cfg_interrupt_msi_mask_update
@@ -1211,24 +1214,24 @@ class UltraScalePlusPcieDevice(Device):
                     self.cfg_interrupt_msi_data <= 0
                 else:
                     if msi_select < len(self.functions):
-                        self.cfg_interrupt_msi_data <= self.functions[msi_select].msi_mask_bits
+                        self.cfg_interrupt_msi_data <= self.functions[msi_select].msi_cap.msi_mask_bits
                     else:
                         self.cfg_interrupt_msi_data <= 0
             if msi_pending_status_data_enable:
                 if msi_pending_status_function_num < len(self.functions):
-                    self.functions[msi_pending_status_function_num].msi_pending_bits = msi_pending_status
+                    self.functions[msi_pending_status_function_num].msi_cap.msi_pending_bits = msi_pending_status
 
             # MSI-X
             if self.cfg_interrupt_msix_enable is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
-                    if self.functions[k].msix_enable:
+                    if self.functions[k].msix_cap.msix_enable:
                         val |= 1 << k
                 self.cfg_interrupt_msix_enable <= val
             if self.cfg_interrupt_msix_mask is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
-                    if self.functions[k].msix_function_mask:
+                    if self.functions[k].msix_cap.msix_function_mask:
                         val |= 1 << k
                 self.cfg_interrupt_msix_mask <= val
             # cfg_interrupt_msix_vf_enable
@@ -1236,7 +1239,7 @@ class UltraScalePlusPcieDevice(Device):
 
             if msix_int:
                 if msi_function_number < len(self.functions):
-                    await self.functions[msi_function_number].issue_msix_interrupt(msix_address, msix_data, attr=msi_attr)
+                    await self.functions[msi_function_number].msix_cap.issue_msix_interrupt(msix_address, msix_data, attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
                         self.cfg_interrupt_msi_sent <= 1
 
