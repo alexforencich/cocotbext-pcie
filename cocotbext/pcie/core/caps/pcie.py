@@ -222,7 +222,7 @@ class PcieCapability(PcieCap):
     |                        Device Capabilities                        |   1   0x04
     +---------------------------------+---------------------------------+
     |          Device Status          |         Device Control          |   2   0x08
-    +---------------------------------+----------------+----------------+
+    +---------------------------------+---------------------------------+
     |                         Link Capabilities                         |   3   0x0C
     +---------------------------------+---------------------------------+
     |           Link Status           |          Link Control           |   4   0x10
@@ -234,11 +234,11 @@ class PcieCapability(PcieCap):
     |        Root Capabilities        |          Root Control           |   7   0x1C
     +---------------------------------+---------------------------------+
     |                            Root status                            |   8   0x20
-    +---------------------------------+---------------------------------+
+    +-------------------------------------------------------------------+
     |                       Device Capabilities 2                       |   9   0x24
     +---------------------------------+---------------------------------+
     |         Device Status 2         |        Device Control 2         |  10   0x28
-    +---------------------------------+----------------+----------------+
+    +---------------------------------+---------------------------------+
     |                        Link Capabilities 2                        |  11   0x2C
     +---------------------------------+---------------------------------+
     |          Link Status 2          |         Link Control 2          |  12   0x30
@@ -269,9 +269,8 @@ class PcieCapability(PcieCap):
             val |= bool(self.function_level_reset_capability) << 28
             return val
         elif reg == 2:
-            val = 0
             # Device control
-            val |= bool(self.correctable_error_reporting_enable) << 0
+            val = bool(self.correctable_error_reporting_enable) << 0
             val |= bool(self.non_fatal_error_reporting_enable) << 1
             val |= bool(self.fatal_error_reporting_enable) << 2
             val |= bool(self.unsupported_request_reporting_enable) << 3
@@ -328,8 +327,7 @@ class PcieCapability(PcieCap):
             return val
         elif reg == 5:
             # Slot capabilities
-            val = 0
-            val |= bool(self.attention_button_present)
+            val = bool(self.attention_button_present)
             val |= bool(self.power_controller_present) << 1
             val |= bool(self.mrl_sensor_present) << 2
             val |= bool(self.attention_indicator_present) << 3
@@ -344,8 +342,7 @@ class PcieCapability(PcieCap):
             return val
         elif reg == 6:
             # Slot control
-            val = 0
-            val |= bool(self.attention_button_pressed_enable) << 0
+            val = bool(self.attention_button_pressed_enable) << 0
             val |= bool(self.power_fault_detected_enable) << 1
             val |= bool(self.mrl_sensor_changed_enable) << 2
             val |= bool(self.presence_detect_changed_enable) << 3
@@ -370,8 +367,7 @@ class PcieCapability(PcieCap):
             return val
         elif reg == 7:
             # Root control
-            val = 0
-            val |= bool(self.system_error_on_correctable_error_enable) << 0
+            val = bool(self.system_error_on_correctable_error_enable) << 0
             val |= bool(self.system_error_on_non_fatal_error_enable) << 1
             val |= bool(self.system_error_on_fatal_error_enable) << 2
             val |= bool(self.pme_interrupt_enable) << 3
