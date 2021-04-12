@@ -28,3 +28,4 @@ from .common import PcieCap, PcieExtCap, PcieCapList, PcieExtCapList
 from .pcie import PcieCapability, PcieExtendedCapability
 from .msi import MsiCapability, MsixCapability
 from .pm import PmCapability
+from .aer import AerExtendedCapability
