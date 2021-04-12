@@ -98,7 +98,7 @@ class Device:
         self.functions.sort(key=lambda x: x.function_num)
         if len(self.functions) > 1:
             for f in self.functions:
-                f.header_type |= 0x80
+                f.multifunction_devlce = True
         return function
 
     def append_function(self, function):

@@ -137,11 +137,11 @@ async def run_test_config(dut):
     tb.log.info("Read complete config space")
     orig = await tb.rc.config_read(PcieId(0, 1, 0), 0x000, 256, 1000, 'ns')
 
-    tb.log.info("Read and write IntLine and IntPin")
-    await tb.rc.config_write(PcieId(0, 1, 0), 0x03c, b'\x12\x34', 1000, 'ns')
-    val = await tb.rc.config_read(PcieId(0, 1, 0), 0x03c, 2, 1000, 'ns')
+    tb.log.info("Read and write interrupt line register")
+    await tb.rc.config_write(PcieId(0, 1, 0), 0x03c, b'\x12', 1000, 'ns')
+    val = await tb.rc.config_read(PcieId(0, 1, 0), 0x03c, 1, 1000, 'ns')
 
-    assert val == b'\x12\x34'
+    assert val == b'\x12'
 
     tb.log.info("Write complete config space")
     await tb.rc.config_write(PcieId(0, 1, 0), 0x000, orig, 1000, 'ns')
@@ -177,7 +177,7 @@ async def run_test_enumerate(dut):
         tb.log.info("Revision ID: 0x%02x", ti.revision_id)
         tb.log.info("Class code: 0x%06x", ti.class_code)
 
-        assert ti.header_type == dev.header_type
+        assert ti.header_type == dev.header_layout | (bool(dev.multifunction_device) << 7)
         assert ti.class_code == dev.class_code
         assert ti.revision_id == dev.revision_id
 

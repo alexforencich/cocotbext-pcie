@@ -34,20 +34,37 @@ class Bridge(Function):
         super().__init__(*args, **kwargs)
 
         # configuration registers
-        self.header_type = 1
+        # Header type
+        self.header_layout = 1
+        self.multifunction_device = False
+        # Base Address Registers
         self.bar = [0]*2
         self.bar_mask = [0]*2
+        # Primary bus number
         self.pri_bus_num = 0
+        # Secondary bus number
         self.sec_bus_num = 0
+        # Subordinate bus number
         self.sub_bus_num = 0
+        # Secondary latency timer
         self.sec_lat_timer = 0
+        # IO base and limit registers
         self.io_base = 0x0000
         self.io_limit = 0x0fff
-        self.sec_status = 0
+        self.io_addr_capability = 0x1
+        # Secondary status
+        self.master_data_parity_error = False
+        self.signaled_target_abort = False
+        self.received_target_abort = False
+        self.received_master_abort = False
+        self.received_system_error = False
+        self.detected_parity_error = False
+        # Memory and limit registers
         self.mem_base = 0x00000000
         self.mem_limit = 0x000fffff
         self.prefetchable_mem_base = 0x00000000
         self.prefetchable_mem_limit = 0x000fffff
+        # Bridge control
         self.parity_error_response_enable = 0
         self.serr_enable = 0
         self.secondary_bus_reset = 0
@@ -106,30 +123,74 @@ class Bridge(Function):
     """
     async def read_config_register(self, reg):
         if reg == 4:
+            # Base Address Register 0
             return self.bar[0]
         elif reg == 5:
+            # Base Address Register 1
             return self.bar[1]
         elif reg == 6:
-            return (self.sec_lat_timer << 24) | (self.sub_bus_num << 16) | (self.sec_bus_num << 8) | self.pri_bus_num
+            # Primary bus number
+            val = self.pri_bus_num & 0xff
+            # Secondary bus number
+            val |= (self.sec_bus_num & 0xff) << 8
+            # Subordinate bus number
+            val |= (self.sub_bus_num & 0xff) << 16
+            # Secondary latency timer
+            val |= (self.sec_lat_timer & 0xff) << 24
+            return val
         elif reg == 7:
-            return (self.sec_status << 16) | (self.io_limit & 0xf000) | ((self.io_base & 0xf000) >> 8)
+            # IO base
+            val = self.io_addr_capability & 0xf
+            val |= (self.io_base & 0xf000) >> 8
+            # IO limit
+            val |= (self.io_addr_capability & 0xf) << 8
+            val |= self.io_limit & 0xf000
+            # Secondary status
+            val |= bool(self.master_data_parity_error) << 24
+            val |= bool(self.signaled_target_abort) << 27
+            val |= bool(self.received_target_abort) << 28
+            val |= bool(self.received_master_abort) << 29
+            val |= bool(self.received_system_error) << 30
+            val |= bool(self.detected_parity_error) << 31
+            return val
         elif reg == 8:
-            return (self.mem_limit & 0xfff00000) | ((self.mem_base & 0xfff00000) >> 16)
+            # Memory base
+            val = (self.mem_base & 0xfff00000) >> 16
+            # Memory limit
+            val |= self.mem_limit & 0xfff00000
+            return val
         elif reg == 9:
-            return (self.prefetchable_mem_limit & 0xfff00000) | ((self.prefetchable_mem_base & 0xfff00000) >> 16)
+            # Prefetchable memory base
+            val = (self.prefetchable_mem_base & 0xfff00000) >> 16
+            # Prefetchable memory limit
+            val |= self.prefetchable_mem_limit & 0xfff00000
+            return val
         elif reg == 10:
-            return self.prefetchable_mem_base >> 32
+            # Prefetchable memory base (upper)
+            return (self.prefetchable_mem_base >> 32) & 0xffffffff
         elif reg == 11:
-            return self.prefetchable_mem_limit >> 32
+            # Prefetchable memory limit (upper)
+            return (self.prefetchable_mem_limit >> 32) & 0xffffffff
         elif reg == 12:
-            return (self.io_limit & 0xffff0000) | ((self.io_base & 0xffff0000) >> 16)
+            # IO base (upper)
+            val = (self.io_base & 0xffff0000) >> 16
+            # IO limit (upper)
+            val |= self.io_limit & 0xffff0000
+            return val
         elif reg == 13:
-            return self.cap_ptr
+            # Capabilities pointer
+            return self.capabilities_ptr
         elif reg == 14:
-            return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
+            # Expansion ROM Base Address
+            val = bool(self.expansion_rom_enable)
+            val |= self.expansion_rom_addr & 0xfffff800
+            return val
         elif reg == 15:
-            val = (self.intr_pin << 8) | self.intr_line
-            # bridge control
+            # Interrupt line
+            val = self.interrupt_line & 0xff
+            # Interrupt pin
+            val |= (self.interrupt_pin & 0xff) << 8
+            # Bridge control
             val |= bool(self.parity_error_response_enable) << 16
             val |= bool(self.serr_enable) << 17
             val |= bool(self.secondary_bus_reset) << 22
@@ -139,41 +200,75 @@ class Bridge(Function):
 
     async def write_config_register(self, reg, data, mask):
         if reg == 4:
+            # Base Address Register 0
             self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
         if reg == 5:
+            # Base Address Register 1
             self.bar[1] = byte_mask_update(self.bar[1], mask, data, self.bar_mask[1])
         elif reg == 6:
-            self.pri_bus_num = byte_mask_update(self.pri_bus_num, mask & 0x1, data)
-            self.sec_bus_num = byte_mask_update(self.sec_bus_num, (mask >> 1) & 1, data >> 8)
-            self.sub_bus_num = byte_mask_update(self.sub_bus_num, (mask >> 2) & 1, data >> 16)
-            self.sec_lat_timer = byte_mask_update(self.sec_lat_timer, (mask >> 3) & 1, data >> 24)
+            # Primary bus number
+            if mask & 0x1:
+                self.pri_bus_num = data & 0xff
+            # Secondary bus number
+            if mask & 0x2:
+                self.sec_bus_num = (data >> 8) & 0xff
+            # Subordinate bus number
+            if mask & 0x4:
+                self.sub_bus_num = (data >> 16) & 0xff
         elif reg == 7:
-            self.io_base = byte_mask_update(self.io_base, (mask & 0x1) << 1, data << 8, 0xf000)
-            self.io_limit = byte_mask_update(self.io_limit, (mask & 0x2), data, 0xf000) | 0xfff
-            self.sec_status = byte_mask_update(self.sec_status, (mask >> 2) & 1, 0x0000, (data >> 16) & 0xf900)
+            # IO base
+            if mask & 0x1:
+                self.io_base = byte_mask_update(self.io_base, 0x2, data << 8, 0xf000)
+            # IO limit
+            if mask & 0x2:
+                self.io_limit = byte_mask_update(self.io_limit, 0x2, data, 0xf000) | 0xfff
+            if mask & 0x8:
+                # Secondary status
+                if data & 1 << 24:
+                    self.master_data_parity_error = False
+                if data & 1 << 27:
+                    self.signaled_target_abort = False
+                if data & 1 << 28:
+                    self.received_target_abort = False
+                if data & 1 << 29:
+                    self.received_master_abort = False
+                if data & 1 << 30:
+                    self.received_system_error = False
+                if data & 1 << 31:
+                    self.detected_parity_error = False
         elif reg == 8:
+            # Memory base
             self.mem_base = byte_mask_update(self.mem_base, (mask & 0x3) << 2, data << 16, 0xfff00000)
+            # Memory limit
             self.mem_limit = byte_mask_update(self.mem_limit, (mask & 0xc), data, 0xfff00000) | 0xfffff
         elif reg == 9:
+            # Prefetchable memory base
             self.prefetchable_mem_base = byte_mask_update(self.prefetchable_mem_base,
                 (mask & 0x3) << 2, data << 16, 0xfff00000)
+            # Prefetchable memory limit
             self.prefetchable_mem_limit = byte_mask_update(self.prefetchable_mem_limit,
                 (mask & 0xc), data, 0xfff00000) | 0xfffff
         elif reg == 10:
+            # Prefetchable memory base (upper)
             self.prefetchable_mem_base = byte_mask_update(self.prefetchable_mem_base, mask << 4, data << 32)
         elif reg == 11:
+            # Prefetchable memory limit (upper)
             self.prefetchable_mem_limit = byte_mask_update(self.prefetchable_mem_limit, mask << 4, data << 32)
         elif reg == 12:
+            # IO base (upper)
             self.io_base = byte_mask_update(self.io_base, (mask & 0x3) << 2, data << 16)
+            # IO limit (upper)
             self.io_limit = byte_mask_update(self.io_limit, (mask & 0xc), data)
         elif reg == 14:
-            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr, mask, data,
-                self.expansion_rom_addr_mask) & 0xfffff800
+            # Expansion ROM Base Address
+            self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr,
+                mask, data, self.expansion_rom_addr_mask) & 0xfffff800
             if mask & 0x1:
                 self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
-            self.intr_line = byte_mask_update(self.intr_line, mask & 0x1, data)
-            self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
+            # Interrupt line
+            if mask & 1:
+                self.interrupt_line = data & 0xff
             # bridge control
             if mask & 0x4:
                 self.parity_error_response_enable = (data & 1 << 16 != 0)

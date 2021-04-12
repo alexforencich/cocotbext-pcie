@@ -31,7 +31,7 @@ from cocotb.triggers import Event, Timer, First
 from .caps import PcieCapList, PcieExtCapList
 from .caps import PmCapability, PcieCapability
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
-from .utils import PcieId, byte_mask_update
+from .utils import PcieId
 
 
 class Function:
@@ -58,16 +58,18 @@ class Function:
         self.ext_capabilities = PcieExtCapList()
 
         # configuration registers
+        # Vendor ID
         self.vendor_id = 0
+        # Device ID
         self.device_id = 0
-        # command register
+        # Command
         self.io_space_enable = False
         self.memory_space_enable = False
         self.bus_master_enable = False
         self.parity_error_response = False
         self.serr_enable = False
         self.interrupt_disable = False
-        # status register
+        # Status
         self.interrupt_status = False
         self.capabilities_list = True
         self.master_data_parity_error = False
@@ -76,20 +78,34 @@ class Function:
         self.received_master_abort = False
         self.signaled_system_error = False
         self.detected_parity_error = False
+        # Revision ID
         self.revision_id = 0
+        # Class code
         self.class_code = 0
-        self.cache_ln = 0
-        self.lat_timer = 0
-        self.header_type = 0
-        self.bist = 0
+        # Cache line size
+        self.cache_line_size = 0
+        # Latency timer
+        self.latency_timer = 0
+        # Header type
+        self.header_layout = 0
+        self.multifunction_device = False
+        # BIST
+        self.bist_capable = False
+        self.start_bist = False
+        self.bist_completion_code = 0
+        # Base Address Registers
         self.bar = []
         self.bar_mask = []
+        # Expansion ROM Base Address Register
         self.expansion_rom_addr = 0
         self.expansion_rom_addr_mask = 0
         self.expansion_rom_enable = 0
-        self.cap_ptr = 0
-        self.intr_pin = 0
-        self.intr_line = 0
+        # Capabilities pointer
+        self.capabilities_ptr = 0
+        # Interrupt line
+        self.interrupt_line = 0
+        # Interrupt pin
+        self.interrupt_pin = 0
 
         self.read_completion_boundary = 128
 
@@ -169,17 +185,21 @@ class Function:
     """
     async def read_config_register(self, reg):
         if reg == 0:
-            return (self.device_id << 16) | self.vendor_id
+            # Vendor ID
+            val = self.vendor_id & 0xffff
+            # Device ID
+            val |= (self.device_id & 0xffff) << 16
+            return val
         elif reg == 1:
             val = 0
-            # command
+            # Command
             val |= bool(self.io_space_enable) << 0
             val |= bool(self.memory_space_enable) << 1
             val |= bool(self.bus_master_enable) << 2
             val |= bool(self.parity_error_response) << 6
             val |= bool(self.serr_enable) << 8
             val |= bool(self.interrupt_disable) << 10
-            # status
+            # Status
             val |= bool(self.interrupt_status) << 19
             val |= bool(self.capabilities_list) << 20
             val |= bool(self.master_data_parity_error) << 24
@@ -190,16 +210,38 @@ class Function:
             val |= bool(self.detected_parity_error) << 31
             return val
         elif reg == 2:
-            return (self.class_code << 8) | self.revision_id
+            # Revision ID
+            val = self.revision_id & 0xff
+            # Class code
+            val |= (self.class_code & 0xffffff) << 8
+            return val
         elif reg == 3:
-            return (self.bist << 24) | (self.header_type << 16) | (self.lat_timer << 8) | self.cache_ln
+            # Cache line size
+            val = self.cache_line_size & 0xff
+            # Latency timer
+            val |= (self.latency_timer & 0xff) << 8
+            # Header type
+            val |= (self.header_layout & 0x7f) << 16
+            val |= bool(self.multifunction_device) << 23
+            # BIST
+            val |= (self.bist_completion_code & 0xf) << 24
+            val |= bool(self.start_bist) << 30
+            val |= bool(self.bist_capable) << 31
+            return val
         elif reg == 13:
-            return self.cap_ptr
+            # Capabilities pointer
+            return self.capabilities_ptr & 0xff
         elif reg == 15:
-            return (self.intr_pin << 8) | self.intr_line
+            # Interrupt line
+            val = self.interrupt_line & 0xff
+            # Interrupt pin
+            val |= (self.interrupt_pin & 0xff) << 8
+            return val
         elif 16 <= reg < 256:
+            # PCIe capabilities
             return await self.read_capability_register(reg)
         elif 256 <= reg < 4096:
+            # PCIe extended capabilities
             return await self.read_extended_capability_register(reg)
         else:
             return 0
@@ -230,15 +272,21 @@ class Function:
                 if data & 1 << 31:
                     self.detected_parity_error = False
         elif reg == 3:
-            self.cache_ln = byte_mask_update(self.cache_ln, mask & 1, data)
-            self.lat_timer = byte_mask_update(self.lat_timer, (mask >> 1) & 1, data >> 8)
-            self.bist = byte_mask_update(self.bist, (mask >> 3) & 1, data >> 24)
+            if mask & 1:
+                # Cache line size
+                self.cache_line_size = data & 0xff
+            if mask & 4:
+                # BIST
+                self.start_bist = bool(data & 1 << 30)
         elif reg == 15:
-            self.intr_line = byte_mask_update(self.intr_line, mask & 1, data)
-            self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
+            # Interrupt line
+            if mask & 1:
+                self.interrupt_line = data & 0xff
         elif 16 <= reg < 256:
+            # PCIe capabilities
             await self.write_capability_register(reg, data, mask)
         elif 256 <= reg < 4096:
+            # PCIe extended capabilities
             await self.write_extended_capability_register(reg, data, mask)
 
     async def read_capability_register(self, reg):
@@ -251,9 +299,9 @@ class Function:
         cap.parent = self
         self.capabilities.register(cap, offset)
         if self.capabilities.list:
-            self.cap_ptr = self.capabilities.list[0].offset*4
+            self.capabilities_ptr = self.capabilities.list[0].offset*4
         else:
-            self.cap_ptr = 0
+            self.capabilities_ptr = 0
 
     async def read_extended_capability_register(self, reg):
         return await self.ext_capabilities.read_register(reg)

@@ -38,7 +38,6 @@ class Endpoint(Function):
         self.header_type = 0
         self.bar = [0]*6
         self.bar_mask = [0]*6
-        self.cardbus_cis = 0
         self.subsystem_vendor_id = 0
         self.subsystem_id = 0
 
@@ -85,53 +84,83 @@ class Endpoint(Function):
     """
     async def read_config_register(self, reg):
         if reg == 4:
-            return self.bar[0]
+            # Base Address Register 0
+            return self.bar[0] & 0xffffffff
         elif reg == 5:
-            return self.bar[1]
+            # Base Address Register 1
+            return self.bar[1] & 0xffffffff
         elif reg == 6:
-            return self.bar[2]
+            # Base Address Register 2
+            return self.bar[2] & 0xffffffff
         elif reg == 7:
-            return self.bar[3]
+            # Base Address Register 3
+            return self.bar[3] & 0xffffffff
         elif reg == 8:
-            return self.bar[4]
+            # Base Address Register 4
+            return self.bar[4] & 0xffffffff
         elif reg == 9:
-            return self.bar[5]
+            # Base Address Register 5
+            return self.bar[5] & 0xffffffff
         elif reg == 10:
-            return self.cardbus_cis
+            # Cardbus CIS pointer
+            return 0
         elif reg == 11:
-            return (self.subsystem_id << 16) | self.subsystem_vendor_id
+            # Subsystem vendor ID
+            val = self.subsystem_vendor_id & 0xffff
+            # Subsystem ID
+            val |= (self.subsystem_id & 0xffff) << 16
+            return val
         elif reg == 12:
-            return (self.expansion_rom_addr & 0xfffff800) | (1 if self.expansion_rom_enable else 0)
+            # Expansion ROM Base Address
+            val = bool(self.expansion_rom_enable)
+            val |= self.expansion_rom_addr & 0xfffff800
+            return val
         elif reg == 13:
-            return self.cap_ptr
+            # Capabilities pointer
+            return self.capabilities_ptr & 0xff
         elif reg == 14:
-            return 0  # reserved
+            # reserved
+            return 0
         elif reg == 15:
-            return (self.intr_pin << 8) | self.intr_line
+            # Interrupt line
+            val = self.interrupt_line & 0xff
+            # Interrupt pin
+            val |= (self.interrupt_pin & 0xff) << 8
+            # Min Gnt
+            # Max Lat
+            return val
         else:
             return await super().read_config_register(reg)
 
     async def write_config_register(self, reg, data, mask):
         if reg == 4:
+            # Base Address Register 0
             self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
         elif reg == 5:
+            # Base Address Register 1
             self.bar[1] = byte_mask_update(self.bar[1], mask, data, self.bar_mask[1])
         elif reg == 6:
+            # Base Address Register 2
             self.bar[2] = byte_mask_update(self.bar[2], mask, data, self.bar_mask[2])
         elif reg == 7:
+            # Base Address Register 3
             self.bar[3] = byte_mask_update(self.bar[3], mask, data, self.bar_mask[3])
         elif reg == 8:
+            # Base Address Register 4
             self.bar[4] = byte_mask_update(self.bar[4], mask, data, self.bar_mask[4])
         elif reg == 9:
+            # Base Address Register 5
             self.bar[5] = byte_mask_update(self.bar[5], mask, data, self.bar_mask[5])
         elif reg == 12:
+            # Expansion ROM Base Address
             self.expansion_rom_addr = byte_mask_update(self.expansion_rom_addr,
                 mask, data, self.expansion_rom_addr_mask) & 0xfffff800
             if mask & 0x1:
                 self.expansion_rom_enable = (data & 1) != 0
         elif reg == 15:
-            self.intr_line = byte_mask_update(self.intr_line, mask & 1, data)
-            self.intr_pin = byte_mask_update(self.intr_pin, (mask >> 1) & 1, data >> 8)
+            # Interrupt line
+            if mask & 1:
+                self.interrupt_line = data & 0xff
         else:
             await super().write_config_register(reg, data, mask)
 
