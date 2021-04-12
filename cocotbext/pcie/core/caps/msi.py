@@ -109,8 +109,7 @@ class MsiCapability(PcieCap):
     async def _read_register(self, reg):
         if reg == 0:
             # Message control
-            val = 0x00000000
-            val |= bool(self.msi_enable) << 16
+            val = bool(self.msi_enable) << 16
             val |= (self.msi_multiple_message_capable & 0x7) << 17
             val |= (self.msi_multiple_message_enable & 0x7) << 20
             val |= bool(self.msi_64bit_address_capable) << 23
