@@ -29,6 +29,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer, First, Event
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
+from cocotbext.pcie.core.caps import AerExtendedCapability, PcieExtendedCapability
 from cocotbext.pcie.core.utils import PcieId
 from cocotbext.pcie.core.tlp import Tlp, TlpType, TlpAttr, CplStatus
 
@@ -80,6 +81,7 @@ class UltraScalePlusPcieFunction(Endpoint):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # PCIe capabilities
         self.register_capability(self.pm_cap, offset=0x10)
 
         self.msi_cap = MsiCapability()
@@ -91,6 +93,21 @@ class UltraScalePlusPcieFunction(Endpoint):
         self.register_capability(self.msix_cap, offset=0x18)
 
         self.register_capability(self.pcie_cap, offset=0x1c)
+
+        # PCIe extended capabilities
+        self.aer_ext_cap = AerExtendedCapability()
+        self.register_capability(self.aer_ext_cap, offset=0x40)
+
+        # SRIOV 0x50
+        # ARI 0x60
+        # DSN 0x68
+
+        self.pcie_ext_cap = PcieExtendedCapability()
+        self.register_capability(self.pcie_ext_cap, offset=0x70)
+
+        # VC 0x80
+        # TPH 0x88
+        # VSEC 0xd4 (MCAP)
 
 
 def init_signal(sig, width=None, initval=None):
