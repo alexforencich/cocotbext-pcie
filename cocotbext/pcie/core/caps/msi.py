@@ -162,11 +162,9 @@ class MsiCapability(PcieCap):
 
     async def issue_msi_interrupt(self, number=0, attr=TlpAttr(0), tc=TlpTc.TC0):
         if not self.msi_enable:
-            print("MSI disabled")
-            return
+            raise Exception("MSI disabled")
         if number < 0 or number >= 2**min(self.msi_multiple_message_enable, self.msi_multiple_message_capable):
-            print("MSI message number out of range")
-            return
+            raise ValueError("MSI message number out of range")
 
         if self.msi_extended_message_data_capable and self.msi_extended_message_data_enable:
             data = self.msi_message_data
@@ -232,7 +230,6 @@ class MsixCapability(PcieCap):
 
     async def issue_msix_interrupt(self, addr, data, attr=TlpAttr(0), tc=TlpTc.TC0):
         if not self.msix_enable:
-            print("MSI-X disabled")
-            return
+            raise Exception("MSI-X disabled")
 
         await self.parent.mem_write(addr, struct.pack('<L', data), attr=attr, tc=tc)
