@@ -25,6 +25,6 @@ THE SOFTWARE.
 from .common import PcieCapId, PcieExtCapId
 from .common import PcieCap, PcieExtCap, PcieCapList, PcieExtCapList
 
-from .pcie import PcieCapability
+from .pcie import PcieCapability, PcieExtendedCapability
 from .msi import MsiCapability, MsixCapability
 from .pm import PmCapability

@@ -23,6 +23,8 @@ THE SOFTWARE.
 """
 
 from .common import PcieCapId, PcieCap
+from .common import PcieExtCapId, PcieExtCap
+from ..utils import byte_mask_update
 
 
 class PcieCapability(PcieCap):
@@ -587,3 +589,74 @@ class PcieCapability(PcieCap):
 
     async def initiate_retrain_link(self):
         pass
+
+
+class PcieExtendedCapability(PcieExtCap):
+    """Secondary PCI Express extended capability"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cap_id = PcieExtCapId.EXP2
+        self.cap_ver = 1
+        self.length = 4
+
+        # Secondary PCIe extended capability registers
+        # Link control 3 register
+        self.perform_equalization = False
+        self.link_equalization_request_interrupt_enable = False
+        self.enable_lower_skp_os_generation = 0
+        # Lane error status
+        self.lane_error_status = 0
+        self.downstream_port_8gt_transmitter_preset = [0]*32
+        self.downstream_port_8gt_receiver_preset_hint = [0]*32
+        self.upstream_port_8gt_transmitter_preset = [0]*32
+        self.upstream_port_8gt_receiver_preset_hint = [0]*32
+
+    """
+    Secondary PCIe Extended Capability
+
+    31                                                                  0
+    +-------------------------+-------+---------------------------------+
+    |     Next Cap Offset     |  Ver  |         PCIe Ext Cap ID         |   0   0x00
+    +-------------------------+-------+---------------------------------+
+    |                          Link Control 3                           |   1   0x04
+    +-------------------------------------------------------------------+
+    |                         Lane Error Status                         |   2   0x08
+    +-------------------------------------------------------------------+
+    |                     Lane Equalization Control                     |   3   0x0C
+    +-------------------------------------------------------------------+
+    """
+    async def _read_register(self, reg):
+        if reg == 1:
+            # Link Control 3
+            val = bool(self.perform_equalization)
+            val |= bool(self.link_equalization_request_interrupt_enable) << 1
+            val |= (self.enable_lower_skp_os_generation & 0x7f) << 9
+            return val
+        elif reg == 2:
+            # Lane Error Status
+            return self.lane_error_status & 0xffffffff
+        elif reg < 18:
+            # Lane equalization control
+            val = self.downstream_port_8gt_transmitter_preset[(reg-2)*2] & 0xf
+            val |= (self.downstream_port_8gt_receiver_preset_hint[(reg-2)*2] & 0x7) << 4
+            val |= (self.upstream_port_8gt_transmitter_preset[(reg-2)*2] & 0xf) << 8
+            val |= (self.upstream_port_8gt_receiver_preset_hint[(reg-2)*2] & 0x7) << 12
+            val |= (self.downstream_port_8gt_transmitter_preset[(reg-2)*2+1] & 0xf) << 16
+            val |= (self.downstream_port_8gt_receiver_preset_hint[(reg-2)*2+1] & 0x7) << 20
+            val |= (self.upstream_port_8gt_transmitter_preset[(reg-2)*2+1] & 0xf) << 24
+            val |= (self.upstream_port_8gt_receiver_preset_hint[(reg-2)*2+1] & 0x7) << 28
+            return val
+        else:
+            return 0
+
+    async def _write_register(self, reg, data, mask):
+        if reg == 1:
+            # Link Control 3
+            if mask & 0x1:
+                self.perform_equalization = bool(data & 1 << 0)
+                self.link_equalization_request_interrupt_enable = bool(data & 1 << 1)
+            if mask & 0x2:
+                self.enable_lower_skp_os_generation = (data >> 9) & 0x7f
+        elif reg == 2:
+            # Lane Error Status
+            self.lane_error_status = byte_mask_update(self.lane_error_status, mask, self.lane_error_status & ~data) & 0xffffffff
