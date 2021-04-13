@@ -363,16 +363,39 @@ class Tlp:
         """Compute lower address field from address and first byte enable"""
         return self.address & 0x7c + self.get_first_be_offset()
 
+    def has_data(self):
+        """Return true if TLP has payload data"""
+        return self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA
+
+    def get_header_size(self):
+        """Return size of TLP in bytes"""
+        if self.fmt == TlpFmt.THREE_DW or self.fmt == TlpFmt.THREE_DW_DATA:
+            return 12
+        elif self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
+            return 16
+
+    def get_header_size_dw(self):
+        """Return size of TLP in dwords"""
+        if self.fmt == TlpFmt.THREE_DW or self.fmt == TlpFmt.THREE_DW_DATA:
+            return 3
+        elif self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
+            return 4
+
+    def get_payload_size(self):
+        """Return size of TLP payload in bytes"""
+        return len(self.data)*4
+
+    def get_payload_size_dw(self):
+        """Return size of TLP payload in dwords"""
+        return len(self.data)
+
     def get_size(self):
         """Return size of TLP in bytes"""
-        if self.fmt == TlpFmt.THREE_DW:
-            return 12
-        elif self.fmt == TlpFmt.THREE_DW_DATA:
-            return 12+len(self.data)*4
-        elif self.fmt == TlpFmt.FOUR_DW:
-            return 16
-        elif self.fmt == TlpFmt.FOUR_DW_DATA:
-            return 16+len(self.data)*4
+        return self.get_header_size()+self.get_payload_size()
+
+    def get_size_dw(self):
+        """Return size of TLP in dwords"""
+        return self.get_header_size_dw()+self.get_payload_size_dw()
 
     def get_wire_size(self):
         """Return size of TLP in bytes, including overhead"""
@@ -380,7 +403,7 @@ class Tlp:
 
     def get_data_credits(self):
         """Return size of TLP in data credits (1 credit per 4 DW)"""
-        return (len(self.data)+3)//4
+        return (self.get_payload_size_dw()+3)//4
 
     def pack(self):
         """Pack TLP as DWORD array"""
