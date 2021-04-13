@@ -462,9 +462,8 @@ class Function:
 
             # prepare completion TLP
             cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
-            cpl.data = [data]
+            cpl.set_data(data.to_bytes(4, 'little'))
             cpl.byte_count = 4
-            cpl.length = 1
 
             self.log.debug("Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
@@ -474,15 +473,18 @@ class Function:
 
     async def handle_config_0_write_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
-            self.log.info("Config type 0 write, reg 0x%03x data 0x%08x", tlp.register_number, tlp.data[0])
+            self.log.info("Config type 0 write, reg 0x%03x data 0x%08x",
+                tlp.register_number, int.from_bytes(tlp.get_data(), 'little'))
 
             # capture address information
             if self.bus_num != tlp.dest_id.bus:
                 self.log.info("Capture bus number %d", tlp.dest_id.bus)
                 self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
+            data = int.from_bytes(tlp.get_data(), 'little')
+
             # perform operation
-            await self.write_config_register(tlp.register_number, tlp.data[0], tlp.first_be)
+            await self.write_config_register(tlp.register_number, data, tlp.first_be)
 
             # prepare completion TLP
             cpl = Tlp.create_completion_for_tlp(tlp, self.pcie_id)
@@ -523,7 +525,7 @@ class Function:
                 raise Exception("Unsuccessful completion")
             else:
                 assert cpl.length == 1
-                d = struct.pack('<L', cpl.data[0])
+                d = cpl.get_data()
 
             data += d[first_pad:]
 
@@ -656,10 +658,7 @@ class Function:
                     assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
                     assert cpl.byte_count == byte_length - m
 
-                    d = bytearray()
-
-                    for k in range(cpl.length):
-                        d.extend(struct.pack('<L', cpl.data[k]))
+                    d = cpl.get_data()
 
                     offset = cpl.lower_address & 3
                     data += d[offset:offset+cpl.byte_count]

@@ -357,7 +357,7 @@ class TB:
             if cpl.status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
             else:
-                d = struct.pack('<L', cpl.data[0])
+                d = cpl.get_data()
 
             data += d[first_pad:]
 
@@ -427,10 +427,7 @@ class TB:
                 if cpl.status != CplStatus.SC:
                     raise Exception("Unsuccessful completion")
                 else:
-                    d = bytearray()
-
-                    for k in range(cpl.length):
-                        d.extend(struct.pack('<L', cpl.data[k]))
+                    d = cpl.get_data()
 
                     offset = cpl.lower_address & 3
                     data += d[offset:offset+cpl.byte_count]

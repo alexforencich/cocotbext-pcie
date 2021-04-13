@@ -306,7 +306,7 @@ class RootComplex(Switch):
     async def handle_io_write_tlp(self, tlp):
         if self.find_io_region(tlp.address):
             self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, tlp.data[0])
+                tlp.address, tlp.first_be, tlp.tag, int.from_bytes(tlp.get_data(), 'little'))
 
             assert tlp.length == 1
 
@@ -487,7 +487,7 @@ class RootComplex(Switch):
                 d = b'\xff\xff\xff\xff'
             else:
                 assert cpl.length == 1
-                d = struct.pack('<L', cpl.data[0])
+                d = cpl.get_data()
 
             data += d[first_pad:]
 
@@ -677,7 +677,7 @@ class RootComplex(Switch):
                 raise Exception("Unsuccessful completion")
             else:
                 assert cpl.length == 1
-                d = struct.pack('<L', cpl.data[0])
+                d = cpl.get_data()
 
             data += d[first_pad:]
 
@@ -810,10 +810,7 @@ class RootComplex(Switch):
                     assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
                     assert cpl.byte_count == byte_length - m
 
-                    d = bytearray()
-
-                    for k in range(cpl.length):
-                        d.extend(struct.pack('<L', cpl.data[k]))
+                    d = cpl.get_data()
 
                     offset = cpl.lower_address & 3
                     data += d[offset:offset+cpl.byte_count]

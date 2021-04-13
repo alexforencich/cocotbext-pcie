@@ -275,7 +275,7 @@ class MemoryEndpoint(Endpoint):
         m = self.match_bar(tlp.address, True)
         if len(m) == 1:
             self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, tlp.data[0])
+                tlp.address, tlp.first_be, tlp.tag, int.from_bytes(tlp.get_data(), 'little'))
 
             assert tlp.length == 1
 
