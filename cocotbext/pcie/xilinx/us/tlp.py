@@ -23,6 +23,7 @@ THE SOFTWARE.
 """
 
 import enum
+import struct
 
 from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType, TlpAt, TlpAttr, TlpTc, CplStatus
 from cocotbext.pcie.core.utils import PcieId
@@ -126,16 +127,17 @@ class Tlp_us(Tlp):
             pkt.discontinue = self.discontinue
 
             # payload data
-            pkt.data += self.data
+            for k in range(0, len(self.data), 4):
+                pkt.data.extend(struct.unpack_from('<L', self.data, k))
 
             # compute byte enables
             pkt.byte_en = [0]*4
 
-            if len(self.data) >= 1:
+            if self.get_payload_size_dw() >= 1:
                 pkt.byte_en += [self.first_be]
-            if len(self.data) > 2:
-                pkt.byte_en += [0xf] * (len(self.data)-2)
-            if len(self.data) > 1:
+            if self.get_payload_size_dw() > 2:
+                pkt.byte_en += [0xf] * (self.get_payload_size_dw()-2)
+            if self.get_payload_size_dw() > 1:
                 pkt.byte_en += [self.last_be]
 
             # compute parity
@@ -194,16 +196,17 @@ class Tlp_us(Tlp):
 
             tlp.discontinue = pkt.discontinue
 
-            tlp.data = pkt.data[4:]
+            for dw in pkt.data[4:]:
+                tlp.data.extend(struct.pack('<L', dw))
 
             # compute byte enables
             byte_en = [0]*4
 
-            if len(tlp.data) >= 1:
+            if tlp.get_payload_size_dw() >= 1:
                 byte_en += [tlp.first_be]
-            if len(tlp.data) > 2:
-                byte_en += [0xf] * (len(tlp.data)-2)
-            if len(tlp.data) > 1:
+            if tlp.get_payload_size_dw() > 2:
+                byte_en += [0xf] * (tlp.get_payload_size_dw()-2)
+            if tlp.get_payload_size_dw() > 1:
                 byte_en += [tlp.last_be]
 
             # check byte enables
@@ -244,7 +247,8 @@ class Tlp_us(Tlp):
             pkt.discontinue = self.discontinue
 
             # payload data
-            pkt.data += self.data
+            for k in range(0, len(self.data), 4):
+                pkt.data.extend(struct.unpack_from('<L', self.data, k))
 
             # compute parity
             pkt.update_parity()
@@ -279,7 +283,8 @@ class Tlp_us(Tlp):
         tlp.discontinue = pkt.discontinue
 
         if tlp.length > 0:
-            tlp.data = pkt.data[3:3+tlp.length]
+            for dw in pkt.data[3:3+tlp.length]:
+                tlp.data.extend(struct.pack('<L', dw))
 
         # check parity
         if check_parity:
@@ -353,7 +358,8 @@ class Tlp_us(Tlp):
             pkt.seq_num = self.seq_num
 
             # payload data
-            pkt.data += self.data
+            for k in range(0, len(self.data), 4):
+                pkt.data.extend(struct.unpack_from('<L', self.data, k))
 
             # compute parity
             pkt.update_parity()
@@ -424,7 +430,8 @@ class Tlp_us(Tlp):
 
             tlp.seq_num = pkt.seq_num
 
-            tlp.data = pkt.data[4:]
+            for dw in pkt.data[4:]:
+                tlp.data.extend(struct.pack('<L', dw))
 
             # check parity
             if check_parity:
@@ -461,7 +468,8 @@ class Tlp_us(Tlp):
             pkt.discontinue = self.discontinue
 
             # payload data
-            pkt.data += self.data
+            for k in range(0, len(self.data), 4):
+                pkt.data.extend(struct.unpack_from('<L', self.data, k))
 
             # compute byte enables
             pkt.byte_en = [0]*3
@@ -472,15 +480,15 @@ class Tlp_us(Tlp):
             else:
                 last_be = 0xf >> ((4-self.byte_count-self.lower_address) & 3)
 
-            if len(self.data) == 1:
+            if self.get_payload_size_dw() == 1:
                 first_be = first_be & last_be
                 last_be = 0
 
-            if len(self.data) >= 1:
+            if self.get_payload_size_dw() >= 1:
                 pkt.byte_en += [first_be]
-            if len(self.data) > 2:
-                pkt.byte_en += [0xf] * (len(self.data)-2)
-            if len(self.data) > 1:
+            if self.get_payload_size_dw() > 2:
+                pkt.byte_en += [0xf] * (self.get_payload_size_dw()-2)
+            if self.get_payload_size_dw() > 1:
                 pkt.byte_en += [last_be]
 
             # compute parity
@@ -515,7 +523,8 @@ class Tlp_us(Tlp):
         tlp.discontinue = pkt.discontinue
 
         if tlp.length > 0:
-            tlp.data = pkt.data[3:3+tlp.length]
+            for dw in pkt.data[3:3+tlp.length]:
+                tlp.data.extend(struct.pack('<L', dw))
 
         # compute byte enables
         byte_en = [0]*3
@@ -526,15 +535,15 @@ class Tlp_us(Tlp):
         else:
             last_be = 0xf >> ((4-tlp.byte_count-tlp.lower_address) & 3)
 
-        if len(tlp.data) == 1:
+        if tlp.get_payload_size_dw() == 1:
             first_be = first_be & last_be
             last_be = 0
 
-        if len(tlp.data) >= 1:
+        if tlp.get_payload_size_dw() >= 1:
             byte_en += [first_be]
-        if len(tlp.data) > 2:
-            byte_en += [0xf] * (len(tlp.data)-2)
-        if len(tlp.data) > 1:
+        if tlp.get_payload_size_dw() > 2:
+            byte_en += [0xf] * (tlp.get_payload_size_dw()-2)
+        if tlp.get_payload_size_dw() > 1:
             byte_en += [last_be]
 
         # check byte enables
@@ -577,7 +586,7 @@ class Tlp_us(Tlp):
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
+            f"{type(self).__name__}(data={self.data}, "
             f"fmt_type={self.fmt_type}, "
             f"tc={self.tc!s}, "
             f"ln={self.ln}, "

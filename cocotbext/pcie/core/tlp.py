@@ -169,7 +169,7 @@ class Tlp:
         self.address = 0
         self.ph = 0
         self.register_number = 0
-        self.data = []
+        self.data = bytearray()
 
         if isinstance(tlp, Tlp):
             self.fmt = tlp.fmt
@@ -235,7 +235,7 @@ class Tlp:
         """Validate TLP"""
         ret = True
         if self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA:
-            if self.length != len(self.data):
+            if self.length*4 != len(self.data):
                 print("TLP validation failed, length field does not match data: %s" % repr(self))
                 ret = False
             if 0 > self.length > 1024:
@@ -312,10 +312,8 @@ class Tlp:
 
     def set_data(self, data):
         """Set DWORD data from byte data"""
-        self.data = []
-        for k in range(0, len(data), 4):
-            self.data.append(struct.unpack('<L', data[k:k+4])[0])
-        self.length = len(self.data)
+        self.data = bytearray(data)
+        self.length = len(self.data) // 4
 
     def set_addr_be_data(self, addr, data):
         """Set byte enables, DWORD address, DWORD length, and DWORD data from byte address and byte data"""
@@ -324,10 +322,7 @@ class Tlp:
         self.set_data(bytearray(first_pad)+data+bytearray(last_pad))
 
     def get_data(self):
-        data = bytearray()
-        for dw in self.data:
-            data.extend(struct.pack('<L', dw))
-        return data
+        return self.data
 
     def get_first_be_offset(self):
         """Offset to first transferred byte from first byte enable"""
@@ -383,11 +378,11 @@ class Tlp:
 
     def get_payload_size(self):
         """Return size of TLP payload in bytes"""
-        return len(self.data)*4
+        return len(self.data)
 
     def get_payload_size_dw(self):
         """Return size of TLP payload in dwords"""
-        return len(self.data)
+        return len(self.data) // 4
 
     def get_size(self):
         """Return size of TLP in bytes"""
@@ -461,8 +456,9 @@ class Tlp:
         else:
             raise Exception("Unknown TLP type")
 
-        if self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA:
-            pkt.extend(self.data)
+        if self.has_data():
+            for k in range(0, len(self.data), 4):
+                pkt.append(struct.unpack_from('>L', self.data, k)[0])
 
         return pkt
 
@@ -525,10 +521,8 @@ class Tlp:
         else:
             raise Exception("Unknown TLP type")
 
-        if tlp.fmt == TlpFmt.THREE_DW_DATA:
-            tlp.data = pkt[3:]
-        elif tlp.fmt == TlpFmt.FOUR_DW_DATA:
-            tlp.data = pkt[4:]
+        for dw in pkt[tlp.get_header_size_dw():]:
+            tlp.data.extend(struct.pack('>L', dw))
 
         return tlp
 
@@ -563,7 +557,7 @@ class Tlp:
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}(data=[{', '.join(hex(x) for x in self.data)}], "
+            f"{type(self).__name__}(data={self.data}, "
             f"fmt_type={self.fmt_type}, "
             f"tc={self.tc!s}, "
             f"ln={self.ln}, "
