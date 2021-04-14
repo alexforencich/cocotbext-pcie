@@ -400,9 +400,9 @@ class Tlp:
         """Return size of TLP in data credits (1 credit per 4 DW)"""
         return (self.get_payload_size_dw()+3)//4
 
-    def pack(self):
-        """Pack TLP as DWORD array"""
-        pkt = []
+    def pack_header(self):
+        """Pack TLP header as bytes"""
+        pkt = bytearray()
 
         dw = self.length & 0x3ff
         dw |= (self.at & 0x3) << 10
@@ -417,7 +417,7 @@ class Tlp:
         dw |= (self.tag & 0x200) << 14
         dw |= (self.type & 0x1f) << 24
         dw |= (self.fmt & 0x7) << 29
-        pkt.append(dw)
+        pkt.extend(struct.pack('>L', dw))
 
         if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
                 self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1 or
@@ -429,57 +429,66 @@ class Tlp:
             dw |= (self.last_be & 0xf) << 4
             dw |= (self.tag & 0x0ff) << 8
             dw |= int(self.requester_id) << 16
-            pkt.append(dw)
+            pkt.extend(struct.pack('>L', dw))
 
             if (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_WRITE_0 or
                     self.fmt_type == TlpType.CFG_READ_1 or self.fmt_type == TlpType.CFG_WRITE_1):
                 dw = (self.register_number & 0x3ff) << 2
                 dw |= int(self.dest_id) << 16
-                pkt.append(dw)
+                pkt.extend(struct.pack('>L', dw))
             else:
                 if self.fmt == TlpFmt.FOUR_DW or self.fmt == TlpFmt.FOUR_DW_DATA:
-                    pkt.append((self.address >> 32) & 0xffffffff)
-                dw = self.address & 0xfffffffc
-                dw |= self.ph & 0x3
-                pkt.append(dw)
+                    val = self.address & 0xfffffffffffffffc
+                    val |= self.ph & 0x3
+                    pkt.extend(struct.pack('>Q', val))
+                else:
+                    dw = self.address & 0xfffffffc
+                    dw |= self.ph & 0x3
+                    pkt.extend(struct.pack('>L', dw))
         elif (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
                 self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
             dw = self.byte_count & 0xfff
             dw |= bool(self.bcm) << 12
             dw |= (self.status & 0x7) << 13
             dw |= int(self.completer_id) << 16
-            pkt.append(dw)
+            pkt.extend(struct.pack('>L', dw))
             dw = self.lower_address & 0x7f
             dw |= (self.tag & 0x0ff) << 8
             dw |= int(self.requester_id) << 16
-            pkt.append(dw)
+            pkt.extend(struct.pack('>L', dw))
         else:
             raise Exception("Unknown TLP type")
 
+        return pkt
+
+    def pack(self):
+        """Pack TLP as bytes"""
+        pkt = self.pack_header()
+
         if self.has_data():
-            for k in range(0, len(self.data), 4):
-                pkt.append(struct.unpack_from('>L', self.data, k)[0])
+            pkt.extend(self.data)
 
         return pkt
 
     @classmethod
-    def unpack(cls, pkt):
-        """Unpack TLP from DWORD array"""
+    def unpack_header(cls, pkt):
+        """Unpack TLP header from bytes"""
         tlp = cls()
 
-        tlp.length = pkt[0] & 0x3ff
-        tlp.at = TlpAt((pkt[0] >> 10) & 0x3)
-        tlp.attr = (pkt[0] >> 12) & 0x3
-        tlp.ep = bool(pkt[0] & 1 << 14)
-        tlp.td = bool(pkt[0] & 1 << 15)
-        tlp.th = bool(pkt[0] & 1 << 16)
-        tlp.ln = bool(pkt[0] & 1 << 17)
-        tlp.attr = TlpAttr(tlp.attr | (pkt[0] >> 16) & 0x4)
-        tlp.tag = (pkt[0] >> 11) & 0x100
-        tlp.tc = TlpTc((pkt[0] >> 20) & 0x7)
-        tlp.tag |= (pkt[0] >> 14) & 0x200
-        tlp.type = (pkt[0] >> 24) & 0x1f
-        tlp.fmt = (pkt[0] >> 29) & 0x7
+        dw = struct.unpack_from('>L', pkt, 0)[0]
+        tlp.length = dw & 0x3ff
+        tlp.at = TlpAt((dw >> 10) & 0x3)
+        tlp.attr = (dw >> 12) & 0x3
+        tlp.ep = bool(dw & 1 << 14)
+        tlp.td = bool(dw & 1 << 15)
+        tlp.th = bool(dw & 1 << 16)
+        tlp.ln = bool(dw & 1 << 17)
+        tlp.attr = TlpAttr(tlp.attr | (dw >> 16) & 0x4)
+        tlp.tag = (dw >> 11) & 0x100
+        tlp.tc = TlpTc((dw >> 20) & 0x7)
+        tlp.tag |= (dw >> 14) & 0x200
+        tlp.type = (dw >> 24) & 0x1f
+        tlp.fmt = (dw >> 29) & 0x7
 
         if tlp.fmt == TlpFmt.THREE_DW_DATA or tlp.fmt == TlpFmt.FOUR_DW_DATA:
             if tlp.length == 0:
@@ -491,38 +500,50 @@ class Tlp:
                 tlp.fmt_type == TlpType.MEM_READ_LOCKED or tlp.fmt_type == TlpType.MEM_READ_LOCKED_64 or
                 tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64 or
                 tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
-            tlp.first_be = pkt[1] & 0xf
-            tlp.last_be = (pkt[1] >> 4) & 0xf
-            tlp.tag |= (pkt[1] >> 8) & 0x0ff
-            tlp.requester_id = PcieId.from_int(pkt[1] >> 16)
+            dw = struct.unpack_from('>L', pkt, 4)[0]
+            tlp.first_be = dw & 0xf
+            tlp.last_be = (dw >> 4) & 0xf
+            tlp.tag |= (dw >> 8) & 0x0ff
+            tlp.requester_id = PcieId.from_int(dw >> 16)
 
             if (tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0 or
                     tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1):
-                tlp.register_number = (pkt[2] >> 2) >> 0x3ff
-                tlp.dest_id = PcieId.from_int(pkt[2] >> 16)
+                dw = struct.unpack_from('>L', pkt, 8)[0]
+                tlp.register_number = (dw >> 2) >> 0x3ff
+                tlp.dest_id = PcieId.from_int(dw >> 16)
             elif tlp.fmt == TlpFmt.THREE_DW or tlp.fmt == TlpFmt.THREE_DW_DATA:
-                tlp.address = pkt[2] & 0xfffffffc
-                tlp.ph = pkt[2] & 0x3
+                dw = struct.unpack_from('>L', pkt, 8)[0]
+                tlp.address = dw & 0xfffffffc
+                tlp.ph = dw & 0x3
             elif tlp.fmt == TlpFmt.FOUR_DW or tlp.fmt == TlpFmt.FOUR_DW_DATA:
-                tlp.address = (pkt[2] & 0xffffffff) << 32 | pkt[3] & 0xfffffffc
-                tlp.ph = pkt[3] & 0x3
+                val = struct.unpack_from('>Q', pkt, 8)[0]
+                tlp.address = val & 0xfffffffffffffffc
+                tlp.ph = val & 0x3
         elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
                 tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
-            tlp.byte_count = pkt[1] & 0xfff
-            tlp.bcm = bool(pkt[1] & 1 << 12)
-            tlp.status = CplStatus((pkt[1] >> 13) & 0x7)
-            tlp.completer_id = PcieId.from_int(pkt[1] >> 16)
-            tlp.lower_address = pkt[2] & 0x7f
-            tlp.tag |= (pkt[2] >> 8) & 0x0ff
-            tlp.requester_id = PcieId.from_int(pkt[2] >> 16)
+            dw = struct.unpack_from('>L', pkt, 4)[0]
+            tlp.byte_count = dw & 0xfff
+            tlp.bcm = bool(dw & 1 << 12)
+            tlp.status = CplStatus((dw >> 13) & 0x7)
+            tlp.completer_id = PcieId.from_int(dw >> 16)
+            dw = struct.unpack_from('>L', pkt, 8)[0]
+            tlp.lower_address = dw & 0x7f
+            tlp.tag |= (dw >> 8) & 0x0ff
+            tlp.requester_id = PcieId.from_int(dw >> 16)
 
             if tlp.byte_count == 0:
                 tlp.byte_count = 4096
         else:
             raise Exception("Unknown TLP type")
 
-        for dw in pkt[tlp.get_header_size_dw():]:
-            tlp.data.extend(struct.pack('>L', dw))
+        return tlp
+
+    @classmethod
+    def unpack(cls, pkt):
+        """Unpack TLP from bytes"""
+        tlp = cls.unpack_header(pkt)
+
+        tlp.data = pkt[tlp.get_header_size():]
 
         return tlp
 
@@ -581,3 +602,6 @@ class Tlp:
             f"ph={self.ph}, "
             f"register_number={self.register_number:#x})"
         )
+
+    def __bytes__(self):
+        return self.pack()
