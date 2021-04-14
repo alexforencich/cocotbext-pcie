@@ -319,7 +319,9 @@ class Tlp:
         """Set byte enables, DWORD address, DWORD length, and DWORD data from byte address and byte data"""
         self.address = addr & ~3
         first_pad, last_pad = self.set_addr_be(addr, len(data))
-        self.set_data(bytearray(first_pad)+data+bytearray(last_pad))
+        self.data = bytearray(first_pad)
+        self.data.extend(data)
+        self.data.extend(bytearray(last_pad))
 
     def get_data(self):
         return self.data
