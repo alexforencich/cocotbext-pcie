@@ -41,17 +41,16 @@ PCIE_GEN_RATE = {
 
 class Port:
     """Basic port"""
-    def __init__(self, parent=None, rx_handler=None):
-        self.parent = parent
+    def __init__(self, *args, **kwargs):
+        self.parent = None
         self.other = None
-        self.rx_handler = rx_handler
-
-        self.tx_queue = Queue()
-        self.tx_scheduled = False
+        self.rx_handler = None
 
         self.max_speed = 3
         self.max_width = 16
         self.port_delay = 5
+
+        self.tx_queue = Queue(1)
 
         self.cur_speed = 1
         self.cur_width = 1
@@ -59,6 +58,8 @@ class Port:
         self.link_delay_unit = 'ns'
 
         self.time_scale = cocotb.utils.get_sim_steps(1, 'sec')
+
+        super().__init__(*args, **kwargs)
 
         cocotb.fork(self._run_transmit())
 
@@ -106,8 +107,8 @@ class Port:
 
 class BusPort(Port):
     """Port for root of bus interconnection, broadcasts TLPs to all connected ports"""
-    def __init__(self, parent=None, rx_handler=None):
-        super().__init__(parent, rx_handler)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.other = []
 

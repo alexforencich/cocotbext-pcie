@@ -43,7 +43,9 @@ class Device:
         self.default_function = Endpoint
 
         self.functions = []
-        self.upstream_port = Port(self, self.upstream_recv)
+        self.upstream_port = None
+
+        self.set_port(Port())
 
         if eps:
             try:
@@ -107,6 +109,11 @@ class Device:
 
     def make_function(self):
         return self.append_function(self.default_function())
+
+    def set_port(self, port):
+        port.parent = self
+        port.rx_handler = self.upstream_recv
+        self.upstream_port = port
 
     def connect(self, port):
         self.upstream_port.connect(port)

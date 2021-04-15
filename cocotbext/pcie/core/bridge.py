@@ -74,11 +74,13 @@ class Bridge(Function):
 
         self.root = False
 
-        self.upstream_port = Port(self, self.upstream_recv)
-        self.upstream_tx_handler = self.upstream_port.send
+        self.upstream_port = None
+        self.upstream_tx_handler = None
+        self.set_upstream_port(Port())
 
-        self.downstream_port = Port(self, self.downstream_recv)
-        self.downstream_tx_handler = self.downstream_port.send
+        self.downstream_port = None
+        self.downstream_tx_handler = None
+        self.set_downstream_port(Port())
 
     """
     Bridge (type 1) config space
@@ -277,6 +279,12 @@ class Bridge(Function):
         else:
             await super().write_config_register(reg, data, mask)
 
+    def set_upstream_port(self, port):
+        port.parent = self
+        port.rx_handler = self.upstream_recv
+        self.upstream_port = port
+        self.upstream_tx_handler = port.send
+
     async def upstream_send(self, tlp):
         assert tlp.check()
         if self.upstream_tx_handler is None:
@@ -365,6 +373,12 @@ class Bridge(Function):
     async def route_downstream_tlp(self, tlp, from_downstream=False):
         await self.downstream_send(tlp)
 
+    def set_downstream_port(self, port):
+        port.parent = self
+        port.rx_handler = self.downstream_recv
+        self.downstream_port = port
+        self.downstream_tx_handler = port.send
+
     async def downstream_send(self, tlp):
         assert tlp.check()
         if self.downstream_tx_handler is None:
@@ -451,8 +465,7 @@ class SwitchUpstreamPort(Bridge):
 
         self.pcie_device_type = 0x5
 
-        self.downstream_port = BusPort(self, self.downstream_recv)
-        self.downstream_tx_handler = None
+        self.set_downstream_port(BusPort())
 
         self.vendor_id = 0x1234
         self.device_id = 0x0003
