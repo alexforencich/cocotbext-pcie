@@ -123,9 +123,8 @@ class Tlp_us(Tlp):
     def pack_us_cq(self):
         pkt = UsPcieFrame()
 
-        if (self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE or
-                self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64 or
-                self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64):
+        if self.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ,
+                TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Completer Request descriptor
             dw = self.at & 0x3
             dw |= self.address & 0xfffffffc
@@ -227,13 +226,12 @@ class Tlp_us(Tlp):
     def pack_us_cc(self):
         pkt = UsPcieFrame()
 
-        if (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
-                self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
+        if self.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Requester Completion descriptor
             dw = self.lower_address & 0x7f
             dw |= (self.at & 3) << 8
             dw |= (self.byte_count & 0x1fff) << 16
-            if self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA:
+            if self.fmt_type in {TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
                 # TODO only for completions for locked read requests
                 dw |= 1 << 29
             # TODO request completed
@@ -301,22 +299,18 @@ class Tlp_us(Tlp):
     def pack_us_rq(self):
         pkt = UsPcieFrame()
 
-        if (self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE or
-                self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64 or
-                self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64 or
-                self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_READ_1 or
-                self.fmt_type == TlpType.CFG_WRITE_0 or self.fmt_type == TlpType.CFG_WRITE_1):
+        if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
+                TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
+                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE}:
             # Completer Request descriptor
-            if (self.fmt_type == TlpType.IO_READ or self.fmt_type == TlpType.IO_WRITE or
-                    self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64 or
-                    self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64):
+            if self.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ,
+                    TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
                 dw = self.at & 0x3
                 dw |= self.address & 0xfffffffc
                 pkt.data.append(dw)
                 dw = (self.address & 0xffffffff00000000) >> 32
                 pkt.data.append(dw)
-            elif (self.fmt_type == TlpType.CFG_READ_0 or self.fmt_type == TlpType.CFG_READ_1 or
-                    self.fmt_type == TlpType.CFG_WRITE_0 or self.fmt_type == TlpType.CFG_WRITE_1):
+            elif self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
                 dw = (self.register_number & 0x3ff) << 2
                 pkt.data.append(dw)
                 pkt.data.append(0)
@@ -402,13 +396,12 @@ class Tlp_us(Tlp):
     def pack_us_rc(self):
         pkt = UsPcieFrame()
 
-        if (self.fmt_type == TlpType.CPL or self.fmt_type == TlpType.CPL_DATA or
-                self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA):
+        if self.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Requester Completion descriptor
             dw = self.lower_address & 0xfff
             dw |= (self.error_code & 0xf) << 12
             dw |= (self.byte_count & 0x1fff) << 16
-            if self.fmt_type == TlpType.CPL_LOCKED or self.fmt_type == TlpType.CPL_LOCKED_DATA:
+            if self.fmt_type in {TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
                 dw |= 1 << 29
             # TODO request completed
             pkt.data.append(dw)
