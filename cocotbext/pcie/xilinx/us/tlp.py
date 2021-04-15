@@ -62,6 +62,44 @@ class ErrorCode(enum.IntEnum):
     FLR                = 0b1000
 
 
+tlp_type_to_req_type = {
+    TlpType.MEM_READ:            ReqType.MEM_READ,
+    TlpType.MEM_READ_64:         ReqType.MEM_READ,
+    TlpType.MEM_READ_LOCKED:     ReqType.MEM_READ_LOCKED,
+    TlpType.MEM_READ_LOCKED_64:  ReqType.MEM_READ_LOCKED,
+    TlpType.MEM_WRITE:           ReqType.MEM_WRITE,
+    TlpType.MEM_WRITE_64:        ReqType.MEM_WRITE,
+    TlpType.IO_READ:             ReqType.IO_READ,
+    TlpType.IO_WRITE:            ReqType.IO_WRITE,
+    TlpType.CFG_READ_0:          ReqType.CFG_READ_0,
+    TlpType.CFG_WRITE_0:         ReqType.CFG_WRITE_0,
+    TlpType.CFG_READ_1:          ReqType.CFG_READ_1,
+    TlpType.CFG_WRITE_1:         ReqType.CFG_WRITE_1,
+    TlpType.FETCH_ADD:           ReqType.MEM_FETCH_ADD,
+    TlpType.FETCH_ADD_64:        ReqType.MEM_FETCH_ADD,
+    TlpType.SWAP:                ReqType.MEM_SWAP,
+    TlpType.SWAP_64:             ReqType.MEM_SWAP,
+    TlpType.CAS:                 ReqType.MEM_CAS,
+    TlpType.CAS_64:              ReqType.MEM_CAS,
+}
+
+
+req_type_to_tlp_type = {
+    ReqType.MEM_READ:        TlpType.MEM_READ,
+    ReqType.MEM_WRITE:       TlpType.MEM_WRITE,
+    ReqType.IO_READ:         TlpType.IO_READ,
+    ReqType.IO_WRITE:        TlpType.IO_WRITE,
+    ReqType.MEM_FETCH_ADD:   TlpType.FETCH_ADD,
+    ReqType.MEM_SWAP:        TlpType.SWAP,
+    ReqType.MEM_CAS:         TlpType.CAS,
+    ReqType.MEM_READ_LOCKED: TlpType.MEM_READ_LOCKED,
+    ReqType.CFG_READ_0:      TlpType.CFG_READ_0,
+    ReqType.CFG_READ_1:      TlpType.CFG_READ_1,
+    ReqType.CFG_WRITE_0:     TlpType.CFG_WRITE_0,
+    ReqType.CFG_WRITE_1:     TlpType.CFG_WRITE_1,
+}
+
+
 class Tlp_us(Tlp):
     def __init__(self, tlp=None):
         super().__init__(tlp)
@@ -95,22 +133,7 @@ class Tlp_us(Tlp):
             dw = (self.address & 0xffffffff00000000) >> 32
             pkt.data.append(dw)
             dw = self.length & 0x7ff
-            if self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64:
-                dw |= ReqType.MEM_READ << 11
-            elif self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64:
-                dw |= ReqType.MEM_WRITE << 11
-            elif self.fmt_type == TlpType.IO_READ:
-                dw |= ReqType.IO_READ << 11
-            elif self.fmt_type == TlpType.IO_WRITE:
-                dw |= ReqType.IO_WRITE << 11
-            elif self.fmt_type == TlpType.FETCH_ADD or self.fmt_type == TlpType.FETCH_ADD_64:
-                dw |= ReqType.MEM_FETCH_ADD << 11
-            elif self.fmt_type == TlpType.SWAP or self.fmt_type == TlpType.SWAP_64:
-                dw |= ReqType.MEM_SWAP << 11
-            elif self.fmt_type == TlpType.CAS or self.fmt_type == TlpType.CAS_64:
-                dw |= ReqType.MEM_CAS << 11
-            elif self.fmt_type == TlpType.MEM_READ_LOCKED or self.fmt_type == TlpType.MEM_READ_LOCKED_64:
-                dw |= ReqType.MEM_READ_LOCKED << 11
+            dw |= tlp_type_to_req_type[self.fmt_type] << 11
             dw |= int(self.requester_id) << 16
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
@@ -153,24 +176,7 @@ class Tlp_us(Tlp):
 
         req_type = (pkt.data[2] >> 11) & 0xf
 
-        if req_type == ReqType.MEM_READ:
-            tlp.fmt_type = TlpType.MEM_READ
-        elif req_type == ReqType.MEM_WRITE:
-            tlp.fmt_type = TlpType.MEM_WRITE
-        elif req_type == ReqType.IO_READ:
-            tlp.fmt_type = TlpType.IO_READ
-        elif req_type == ReqType.IO_WRITE:
-            tlp.fmt_type = TlpType.IO_WRITE
-        elif req_type == ReqType.MEM_FETCH_ADD:
-            tlp.fmt_type = TlpType.FETCH_ADD
-        elif req_type == ReqType.MEM_SWAP:
-            tlp.fmt_type = TlpType.SWAP
-        elif req_type == ReqType.MEM_CAS:
-            tlp.fmt_type = TlpType.CAS
-        elif req_type == ReqType.MEM_READ_LOCKED:
-            tlp.fmt_type = TlpType.MEM_READ_LOCKED
-        else:
-            raise Exception("Invalid packet type")
+        tlp.fmt_type = req_type_to_tlp_type[req_type]
 
         tlp.length = pkt.data[2] & 0x7ff
         tlp.requester_id = PcieId.from_int(pkt.data[2] >> 16)
@@ -315,30 +321,7 @@ class Tlp_us(Tlp):
                 pkt.data.append(dw)
                 pkt.data.append(0)
             dw = self.length & 0x7ff
-            if self.fmt_type == TlpType.MEM_READ or self.fmt_type == TlpType.MEM_READ_64:
-                dw |= ReqType.MEM_READ << 11
-            elif self.fmt_type == TlpType.MEM_WRITE or self.fmt_type == TlpType.MEM_WRITE_64:
-                dw |= ReqType.MEM_WRITE << 11
-            elif self.fmt_type == TlpType.IO_READ:
-                dw |= ReqType.IO_READ << 11
-            elif self.fmt_type == TlpType.IO_WRITE:
-                dw |= ReqType.IO_WRITE << 11
-            elif self.fmt_type == TlpType.FETCH_ADD or self.fmt_type == TlpType.FETCH_ADD_64:
-                dw |= ReqType.MEM_FETCH_ADD << 11
-            elif self.fmt_type == TlpType.SWAP or self.fmt_type == TlpType.SWAP_64:
-                dw |= ReqType.MEM_SWAP << 11
-            elif self.fmt_type == TlpType.CAS or self.fmt_type == TlpType.CAS_64:
-                dw |= ReqType.MEM_CAS << 11
-            elif self.fmt_type == TlpType.MEM_READ_LOCKED or self.fmt_type == TlpType.MEM_READ_LOCKED_64:
-                dw |= ReqType.MEM_READ_LOCKED << 11
-            elif self.fmt_type == TlpType.CFG_READ_0:
-                dw |= ReqType.CFG_READ_0 << 11
-            elif self.fmt_type == TlpType.CFG_READ_1:
-                dw |= ReqType.CFG_READ_1 << 11
-            elif self.fmt_type == TlpType.CFG_WRITE_0:
-                dw |= ReqType.CFG_WRITE_0 << 11
-            elif self.fmt_type == TlpType.CFG_WRITE_1:
-                dw |= ReqType.CFG_WRITE_1 << 11
+            dw |= tlp_type_to_req_type[self.fmt_type] << 11
             # TODO poisoned
             dw |= int(self.requester_id) << 16
             pkt.data.append(dw)
@@ -374,32 +357,7 @@ class Tlp_us(Tlp):
 
         req_type = (pkt.data[2] >> 11) & 0xf
 
-        if req_type == ReqType.MEM_READ:
-            tlp.fmt_type = TlpType.MEM_READ
-        elif req_type == ReqType.MEM_WRITE:
-            tlp.fmt_type = TlpType.MEM_WRITE
-        elif req_type == ReqType.IO_READ:
-            tlp.fmt_type = TlpType.IO_READ
-        elif req_type == ReqType.IO_WRITE:
-            tlp.fmt_type = TlpType.IO_WRITE
-        elif req_type == ReqType.MEM_FETCH_ADD:
-            tlp.fmt_type = TlpType.FETCH_ADD
-        elif req_type == ReqType.MEM_SWAP:
-            tlp.fmt_type = TlpType.SWAP
-        elif req_type == ReqType.MEM_CAS:
-            tlp.fmt_type = TlpType.CAS
-        elif req_type == ReqType.MEM_READ_LOCKED:
-            tlp.fmt_type = TlpType.MEM_READ_LOCKED
-        elif req_type == ReqType.CFG_READ_0:
-            tlp.fmt_type = TlpType.CFG_READ_0
-        elif req_type == ReqType.CFG_READ_1:
-            tlp.fmt_type = TlpType.CFG_READ_1
-        elif req_type == ReqType.CFG_WRITE_0:
-            tlp.fmt_type = TlpType.CFG_WRITE_0
-        elif req_type == ReqType.CFG_WRITE_1:
-            tlp.fmt_type = TlpType.CFG_WRITE_1
-        else:
-            raise Exception("Invalid packet type")
+        tlp.fmt_type = req_type_to_tlp_type[req_type]
 
         tlp.length = pkt.data[2] & 0x7ff
         # TODO poisoned
