@@ -294,9 +294,9 @@ class Bridge(Function):
     async def upstream_recv(self, tlp):
         self.log.debug("Routing downstream TLP: %s", repr(tlp))
         assert tlp.check()
-        if tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0:
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             await self.handle_tlp(tlp)
-        elif tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1:
+        elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # config type 1
             if self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num:
                 if tlp.dest_id.bus == self.sec_bus_num:
@@ -309,8 +309,7 @@ class Bridge(Function):
             else:
                 # error
                 pass
-        elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completions
             if not self.root and tlp.requester_id == self.pcie_id:
                 # for me
@@ -320,7 +319,7 @@ class Bridge(Function):
             else:
                 # error
                 pass
-        elif tlp.fmt_type == TlpType.MSG_ID or tlp.fmt_type == TlpType.MSG_DATA_ID:
+        elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
             # ID routed message
             if not self.root and tlp.dest_id == self.pcie_id:
                 # for me
@@ -330,7 +329,7 @@ class Bridge(Function):
             else:
                 # error
                 pass
-        elif (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
             if self.match_bar(tlp.address, io=True):
                 # for me
@@ -340,8 +339,7 @@ class Bridge(Function):
             else:
                 # error
                 pass
-        elif (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
-                tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
             if self.match_bar(tlp.address):
                 # for me
@@ -352,18 +350,18 @@ class Bridge(Function):
             else:
                 # error
                 pass
-        elif tlp.fmt_type == TlpType.MSG_TO_RC or tlp.fmt_type == TlpType.MSG_DATA_TO_RC:
+        elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
             # Message to root complex
             # error
             pass
-        elif tlp.fmt_type == TlpType.MSG_BCAST or tlp.fmt_type == TlpType.MSG_DATA_BCAST:
+        elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
             # Message broadcast from root complex
             await self.route_downstream_tlp(tlp, False)
-        elif tlp.fmt_type == TlpType.MSG_LOCAL or tlp.fmt_type == TlpType.MSG_DATA_LOCAL:
+        elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
             # Message local to receiver
             # error
             pass
-        elif tlp.fmt_type == TlpType.MSG_GATHER or tlp.fmt_type == TlpType.MSG_DATA_GATHER:
+        elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
             # Message gather to root complex
             # error
             pass
@@ -388,12 +386,10 @@ class Bridge(Function):
     async def downstream_recv(self, tlp):
         self.log.debug("Routing upstream TLP: %s", repr(tlp))
         assert tlp.check()
-        if (tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0 or
-                tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1):
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # error
             pass
-        elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completions
             if not self.root and tlp.requester_id == self.pcie_id:
                 # for me
@@ -405,7 +401,7 @@ class Bridge(Function):
                     await self.route_downstream_tlp(tlp, True)
             else:
                 await self.upstream_send(tlp)
-        elif tlp.fmt_type == TlpType.MSG_ID or tlp.fmt_type == TlpType.MSG_DATA_ID:
+        elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
             # ID routed messages
             if not self.root and tlp.dest_id == self.pcie_id:
                 # for me
@@ -417,7 +413,7 @@ class Bridge(Function):
                     await self.route_downstream_tlp(tlp, True)
             else:
                 await self.upstream_send(tlp)
-        elif (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
             if self.match_bar(tlp.address, io=True):
                 # for me
@@ -426,8 +422,7 @@ class Bridge(Function):
                 await self.route_downstream_tlp(tlp, True)
             else:
                 await self.upstream_send(tlp)
-        elif (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
-                tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
             if self.match_bar(tlp.address):
                 # for me
@@ -437,18 +432,18 @@ class Bridge(Function):
                 await self.route_downstream_tlp(tlp, True)
             else:
                 await self.upstream_send(tlp)
-        elif tlp.fmt_type == TlpType.MSG_TO_RC or tlp.fmt_type == TlpType.MSG_DATA_TO_RC:
+        elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
             # Message to root complex
             await self.upstream_send(tlp)
-        elif tlp.fmt_type == TlpType.MSG_BCAST or tlp.fmt_type == TlpType.MSG_DATA_BCAST:
+        elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
             # Message broadcast from root complex
             # error
             pass
-        elif tlp.fmt_type == TlpType.MSG_LOCAL or tlp.fmt_type == TlpType.MSG_DATA_LOCAL:
+        elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
             # Message local to receiver
             # error
             pass
-        elif tlp.fmt_type == TlpType.MSG_GATHER or tlp.fmt_type == TlpType.MSG_DATA_GATHER:
+        elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
             # Message gather to root complex
             raise Exception("TODO")
         else:
@@ -477,18 +472,17 @@ class SwitchUpstreamPort(Bridge):
         ok = False
         for p in self.downstream_port.other:
             dev = p.parent
-            if tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0:
+            if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
                 # config type 0
                 if tlp.dest_id.device == dev.device_num and tlp.dest_id.function == dev.function_num:
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif tlp.fmt_type == TlpType.CFG_READ_1 or tlp.fmt_type == TlpType.CFG_WRITE_1:
+            elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
                 # config type 1
                 if isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.dest_id.bus <= dev.sub_bus_num:
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                    tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+            elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
                 # Completions
                 if tlp.requester_id == dev.pcie_id:
                     await p.ext_recv(Tlp(tlp))
@@ -496,7 +490,7 @@ class SwitchUpstreamPort(Bridge):
                 elif isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.requester_id.bus <= dev.sub_bus_num:
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif tlp.fmt_type == TlpType.MSG_ID or tlp.fmt_type == TlpType.MSG_DATA_ID:
+            elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
                 # ID routed message
                 if tlp.dest_id == dev.pcie_id:
                     await p.ext_recv(Tlp(tlp))
@@ -504,7 +498,7 @@ class SwitchUpstreamPort(Bridge):
                 elif isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.requester_id.bus <= dev.sub_bus_num:
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+            elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
                 # IO read/write
                 if dev.match_bar(tlp.address, True):
                     await p.ext_recv(Tlp(tlp))
@@ -512,8 +506,7 @@ class SwitchUpstreamPort(Bridge):
                 elif isinstance(dev, Bridge) and dev.io_base <= tlp.address <= dev.io_limit:
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
-                    tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+            elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
                 # Memory read/write
                 if dev.match_bar(tlp.address):
                     await p.ext_recv(Tlp(tlp))
@@ -522,19 +515,19 @@ class SwitchUpstreamPort(Bridge):
                         dev.prefetchable_mem_base <= tlp.address <= dev.prefetchable_mem_limit):
                     await p.ext_recv(Tlp(tlp))
                     return
-            elif tlp.fmt_type == TlpType.MSG_TO_RC or tlp.fmt_type == TlpType.MSG_DATA_TO_RC:
+            elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
                 # Message to root complex
                 # error
                 pass
-            elif tlp.fmt_type == TlpType.MSG_BCAST or tlp.fmt_type == TlpType.MSG_DATA_BCAST:
+            elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
                 # Message broadcast from root complex
                 await p.ext_recv(Tlp(tlp))
                 ok = True
-            elif tlp.fmt_type == TlpType.MSG_LOCAL or tlp.fmt_type == TlpType.MSG_DATA_LOCAL:
+            elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
                 # Message local to receiver
                 # error
                 pass
-            elif tlp.fmt_type == TlpType.MSG_GATHER or tlp.fmt_type == TlpType.MSG_DATA_GATHER:
+            elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
                 # Message gather to root complex
                 # error
                 pass

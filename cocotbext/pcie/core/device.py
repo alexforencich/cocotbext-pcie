@@ -121,7 +121,7 @@ class Device:
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %s", repr(tlp))
         assert tlp.check()
-        if tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0:
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
 
             if tlp.dest_id.device == self.device_num:
@@ -145,8 +145,7 @@ class Device:
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
-        elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
             if tlp.requester_id.bus == self.bus_num and tlp.requester_id.device == self.device_num:
@@ -158,7 +157,7 @@ class Device:
                 self.log.info("Function not found")
             else:
                 self.log.info("Bus/device number mismatch")
-        elif (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
             for f in self.functions:
@@ -172,8 +171,7 @@ class Device:
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
-        elif (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
-                tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
 
             for f in self.functions:
@@ -183,7 +181,7 @@ class Device:
 
             self.log.warning("Memory request did not match any BARs")
 
-            if tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64:
+            if tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # Unsupported request
                 cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
                 self.log.debug("UR Completion: %s", repr(cpl))

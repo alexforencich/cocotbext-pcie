@@ -206,8 +206,7 @@ class RootComplex(Switch):
         await self.handle_tlp(tlp)
 
     async def handle_tlp(self, tlp):
-        if (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+        if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
