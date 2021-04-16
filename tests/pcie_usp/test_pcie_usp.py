@@ -448,7 +448,7 @@ class TB:
 
             self.log.debug("CQ TLP: %s", repr(tlp))
 
-            if (tlp.fmt_type == TlpType.IO_READ):
+            if tlp.fmt_type == TlpType.IO_READ:
                 self.log.info("IO read")
 
                 cpl = Tlp_us.create_completion_data_for_tlp(tlp, PcieId(0, 0, 0))
@@ -483,7 +483,7 @@ class TB:
                 self.log.debug("Completion: %s", repr(cpl))
                 await self.cc_source.send(cpl.pack_us_cc())
 
-            elif (tlp.fmt_type == TlpType.IO_WRITE):
+            elif tlp.fmt_type == TlpType.IO_WRITE:
                 self.log.info("IO write")
 
                 cpl = Tlp_us.create_completion_for_tlp(tlp, PcieId(0, 0, 0))
@@ -514,7 +514,7 @@ class TB:
                 self.log.debug("Completion: %s", repr(cpl))
                 await self.cc_source.send(cpl.pack_us_cc())
 
-            if (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
+            elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 self.log.info("Memory read")
 
                 # perform operation
@@ -556,7 +556,7 @@ class TB:
                     n += cpl_dw_length*4 - (addr & 3)
                     addr += cpl_dw_length*4 - (addr & 3)
 
-            if (tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+            elif tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
                 self.log.info("Memory write")
 
                 # perform operation

@@ -648,7 +648,7 @@ class UltraScalePcieDevice(Device):
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %s", repr(tlp))
 
-        if tlp.fmt_type == TlpType.CFG_READ_0 or tlp.fmt_type == TlpType.CFG_WRITE_0:
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
 
             if not self.config_space_enable:
@@ -679,8 +679,7 @@ class UltraScalePcieDevice(Device):
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
-        elif (tlp.fmt_type == TlpType.CPL or tlp.fmt_type == TlpType.CPL_DATA or
-                tlp.fmt_type == TlpType.CPL_LOCKED or tlp.fmt_type == TlpType.CPL_LOCKED_DATA):
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
             if tlp.requester_id.bus == self.bus_num and tlp.requester_id.device == self.device_num:
@@ -705,7 +704,7 @@ class UltraScalePcieDevice(Device):
                 self.log.info("Function not found")
             else:
                 self.log.info("Device number mismatch")
-        elif (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE):
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
             for f in self.functions:
@@ -726,8 +725,7 @@ class UltraScalePcieDevice(Device):
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
-        elif (tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64 or
-                tlp.fmt_type == TlpType.MEM_WRITE or tlp.fmt_type == TlpType.MEM_WRITE_64):
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
 
             for f in self.functions:
@@ -748,7 +746,7 @@ class UltraScalePcieDevice(Device):
 
             self.log.info("Memory request did not match any BARs")
 
-            if tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64:
+            if tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # Unsupported request
                 cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
                 self.log.debug("UR Completion: %s", repr(cpl))
@@ -806,8 +804,7 @@ class UltraScalePcieDevice(Device):
             while not self.cq_queue.empty():
                 tlp = self.cq_queue.get_nowait()
 
-                if (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE or
-                        tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
+                if tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ, TlpType.MEM_READ_64}:
                     # non-posted request
                     if self.cq_np_req_count > 0:
                         # have credit, can forward
@@ -844,8 +841,7 @@ class UltraScalePcieDevice(Device):
             if not tlp.requester_id_enable:
                 tlp.requester_id = PcieId(self.bus_num, self.device_num, tlp.requester_id.function)
 
-            if (tlp.fmt_type == TlpType.IO_READ or tlp.fmt_type == TlpType.IO_WRITE or
-                    tlp.fmt_type == TlpType.MEM_READ or tlp.fmt_type == TlpType.MEM_READ_64):
+            if tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # non-posted request
 
                 if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
