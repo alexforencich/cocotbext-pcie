@@ -232,13 +232,12 @@ class Tlp_us(Tlp):
             dw |= (self.at & 3) << 8
             dw |= (self.byte_count & 0x1fff) << 16
             if self.fmt_type in {TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
-                # TODO only for completions for locked read requests
                 dw |= 1 << 29
             # TODO request completed
             pkt.data.append(dw)
             dw = self.length & 0x7ff
             dw |= (self.status & 0x7) << 11
-            # TODO poisoned completion
+            dw |= bool(self.ep) << 14
             dw |= int(self.requester_id) << 16
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
@@ -277,6 +276,7 @@ class Tlp_us(Tlp):
         if tlp.length > 0:
             tlp.fmt = TlpFmt.THREE_DW_DATA
         tlp.status = CplStatus((pkt.data[1] >> 11) & 7)
+        tlp.ep = bool(pkt.data[1] & 1 << 14)
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.tag = pkt.data[2] & 0xff
@@ -315,8 +315,8 @@ class Tlp_us(Tlp):
                 pkt.data.append(dw)
                 pkt.data.append(0)
             dw = self.length & 0x7ff
-            dw |= tlp_type_to_req_type[self.fmt_type] << 11
-            # TODO poisoned
+            dw |= (tlp_type_to_req_type[self.fmt_type] & 0xf) << 11
+            dw |= bool(self.ep) << 15
             dw |= int(self.requester_id) << 16
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
@@ -354,7 +354,7 @@ class Tlp_us(Tlp):
         tlp.fmt_type = req_type_to_tlp_type[req_type]
 
         tlp.length = pkt.data[2] & 0x7ff
-        # TODO poisoned
+        tlp.ep = bool(pkt.data[2] & 1 << 15)
         tlp.requester_id = PcieId.from_int(pkt.data[2] >> 16)
         tlp.tag = pkt.data[3] & 0xff
         tlp.tc = TlpTc((pkt.data[3] >> 25) & 0x7)
@@ -407,7 +407,7 @@ class Tlp_us(Tlp):
             pkt.data.append(dw)
             dw = self.length & 0x7ff
             dw |= (self.status & 0x7) << 11
-            # TODO poisoned completion
+            dw |= bool(self.ep) << 14
             dw |= int(self.requester_id) << 16
             pkt.data.append(dw)
             dw = (self.tag & 0xff)
@@ -465,6 +465,7 @@ class Tlp_us(Tlp):
         if tlp.length > 0:
             tlp.fmt = TlpFmt.THREE_DW_DATA
         tlp.status = CplStatus((pkt.data[1] >> 11) & 7)
+        tlp.ep = bool(pkt.data[1] & 1 << 14)
         tlp.requester_id = PcieId.from_int(pkt.data[1] >> 16)
         tlp.completer_id = PcieId.from_int(pkt.data[2] >> 8)
         tlp.tag = pkt.data[2] & 0xff
