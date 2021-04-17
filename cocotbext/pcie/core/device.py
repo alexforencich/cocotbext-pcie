@@ -35,10 +35,9 @@ class Device:
     def __init__(self, eps=None, *args, **kwargs):
 
         self._bus_num = 0
-        self._device_num = 0
 
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
-        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
+        self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}]"
 
         self.default_function = Endpoint
 
@@ -66,19 +65,10 @@ class Device:
             raise ValueError("Out of range")
         if self._bus_num != value:
             self._bus_num = value
-            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
+            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}]"
 
-    @property
-    def device_num(self):
-        return self._device_num
-
-    @device_num.setter
-    def device_num(self, value):
-        if value < 0 or value > 31:
-            raise ValueError("Out of range")
-        if self._device_num != value:
-            self._device_num = value
-            self.log.name = f"cocotb.pcie.{type(self).__name__}[{self._bus_num:02x}:{self._device_num:02x}]"
+            for f in self.functions:
+                f.pcie_id = f.pcie_id._replace(bus=self.bus_num)
 
     def next_free_function_number(self):
         self.functions.sort(key=lambda x: x.function_num)
@@ -104,7 +94,7 @@ class Device:
         return function
 
     def append_function(self, function):
-        function.pcie_id = PcieId(0, 0, self.next_free_function_number())
+        function.pcie_id = PcieId(self.bus_num, 0, self.next_free_function_number())
         return self.add_function(function)
 
     def make_function(self):
@@ -124,39 +114,33 @@ class Device:
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
 
-            if tlp.dest_id.device == self.device_num:
-                # capture address information
-                self.bus_num = tlp.dest_id.bus
+            # capture address information
+            self.bus_num = tlp.dest_id.bus
 
-                for f in self.functions:
-                    f.pci_id = f.pcie_id._replace(bus=self.bus_num)
+            # pass TLP to function
+            for f in self.functions:
+                if f.pcie_id == tlp.dest_id:
+                    await f.upstream_recv(tlp)
+                    return
 
-                # pass TLP to function
-                for f in self.functions:
-                    if f.function_num == tlp.dest_id.function:
-                        await f.upstream_recv(tlp)
-                        return
-
-                self.log.info("Function not found")
-            else:
-                self.log.info("Device number mismatch")
+            self.log.info("Function not found")
 
             # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
-            if tlp.requester_id.bus == self.bus_num and tlp.requester_id.device == self.device_num:
+            if tlp.requester_id.bus == self.bus_num:
                 for f in self.functions:
-                    if f.function_num == tlp.requester_id.function:
+                    if f.pcie_id == tlp.requester_id:
                         await f.upstream_recv(tlp)
                         return
 
                 self.log.info("Function not found")
             else:
-                self.log.info("Bus/device number mismatch")
+                self.log.info("Bus number mismatch")
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
@@ -168,7 +152,7 @@ class Device:
             self.log.warning("IO request did not match any BARs")
 
             # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
@@ -183,7 +167,7 @@ class Device:
 
             if tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # Unsupported request
-                cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+                cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
                 self.log.debug("UR Completion: %s", repr(cpl))
                 await self.upstream_send(cpl)
         else:

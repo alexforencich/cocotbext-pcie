@@ -654,56 +654,48 @@ class UltraScalePcieDevice(Device):
             if not self.config_space_enable:
                 self.log.warning("Configuraion space disabled")
 
-                cpl = Tlp.create_crs_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+                cpl = Tlp.create_crs_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
                 self.log.debug("CRS Completion: %s", repr(cpl))
                 await self.upstream_send(cpl)
                 return
-            elif tlp.dest_id.device == self.device_num:
+            else:
                 # capture address information
                 self.bus_num = tlp.dest_id.bus
 
-                for f in self.functions:
-                    f.pci_id = f.pcie_id._replace(bus=self.bus_num)
-
                 # pass TLP to function
                 for f in self.functions:
-                    if f.function_num == tlp.dest_id.function:
+                    if f.pcie_id == tlp.dest_id:
                         await f.upstream_recv(tlp)
                         return
 
                 self.log.info("Function not found")
-            else:
-                self.log.info("Device number mismatch")
 
             # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
-            if tlp.requester_id.bus == self.bus_num and tlp.requester_id.device == self.device_num:
-                for f in self.functions:
-                    if f.function_num == tlp.requester_id.function:
+            for f in self.functions:
+                if f.pcie_id == tlp.requester_id:
 
-                        tlp = Tlp_us(tlp)
+                    tlp = Tlp_us(tlp)
 
-                        tlp.error_code = ErrorCode.NORMAL_TERMINATION
+                    tlp.error_code = ErrorCode.NORMAL_TERMINATION
 
-                        if tlp.status != CplStatus.SC:
-                            tlp.error = ErrorCode.BAD_STATUS
+                    if tlp.status != CplStatus.SC:
+                        tlp.error = ErrorCode.BAD_STATUS
 
-                        # TODO track individual operations
-                        self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
-                        self.cpld_credit_released.set()
+                    # TODO track individual operations
+                    self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
+                    self.cpld_credit_released.set()
 
-                        self.rc_queue.put_nowait(tlp)
+                    self.rc_queue.put_nowait(tlp)
 
-                        return
+                    return
 
-                self.log.info("Function not found")
-            else:
-                self.log.info("Device number mismatch")
+            self.log.info("Function not found")
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
@@ -714,7 +706,7 @@ class UltraScalePcieDevice(Device):
                     tlp = Tlp_us(tlp)
                     tlp.bar_id = bar[0][0]
                     tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
-                    tlp.completer_id = PcieId(self.bus_num, self.device_num, f.function_num)
+                    tlp.completer_id = f.pcie_id
                     self.cq_queue.put_nowait(tlp)
 
                     return
@@ -722,7 +714,7 @@ class UltraScalePcieDevice(Device):
             self.log.info("IO request did not match any BARs")
 
             # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
             self.log.debug("UR Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
@@ -739,7 +731,7 @@ class UltraScalePcieDevice(Device):
                             (self.functions[0].bar_mask[bar[0][0]+1] << 32)) & 0xffffffffffffffff).bit_length()
                     else:
                         tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
-                    tlp.completer_id = PcieId(self.bus_num, self.device_num, f.function_num)
+                    tlp.completer_id = tlp.completer_id._replace(bus=self.bus_num)
                     self.cq_queue.put_nowait(tlp)
 
                     return
@@ -748,7 +740,7 @@ class UltraScalePcieDevice(Device):
 
             if tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # Unsupported request
-                cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
+                cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
                 self.log.debug("UR Completion: %s", repr(cpl))
                 await self.upstream_send(cpl)
         else:
@@ -826,7 +818,7 @@ class UltraScalePcieDevice(Device):
             tlp = Tlp_us.unpack_us_cc(await self.cc_sink.recv(), self.enable_parity)
 
             if not tlp.completer_id_enable:
-                tlp.completer_id = PcieId(self.bus_num, self.device_num, tlp.completer_id.function)
+                tlp.completer_id = tlp.completer_id._replace(bus=self.bus_num)
 
             if not tlp.discontinue:
                 await self.send(Tlp(tlp))
@@ -839,7 +831,7 @@ class UltraScalePcieDevice(Device):
                 continue
 
             if not tlp.requester_id_enable:
-                tlp.requester_id = PcieId(self.bus_num, self.device_num, tlp.requester_id.function)
+                tlp.requester_id = tlp.requester_id._replace(bus=self.bus_num)
 
             if tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # non-posted request
