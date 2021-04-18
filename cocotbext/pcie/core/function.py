@@ -379,6 +379,23 @@ class Function:
     def match_io_bar(self, addr):
         return self.match_bar(addr, io=True)
 
+    def match_tlp(self, tlp):
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
+            # config type 0
+            return self.pcie_id == tlp.dest_id
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
+            # Completion
+            return self.pcie_id == tlp.requester_id
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
+            # IO read/write
+            return bool(self.match_bar(tlp.address, True))
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            # Memory read/write
+            return bool(self.match_bar(tlp.address))
+        else:
+            raise Exception("TODO")
+        return False
+
     async def upstream_send(self, tlp):
         self.log.debug("Sending upstream TLP: %s", repr(tlp))
         assert tlp.check()
