@@ -668,7 +668,7 @@ class UltraScalePlusPcieDevice(Device):
             # config type 0
 
             if not self.config_space_enable:
-                self.log.warning("Configuraion space disabled")
+                self.log.warning("Configuration space disabled")
 
                 cpl = Tlp.create_crs_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
                 self.log.debug("CRS Completion: %s", repr(cpl))
@@ -684,12 +684,11 @@ class UltraScalePlusPcieDevice(Device):
                         await f.upstream_recv(tlp)
                         return
 
-                self.log.info("Function not found")
+                self.log.info("Function not found: failed to route config type 0 TLP")
 
-            # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
-            await self.upstream_send(cpl)
+        elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
+            # config type 1
+            self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
@@ -711,7 +710,8 @@ class UltraScalePlusPcieDevice(Device):
 
                     return
 
-            self.log.info("Function not found")
+            self.log.warning("Unexpected completion: failed to route completion to function")
+            return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
@@ -727,12 +727,7 @@ class UltraScalePlusPcieDevice(Device):
 
                     return
 
-            self.log.info("IO request did not match any BARs")
-
-            # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
-            await self.upstream_send(cpl)
+            self.log.warning("No BAR match: IO request did not match any BARs")
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
 
@@ -752,15 +747,18 @@ class UltraScalePlusPcieDevice(Device):
 
                     return
 
-            self.log.info("Memory request did not match any BARs")
-
-            if tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
-                # Unsupported request
-                cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-                self.log.debug("UR Completion: %s", repr(cpl))
-                await self.upstream_send(cpl)
+            if tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+                self.log.warning("No BAR match: memory write request did not match any BARs")
+                return  # no UR response for write request
+            else:
+                self.log.warning("No BAR match: memory read request did not match any BARs")
         else:
             raise Exception("TODO")
+
+        # Unsupported request
+        cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
+        self.log.debug("UR Completion: %s", repr(cpl))
+        await self.upstream_send(cpl)
 
     async def _run_reset(self):
         while True:
