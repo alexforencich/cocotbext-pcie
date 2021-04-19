@@ -487,8 +487,12 @@ class Function:
             self.log.debug("Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         else:
-            # error
-            pass
+            self.log.warning("Type 0 configuration read request device and function number mismatch")
+
+            # Unsupported request
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+            self.log.debug("UR Completion: %s", repr(cpl))
+            await self.upstream_send(cpl)
 
     async def handle_config_0_write_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
@@ -511,8 +515,12 @@ class Function:
             self.log.debug("Completion: %s", repr(cpl))
             await self.upstream_send(cpl)
         else:
-            # error
-            pass
+            self.log.warning("Type 0 configuration write request device and function number mismatch")
+
+            # Unsupported request
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+            self.log.debug("UR Completion: %s", repr(cpl))
+            await self.upstream_send(cpl)
 
     async def io_read(self, addr, length, timeout=0, timeout_unit='ns'):
         n = 0
