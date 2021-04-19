@@ -381,8 +381,11 @@ class Function:
 
     def match_tlp(self, tlp):
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
-            # config type 0
-            return self.pcie_id == tlp.dest_id
+            # Config type 0
+            return self.device_num == tlp.dest_id.device and self.function_num == tlp.dest_id.function
+        elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
+            # Config type 1
+            return False
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
             return self.pcie_id == tlp.requester_id
