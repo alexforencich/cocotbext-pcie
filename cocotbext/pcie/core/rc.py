@@ -40,6 +40,9 @@ from .utils import PcieId, TreeItem, align
 
 class RootComplex(Switch):
     def __init__(self, *args, **kwargs):
+        self.default_upstream_bridge = HostBridge
+        self.default_downstream_bridge = RootPort
+
         super().__init__(*args, **kwargs)
 
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
@@ -49,8 +52,6 @@ class RootComplex(Switch):
         self.log.info("cocotbext-pcie version %s", __version__)
         self.log.info("Copyright (c) 2020 Alex Forencich")
         self.log.info("https://github.com/alexforencich/cocotbext-pcie")
-
-        self.default_switch_port = RootPort
 
         self.min_dev = 1
 
@@ -66,8 +67,6 @@ class RootComplex(Switch):
 
         self.rx_tlp_handler = {}
 
-        self.upstream_bridge = HostBridge()
-        self.upstream_bridge.root = True
         self.upstream_bridge.upstream_tx_handler = self.downstream_recv
 
         self.tree = TreeItem()

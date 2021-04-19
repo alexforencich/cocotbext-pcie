@@ -26,9 +26,6 @@ import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer
 import cocotb.utils
-from collections import deque
-
-from .tlp import Tlp
 
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
@@ -103,32 +100,3 @@ class Port:
         if self.rx_handler is None:
             raise Exception("Receive handler not set")
         await self.rx_handler(tlp)
-
-
-class BusPort(Port):
-    """Port for root of bus interconnection, broadcasts TLPs to all connected ports"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.other = []
-
-    def _connect(self, port):
-        if port in self.other:
-            raise Exception("Already connected")
-        port._connect_int(self)
-        self._connect_int(port)
-
-    def _connect_int(self, port):
-        if port in self.other:
-            raise Exception("Already connected")
-        self.other.append(port)
-        self.cur_speed = min(self.max_speed, port.max_speed)
-        self.cur_width = min(self.max_width, port.max_width)
-        self.link_delay = self.port_delay + port.port_delay
-
-    async def _transmit(self, tlp):
-        if not self.other:
-            raise Exception("Port not connected")
-        await Timer(self.link_delay, self.link_delay_unit)
-        for p in self.other:
-            await p.ext_recv(Tlp(tlp))

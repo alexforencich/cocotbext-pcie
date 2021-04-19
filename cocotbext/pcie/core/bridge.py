@@ -23,9 +23,9 @@ THE SOFTWARE.
 """
 
 from .function import Function
-from .port import Port, BusPort
+from .port import Port
 from .tlp import Tlp, TlpType
-from .utils import byte_mask_update, PcieId
+from .utils import byte_mask_update
 
 
 class Bridge(Function):
@@ -74,13 +74,8 @@ class Bridge(Function):
 
         self.root = False
 
-        self.upstream_port = None
         self.upstream_tx_handler = None
-        self.set_upstream_port(Port())
-
-        self.downstream_port = None
         self.downstream_tx_handler = None
-        self.set_downstream_port(Port())
 
     """
     Bridge (type 1) config space
@@ -314,12 +309,6 @@ class Bridge(Function):
         else:
             raise Exception("Unknown/invalid packet type")
 
-    def set_upstream_port(self, port):
-        port.parent = self
-        port.rx_handler = self.upstream_recv
-        self.upstream_port = port
-        self.upstream_tx_handler = port.send
-
     async def upstream_send(self, tlp):
         assert tlp.check()
         if self.upstream_tx_handler is None:
@@ -329,88 +318,55 @@ class Bridge(Function):
     async def upstream_recv(self, tlp):
         self.log.debug("Routing downstream TLP: %s", repr(tlp))
         assert tlp.check()
-        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
+
+        # TLPs targeting bridge function
+        if self.match_tlp(tlp):
             await self.handle_tlp(tlp)
+            return
+
+        # Route TLPs from primary side to secondary side
+        if self.match_tlp_secondary(tlp):
+
+            if tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1} and tlp.dest_id.bus == self.sec_bus_num:
+                # config type 1 targeted to directly connected device; change to type 0
+                if tlp.fmt_type == TlpType.CFG_READ_1:
+                    tlp.fmt_type = TlpType.CFG_READ_0
+                elif tlp.fmt_type == TlpType.CFG_WRITE_1:
+                    tlp.fmt_type = TlpType.CFG_WRITE_0
+
+            await self.route_downstream_tlp(tlp, False)
+            return
+
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
+            # Config type 0
+            self.log.info("Failed to route config type 0 TLP")
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
-            # config type 1
-            if self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num:
-                if tlp.dest_id.bus == self.sec_bus_num:
-                    # targeted to directly connected device; change to type 0
-                    if tlp.fmt_type == TlpType.CFG_READ_1:
-                        tlp.fmt_type = TlpType.CFG_READ_0
-                    elif tlp.fmt_type == TlpType.CFG_WRITE_1:
-                        tlp.fmt_type = TlpType.CFG_WRITE_0
-                await self.route_downstream_tlp(tlp, False)
-            else:
-                # error
-                pass
+            # Config type 1
+            self.log.info("Failed to route config type 1 TLP")
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
-            # Completions
-            if not self.root and tlp.requester_id == self.pcie_id:
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num:
-                await self.route_downstream_tlp(tlp, False)
-            else:
-                # error
-                pass
-        elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
-            # ID routed message
-            if not self.root and tlp.dest_id == self.pcie_id:
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num:
-                await self.route_downstream_tlp(tlp, False)
-            else:
-                # error
-                pass
+            # Completion
+            self.log.warning("Unexpected completion: failed to route completion")
+            return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
-            if self.match_bar(tlp.address, io=True):
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.io_base <= tlp.address <= self.io_limit:
-                await self.route_downstream_tlp(tlp, False)
-            else:
-                # error
-                pass
-        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            self.log.warning("No address match: IO request did not match secondary bus or any BARs")
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
             # Memory read/write
-            if self.match_bar(tlp.address):
-                # for me
-                await self.handle_tlp(tlp)
-            elif (self.mem_base <= tlp.address <= self.mem_limit
-                    or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit):
-                await self.route_downstream_tlp(tlp, False)
-            else:
-                # error
-                pass
-        elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
-            # Message to root complex
-            # error
-            pass
-        elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
-            # Message broadcast from root complex
-            await self.route_downstream_tlp(tlp, False)
-        elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
-            # Message local to receiver
-            # error
-            pass
-        elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
-            # Message gather to root complex
-            # error
-            pass
+            self.log.warning("No address match: memory read request did not match secondary bus or any BARs")
+        elif tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            # Memory read/write
+            self.log.warning("No address match: memory write request did not match secondary bus or any BARs")
+            return  # no UR response for write request
         else:
-            raise Exception("Unknown/invalid packet type")
+            raise Exception("TODO")
+
+        # Unsupported request
+        cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+        self.log.debug("UR Completion: %s", repr(cpl))
+        await self.upstream_send(cpl)
 
     async def route_downstream_tlp(self, tlp, from_downstream=False):
         await self.downstream_send(tlp)
-
-    def set_downstream_port(self, port):
-        port.parent = self
-        port.rx_handler = self.downstream_recv
-        self.downstream_port = port
-        self.downstream_tx_handler = port.send
 
     async def downstream_send(self, tlp):
         assert tlp.check()
@@ -421,72 +377,50 @@ class Bridge(Function):
     async def downstream_recv(self, tlp):
         self.log.debug("Routing upstream TLP: %s", repr(tlp))
         assert tlp.check()
+
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # error
             pass
+        elif not self.root and self.match_tlp(tlp):
+            # TLPs targeting bridge function
+            await self.handle_tlp(tlp)
+            return
+        elif not self.match_tlp_secondary(tlp) or self.root:
+            # Route TLPs from secondary side to primary side
+            await self.upstream_send(tlp)
+            return
+
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
+            # Config type 1
+            self.log.warning("Malformed TLP: received configuration request on downstream switch port")
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
-            # Completions
-            if not self.root and tlp.requester_id == self.pcie_id:
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num:
-                if self.root and tlp.requester_id.bus == self.pri_bus_num and tlp.requester_id.device == 0:
-                    await self.upstream_send(tlp)
-                else:
-                    await self.route_downstream_tlp(tlp, True)
-            else:
-                await self.upstream_send(tlp)
-        elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
-            # ID routed messages
-            if not self.root and tlp.dest_id == self.pcie_id:
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num:
-                if self.root and tlp.dest_id.bus == self.pri_bus_num and tlp.dest_id.device == 0:
-                    await self.upstream_send(tlp)
-                else:
-                    await self.route_downstream_tlp(tlp, True)
-            else:
-                await self.upstream_send(tlp)
+            # Completion
+            self.log.warning("Unexpected completion: completion did not match primary bus")
+            return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
-            if self.match_bar(tlp.address, io=True):
-                # for me
-                await self.handle_tlp(tlp)
-            elif self.io_base <= tlp.address <= self.io_limit:
-                await self.route_downstream_tlp(tlp, True)
-            else:
-                await self.upstream_send(tlp)
-        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            self.log.warning("No address match: IO request did not match primary bus")
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
             # Memory read/write
-            if self.match_bar(tlp.address):
-                # for me
-                await self.handle_tlp(tlp)
-            elif (self.mem_base <= tlp.address <= self.mem_limit
-                    or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit):
-                await self.route_downstream_tlp(tlp, True)
-            else:
-                await self.upstream_send(tlp)
-        elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
-            # Message to root complex
-            await self.upstream_send(tlp)
-        elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
-            # Message broadcast from root complex
-            # error
-            pass
-        elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
-            # Message local to receiver
-            # error
-            pass
-        elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
-            # Message gather to root complex
-            raise Exception("TODO")
+            self.log.warning("No address match: memory read request did not match primary bus")
+        elif tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            # Memory read/write
+            self.log.warning("No address match: memory write request did not match primary bus")
+            return  # no UR response for write request
         else:
-            raise Exception("Unknown/invalid packet type")
+            raise Exception("TODO")
+
+        # Unsupported request
+        cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+        self.log.debug("UR Completion: %s", repr(cpl))
+        await self.downstream_send(cpl)
 
     async def send(self, tlp):
-        # route local transmissions as if they came in via downstream port
-        await self.downstream_recv(tlp)
+        # route local transmissions
+        if self.match_tlp_secondary(tlp):
+            await self.route_downstream_tlp(tlp, False)
+        else:
+            await self.upstream_send(tlp)
 
 
 class SwitchUpstreamPort(Bridge):
@@ -495,89 +429,21 @@ class SwitchUpstreamPort(Bridge):
 
         self.pcie_device_type = 0x5
 
-        self.set_downstream_port(BusPort())
-
         self.vendor_id = 0x1234
         self.device_id = 0x0003
 
-    async def route_downstream_tlp(self, tlp, from_downstream=False):
-        assert tlp.check()
+        self.upstream_port = None
+        self.upstream_tx_handler = None
+        self.set_upstream_port(Port())
 
-        # route downstream packet
-        ok = False
-        for p in self.downstream_port.other:
-            dev = p.parent
-            if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
-                # config type 0
-                if tlp.dest_id.device == dev.device_num and tlp.dest_id.function == dev.function_num:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
-                # config type 1
-                if isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.dest_id.bus <= dev.sub_bus_num:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
-                # Completions
-                if tlp.requester_id == dev.pcie_id:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-                elif isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.requester_id.bus <= dev.sub_bus_num:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
-                # ID routed message
-                if tlp.dest_id == dev.pcie_id:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-                elif isinstance(dev, Bridge) and dev.sec_bus_num <= tlp.requester_id.bus <= dev.sub_bus_num:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
-                # IO read/write
-                if dev.match_bar(tlp.address, True):
-                    await p.ext_recv(Tlp(tlp))
-                    return
-                elif isinstance(dev, Bridge) and dev.io_base <= tlp.address <= dev.io_limit:
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
-                # Memory read/write
-                if dev.match_bar(tlp.address):
-                    await p.ext_recv(Tlp(tlp))
-                    return
-                elif isinstance(dev, Bridge) and (dev.mem_base <= tlp.address <= dev.mem_limit or
-                        dev.prefetchable_mem_base <= tlp.address <= dev.prefetchable_mem_limit):
-                    await p.ext_recv(Tlp(tlp))
-                    return
-            elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
-                # Message to root complex
-                # error
-                pass
-            elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
-                # Message broadcast from root complex
-                await p.ext_recv(Tlp(tlp))
-                ok = True
-            elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
-                # Message local to receiver
-                # error
-                pass
-            elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
-                # Message gather to root complex
-                # error
-                pass
-            else:
-                raise Exception("Unknown/invalid packet type")
+    def set_upstream_port(self, port):
+        port.parent = self
+        port.rx_handler = self.upstream_recv
+        self.upstream_port = port
+        self.upstream_tx_handler = port.send
 
-        if not ok:
-            self.log.info("Failed to route TLP")
-            # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, self.device_num, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
-            if from_downstream:
-                await self.route_downstream_tlp(cpl, False)
-            else:
-                await self.upstream_send(cpl)
+    def connect(self, port):
+        self.upstream_port.connect(port)
 
 
 class SwitchDownstreamPort(Bridge):
@@ -588,6 +454,16 @@ class SwitchDownstreamPort(Bridge):
 
         self.vendor_id = 0x1234
         self.device_id = 0x0004
+
+        self.downstream_port = None
+        self.downstream_tx_handler = None
+        self.set_downstream_port(Port())
+
+    def set_downstream_port(self, port):
+        port.parent = self
+        port.rx_handler = self.downstream_recv
+        self.downstream_port = port
+        self.downstream_tx_handler = port.send
 
     def connect(self, port):
         self.downstream_port.connect(port)
@@ -606,6 +482,8 @@ class HostBridge(SwitchUpstreamPort):
 
         self.class_code = 0x060000
 
+        self.root = True
+
 
 class RootPort(SwitchDownstreamPort):
     def __init__(self, *args, **kwargs):
@@ -615,6 +493,3 @@ class RootPort(SwitchDownstreamPort):
 
         self.vendor_id = 0x1234
         self.device_id = 0x0002
-
-    def connect(self, port):
-        self.downstream_port.connect(port)
