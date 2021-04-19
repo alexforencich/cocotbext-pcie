@@ -25,7 +25,7 @@ THE SOFTWARE.
 from .function import Function
 from .port import Port
 from .tlp import Tlp, TlpType
-from .utils import byte_mask_update
+from .utils import byte_mask_update, PcieId
 
 
 class Bridge(Function):
@@ -280,13 +280,13 @@ class Bridge(Function):
             return False
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
-            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num
+            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num and tlp.dest_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
-            return self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num
+            return self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num and tlp.requester_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
             # ID routed message
-            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num
+            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num and tlp.dest_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
             return self.io_base <= tlp.address <= self.io_limit
