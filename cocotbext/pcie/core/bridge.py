@@ -279,6 +279,41 @@ class Bridge(Function):
         else:
             await super().write_config_register(reg, data, mask)
 
+    def match_tlp_secondary(self, tlp):
+        if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
+            # Config type 0
+            return False
+        elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
+            # Config type 1
+            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num
+        elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
+            # Completion
+            return self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num
+        elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
+            # ID routed message
+            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num
+        elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
+            # IO read/write
+            return self.io_base <= tlp.address <= self.io_limit
+        elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            # Memory read/write
+            return (self.mem_base <= tlp.address <= self.mem_limit
+                or self.prefetchable_mem_base <= tlp.address <= self.prefetchable_mem_limit)
+        elif tlp.fmt_type in {TlpType.MSG_TO_RC, TlpType.MSG_DATA_TO_RC}:
+            # Message to root complex
+            return False
+        elif tlp.fmt_type in {TlpType.MSG_BCAST, TlpType.MSG_DATA_BCAST}:
+            # Message broadcast from root complex
+            return True
+        elif tlp.fmt_type in {TlpType.MSG_LOCAL, TlpType.MSG_DATA_LOCAL}:
+            # Message local to receiver
+            return False
+        elif tlp.fmt_type in {TlpType.MSG_GATHER, TlpType.MSG_DATA_GATHER}:
+            # Message gather to root complex
+            return False
+        else:
+            raise Exception("Unknown/invalid packet type")
+
     def set_upstream_port(self, port):
         port.parent = self
         port.rx_handler = self.upstream_recv
