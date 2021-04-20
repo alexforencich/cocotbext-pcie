@@ -626,6 +626,10 @@ class UltraScalePlusPcieDevice(Device):
 
         assert config_valid, "link speed/link width/clock speed/interface width setting combination not valid"
 
+        # configure port
+        self.upstream_port.max_link_speed = self.pcie_generation
+        self.upstream_port.max_link_width = self.pcie_link_width
+
         # configure functions
 
         self.make_function()
