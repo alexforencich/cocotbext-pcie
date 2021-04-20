@@ -481,7 +481,7 @@ class Function:
 
             # prepare completion TLP
             cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
-            cpl.set_data(data.to_bytes(4, 'little'))
+            cpl.set_data(struct.pack('<L', data))
             cpl.byte_count = 4
 
             self.log.debug("Completion: %s", repr(cpl))
@@ -497,14 +497,14 @@ class Function:
     async def handle_config_0_write_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
             self.log.info("Config type 0 write, reg 0x%03x data 0x%08x",
-                tlp.register_number, int.from_bytes(tlp.get_data(), 'little'))
+                tlp.register_number, struct.unpack('<L', tlp.get_data())[0])
 
             # capture address information
             if self.bus_num != tlp.dest_id.bus:
                 self.log.info("Capture bus number %d", tlp.dest_id.bus)
                 self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
-            data = int.from_bytes(tlp.get_data(), 'little')
+            data = struct.unpack('<L', tlp.get_data())[0]
 
             # perform operation
             await self.write_config_register(tlp.register_number, data, tlp.first_be)

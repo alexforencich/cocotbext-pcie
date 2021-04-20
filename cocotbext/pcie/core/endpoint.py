@@ -23,6 +23,7 @@ THE SOFTWARE.
 """
 
 import mmap
+import struct
 
 from .function import Function
 from .tlp import Tlp, TlpType
@@ -275,7 +276,7 @@ class MemoryEndpoint(Endpoint):
         m = self.match_bar(tlp.address, True)
         if len(m) == 1:
             self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, int.from_bytes(tlp.get_data(), 'little'))
+                tlp.address, tlp.first_be, tlp.tag, struct.unpack('<L', tlp.get_data())[0])
 
             assert tlp.length == 1
 
