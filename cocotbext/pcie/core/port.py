@@ -43,14 +43,14 @@ class Port:
         self.other = None
         self.rx_handler = None
 
-        self.max_speed = 3
-        self.max_width = 16
+        self.max_link_speed = None
+        self.max_link_width = None
         self.port_delay = 5
 
         self.tx_queue = Queue(1)
 
-        self.cur_speed = 1
-        self.cur_width = 1
+        self.cur_link_speed = None
+        self.cur_link_width = None
         self.link_delay = 0
         self.link_delay_unit = 'ns'
 
@@ -76,8 +76,20 @@ class Port:
         if self.other is not None:
             raise Exception("Already connected")
         self.other = port
-        self.cur_speed = min(self.max_speed, port.max_speed)
-        self.cur_width = min(self.max_width, port.max_width)
+        if self.max_link_speed:
+            if port.max_link_speed:
+                self.cur_link_speed = min(self.max_link_speed, port.max_link_speed)
+            else:
+                self.cur_link_speed = self.max_link_speed
+        else:
+            self.cur_link_speed = port.max_link_speed
+        if self.max_link_width:
+            if port.max_link_width:
+                self.cur_link_width = min(self.max_link_width, port.max_link_width)
+            else:
+                self.cur_link_width = self.max_link_width
+        else:
+            self.cur_link_width = port.max_link_width
         self.link_delay = self.port_delay + port.port_delay
 
     async def send(self, tlp):
@@ -86,14 +98,17 @@ class Port:
     async def _run_transmit(self):
         while True:
             tlp = await self.tx_queue.get()
-            d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_speed]*self.cur_width*self.time_scale))
-            await Timer(d, 'step')
+            if self.cur_link_width and self.cur_link_speed:
+                d = int(tlp.get_wire_size()*8/(PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width*self.time_scale))
+                if d:
+                    await Timer(d, 'step')
             cocotb.fork(self._transmit(tlp))
 
     async def _transmit(self, tlp):
         if self.other is None:
             raise Exception("Port not connected")
-        await Timer(self.link_delay, self.link_delay_unit)
+        if self.link_delay:
+            await Timer(self.link_delay, self.link_delay_unit)
         await self.other.ext_recv(tlp)
 
     async def ext_recv(self, tlp):
