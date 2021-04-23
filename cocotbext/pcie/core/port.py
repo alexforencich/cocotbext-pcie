@@ -37,6 +37,14 @@ PCIE_GEN_RATE = {
     5: 32e9*128/130,
 }
 
+PCIE_GEN_SYMB_TIME = {
+    1: 10/PCIE_GEN_RATE[1],
+    2: 10/PCIE_GEN_RATE[2],
+    3: 8/PCIE_GEN_RATE[3],
+    4: 8/PCIE_GEN_RATE[4],
+    5: 8/PCIE_GEN_RATE[5],
+}
+
 
 class Port:
     """Basic port"""
