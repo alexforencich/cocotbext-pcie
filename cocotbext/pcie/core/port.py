@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 """
 
+import logging
+
 import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer
@@ -39,6 +41,9 @@ PCIE_GEN_RATE = {
 class Port:
     """Basic port"""
     def __init__(self, *args, **kwargs):
+        self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
+        self.log.name = f"cocotb.pcie.{type(self).__name__}"
+
         self.parent = None
         self.other = None
         self.rx_handler = None

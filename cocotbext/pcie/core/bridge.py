@@ -437,6 +437,7 @@ class SwitchUpstreamPort(Bridge):
         self.set_upstream_port(Port())
 
     def set_upstream_port(self, port):
+        port.log = self.log
         port.parent = self
         port.rx_handler = self.upstream_recv
         self.upstream_port = port
@@ -460,6 +461,7 @@ class SwitchDownstreamPort(Bridge):
         self.set_downstream_port(Port())
 
     def set_downstream_port(self, port):
+        port.log = self.log
         port.parent = self
         port.rx_handler = self.downstream_recv
         self.downstream_port = port

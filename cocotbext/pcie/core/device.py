@@ -101,6 +101,7 @@ class Device:
         return self.append_function(self.default_function())
 
     def set_port(self, port):
+        port.log = self.log
         port.parent = self
         port.rx_handler = self.upstream_recv
         self.upstream_port = port
