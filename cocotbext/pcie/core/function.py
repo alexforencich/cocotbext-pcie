@@ -504,7 +504,7 @@ class Function:
                 self.log.info("Capture bus number %d", tlp.dest_id.bus)
                 self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
-            data = struct.unpack('<L', tlp.get_data())[0]
+            data, = struct.unpack('<L', tlp.get_data())
 
             # perform operation
             await self.write_config_register(tlp.register_number, data, tlp.first_be)

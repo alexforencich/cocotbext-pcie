@@ -472,7 +472,7 @@ class Tlp:
         """Unpack TLP header from bytes"""
         tlp = cls()
 
-        dw = struct.unpack_from('>L', pkt, 0)[0]
+        dw, = struct.unpack_from('>L', pkt, 0)
         tlp.length = dw & 0x3ff
         tlp.at = TlpAt((dw >> 10) & 0x3)
         tlp.attr = (dw >> 12) & 0x3
@@ -493,31 +493,31 @@ class Tlp:
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
                 TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
                 TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE}:
-            dw = struct.unpack_from('>L', pkt, 4)[0]
+            dw, = struct.unpack_from('>L', pkt, 4)
             tlp.first_be = dw & 0xf
             tlp.last_be = (dw >> 4) & 0xf
             tlp.tag |= (dw >> 8) & 0x0ff
             tlp.requester_id = PcieId.from_int(dw >> 16)
 
             if tlp.fmt_type in {TlpType.CFG_READ_0,  TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,  TlpType.CFG_WRITE_1}:
-                dw = struct.unpack_from('>L', pkt, 8)[0]
+                dw, = struct.unpack_from('>L', pkt, 8)
                 tlp.register_number = (dw >> 2) >> 0x3ff
                 tlp.dest_id = PcieId.from_int(dw >> 16)
             elif tlp.fmt in {TlpFmt.FOUR_DW, TlpFmt.FOUR_DW_DATA}:
-                val = struct.unpack_from('>Q', pkt, 8)[0]
+                val, = struct.unpack_from('>Q', pkt, 8)
                 tlp.address = val & 0xfffffffffffffffc
                 tlp.ph = val & 0x3
             else:
-                dw = struct.unpack_from('>L', pkt, 8)[0]
+                dw, = struct.unpack_from('>L', pkt, 8)
                 tlp.address = dw & 0xfffffffc
                 tlp.ph = dw & 0x3
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
-            dw = struct.unpack_from('>L', pkt, 4)[0]
+            dw, = struct.unpack_from('>L', pkt, 4)
             tlp.byte_count = dw & 0xfff
             tlp.bcm = bool(dw & 1 << 12)
             tlp.status = CplStatus((dw >> 13) & 0x7)
             tlp.completer_id = PcieId.from_int(dw >> 16)
-            dw = struct.unpack_from('>L', pkt, 8)[0]
+            dw, = struct.unpack_from('>L', pkt, 8)
             tlp.lower_address = dw & 0x7f
             tlp.tag |= (dw >> 8) & 0x0ff
             tlp.requester_id = PcieId.from_int(dw >> 16)

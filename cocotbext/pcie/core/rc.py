@@ -906,7 +906,7 @@ class RootComplex(Switch):
     async def msi_region_write(self, addr, data):
         assert addr == 0
         assert len(data) == 4
-        number = struct.unpack('<L', data)[0]
+        number, = struct.unpack('<L', data)
         self.log.info("MSI interrupt: 0x%08x, 0x%04x", addr, number)
         assert number in self.msi_events
         for event in self.msi_events[number]:
