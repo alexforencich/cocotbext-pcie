@@ -29,6 +29,8 @@ from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer
 import cocotb.utils
 
+from .dllp import Dllp, DllpType
+
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
     2: 5e9*8/10,
@@ -60,7 +62,9 @@ class Port:
         self.max_link_width = None
         self.port_delay = 5
 
-        self.tx_queue = Queue(1)
+        self.tlp_tx_queue = Queue(1)
+        self.dllp_tx_queue = Queue()
+        self.tx_queue_sync = Event()
 
         self.cur_link_speed = None
         self.cur_link_width = None
@@ -68,6 +72,22 @@ class Port:
         self.link_delay_unit = 'ns'
 
         self.time_scale = cocotb.utils.get_sim_steps(1, 'sec')
+
+        # ACK/NAK protocol
+        # TX
+        self.next_transmit_seq = 0x000
+        self.ackd_seq = 0xfff
+        self.retry_buffer = Queue()
+
+        # RX
+        self.next_recv_seq = 0x000
+        self.nak_scheduled = False
+        self.ack_nak_latency_timer = 0
+
+        self.max_payload_size = 128
+        self.max_latency_timer = 0
+
+        self._ack_latency_timer_cr = None
 
         super().__init__(*args, **kwargs)
 
@@ -103,28 +123,125 @@ class Port:
                 self.cur_link_width = self.max_link_width
         else:
             self.cur_link_width = port.max_link_width
+        if self.cur_link_width is not None and self.cur_link_speed is not None:
+            self.max_latency_timer = (self.max_payload_size / self.cur_link_width) * PCIE_GEN_SYMB_TIME[self.cur_link_speed]
+        else:
+            self.max_latency_timer = 0
         self.link_delay = self.port_delay + port.port_delay
 
-    async def send(self, tlp):
-        await self.tx_queue.put(tlp)
+    async def send(self, pkt):
+        await self.tlp_tx_queue.put(pkt)
+        self.tx_queue_sync.set()
+
+    async def send_dllp(self, pkt):
+        await self.dllp_tx_queue.put(pkt)
+        self.tx_queue_sync.set()
 
     async def _run_transmit(self):
         while True:
-            tlp = await self.tx_queue.get()
+            while self.tlp_tx_queue.empty() and self.dllp_tx_queue.empty():
+                self.tx_queue_sync.clear()
+                await self.tx_queue_sync.wait()
+
+            if not self.dllp_tx_queue.empty():
+                pkt = await self.dllp_tx_queue.get()
+                self.log.debug("Send DLLP %s", pkt)
+                wire_size = pkt.get_wire_size()
+            else:
+                pkt = await self.tlp_tx_queue.get()
+                self.log.debug("Send TLP %s, seq %d", pkt, self.next_transmit_seq)
+                wire_size = pkt.get_wire_size()
+                pkt = (pkt, self.next_transmit_seq)
+                self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
+                self.retry_buffer.put_nowait(pkt)
+
             if self.cur_link_width and self.cur_link_speed:
-                d = int(tlp.get_wire_size()*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
+                d = int(wire_size*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
                 if d:
                     await Timer(d, 'step')
-            cocotb.fork(self._transmit(tlp))
+            cocotb.fork(self._transmit(pkt))
 
-    async def _transmit(self, tlp):
+    async def _transmit(self, pkt):
         if self.other is None:
             raise Exception("Port not connected")
         if self.link_delay:
             await Timer(self.link_delay, self.link_delay_unit)
-        await self.other.ext_recv(tlp)
+        await self.other.ext_recv(pkt)
 
-    async def ext_recv(self, tlp):
+    async def ext_recv(self, pkt):
         if self.rx_handler is None:
             raise Exception("Receive handler not set")
-        await self.rx_handler(tlp)
+        if isinstance(pkt, Dllp):
+            # DLLP
+            self.log.debug("Receive DLLP %s", pkt)
+            await self.handle_dllp(pkt)
+        else:
+            # TLP
+            pkt, seq = pkt
+            self.log.debug("Receive TLP %s, seq %d", pkt, seq)
+            if seq == self.next_recv_seq:
+                # expected seq
+                self.next_recv_seq = (self.next_recv_seq + 1) & 0xfff
+                self.nak_scheduled = False
+                await self.rx_handler(pkt)
+                self.start_ack_latency_timer()
+            elif (self.next_recv_seq - seq) & 0xfff < 2048:
+                self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", seq, self.next_recv_seq)
+                self.stop_ack_latency_timer()
+                await self.send_ack()
+            else:
+                self.log.warning("Received out-of-sequence TLP, sending NAK (seq %d, expecting %d)", seq, self.next_recv_seq)
+                if not self.nak_scheduled:
+                    self.nak_scheduled = True
+                    self.stop_ack_latency_timer()
+                    await self.send_nak()
+
+    async def handle_dllp(self, dllp):
+        if dllp.type == DllpType.NOP:
+            # discard NOP
+            pass
+        elif dllp.type in {DllpType.ACK, DllpType.NAK}:
+            # ACK or NAK
+            if (((self.next_transmit_seq-1) & 0xfff) - dllp.seq) & 0xfff > 2048:
+                self.log.warning("Received ACK/NAK DLLP for future TLP, discarding (seq %d, next TX %d, ACK %d)",
+                    dllp.seq, self.next_transmit_seq, self.ackd_seq)
+            elif (dllp.seq - self.ackd_seq) & 0xfff > 2048:
+                self.log.warning("Received ACK/NAK DLLP for previously-ACKed TLP, discarding (seq %d, next TX %d, ACK %d)",
+                    dllp.seq, self.next_transmit_seq, self.ackd_seq)
+            else:
+                while dllp.seq != self.ackd_seq:
+                    # purge TLPs from retry buffer
+                    self.retry_buffer.get_nowait()
+                    self.ackd_seq = (self.ackd_seq + 1) & 0xfff
+                    self.log.debug("ACK TLP seq %d", self.ackd_seq)
+                if dllp.type == DllpType.NAK:
+                    # retransmit
+                    self.log.warning("Got NAK DLLP, start TLP replay")
+                    raise Exception("TODO")
+        else:
+            raise Exception("TODO")
+
+    def start_ack_latency_timer(self):
+        if self._ack_latency_timer_cr is not None:
+            if not self._ack_latency_timer_cr._finished:
+                # already running
+                return
+        self._ack_latency_timer_cr = cocotb.fork(self._run_ack_latency_timer())
+
+    def stop_ack_latency_timer(self):
+        if self._ack_latency_timer_cr is not None:
+            self._ack_latency_timer_cr.kill()
+            self._ack_latency_timer_cr = None
+
+    async def _run_ack_latency_timer(self):
+        d = int(self.time_scale * self.max_latency_timer)
+        if d:
+            await Timer(d, 'step')
+        if not self.nak_scheduled:
+            await self.send_ack()
+
+    async def send_ack(self):
+        await self.send_dllp(Dllp.create_ack((self.next_recv_seq-1) & 0xfff))
+
+    async def send_nak(self):
+        await self.send_dllp(Dllp.create_nak((self.next_recv_seq-1) & 0xfff))
