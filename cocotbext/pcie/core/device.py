@@ -25,7 +25,7 @@ THE SOFTWARE.
 import logging
 
 from .endpoint import Endpoint
-from .port import Port
+from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 
@@ -44,7 +44,7 @@ class Device:
         self.functions = []
         self.upstream_port = None
 
-        self.set_port(Port())
+        self.set_port(SimPort())
 
         if eps:
             try:

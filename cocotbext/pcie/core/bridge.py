@@ -23,7 +23,7 @@ THE SOFTWARE.
 """
 
 from .function import Function
-from .port import Port
+from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import byte_mask_update, PcieId
 
@@ -434,7 +434,7 @@ class SwitchUpstreamPort(Bridge):
 
         self.upstream_port = None
         self.upstream_tx_handler = None
-        self.set_upstream_port(Port())
+        self.set_upstream_port(SimPort())
 
     def set_upstream_port(self, port):
         port.log = self.log
@@ -458,7 +458,7 @@ class SwitchDownstreamPort(Bridge):
 
         self.downstream_port = None
         self.downstream_tx_handler = None
-        self.set_downstream_port(Port())
+        self.set_downstream_port(SimPort())
 
     def set_downstream_port(self, port):
         port.log = self.log

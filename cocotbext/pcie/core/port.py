@@ -49,18 +49,16 @@ PCIE_GEN_SYMB_TIME = {
 
 
 class Port:
-    """Basic port"""
+    """Base port"""
     def __init__(self, *args, **kwargs):
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
         self.parent = None
-        self.other = None
         self.rx_handler = None
 
         self.max_link_speed = None
         self.max_link_width = None
-        self.port_delay = 5
 
         self.tlp_tx_queue = Queue(1)
         self.dllp_tx_queue = Queue()
@@ -70,8 +68,6 @@ class Port:
 
         self.cur_link_speed = None
         self.cur_link_width = None
-        self.link_delay = 0
-        self.link_delay_unit = 'ns'
 
         self.time_scale = cocotb.utils.get_sim_steps(1, 'sec')
 
@@ -96,42 +92,6 @@ class Port:
         cocotb.fork(self._run_transmit())
         cocotb.fork(self._run_receive())
 
-    def connect(self, other):
-        if isinstance(other, Port):
-            self._connect(other)
-        else:
-            other.connect(self)
-
-    def _connect(self, port):
-        if self.other is not None:
-            raise Exception("Already connected")
-        port._connect_int(self)
-        self._connect_int(port)
-
-    def _connect_int(self, port):
-        if self.other is not None:
-            raise Exception("Already connected")
-        self.other = port
-        if self.max_link_speed:
-            if port.max_link_speed:
-                self.cur_link_speed = min(self.max_link_speed, port.max_link_speed)
-            else:
-                self.cur_link_speed = self.max_link_speed
-        else:
-            self.cur_link_speed = port.max_link_speed
-        if self.max_link_width:
-            if port.max_link_width:
-                self.cur_link_width = min(self.max_link_width, port.max_link_width)
-            else:
-                self.cur_link_width = self.max_link_width
-        else:
-            self.cur_link_width = port.max_link_width
-        if self.cur_link_width is not None and self.cur_link_speed is not None:
-            self.max_latency_timer = (self.max_payload_size / self.cur_link_width) * PCIE_GEN_SYMB_TIME[self.cur_link_speed]
-        else:
-            self.max_latency_timer = 0
-        self.link_delay = self.port_delay + port.port_delay
-
     async def send(self, pkt):
         await self.tlp_tx_queue.put(pkt)
         self.tx_queue_sync.set()
@@ -149,27 +109,17 @@ class Port:
             if not self.dllp_tx_queue.empty():
                 pkt = await self.dllp_tx_queue.get()
                 self.log.debug("Send DLLP %s", pkt)
-                wire_size = pkt.get_wire_size()
             else:
                 pkt = await self.tlp_tx_queue.get()
                 self.log.debug("Send TLP %s, seq %d", pkt, self.next_transmit_seq)
-                wire_size = pkt.get_wire_size()
                 pkt = (pkt, self.next_transmit_seq)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
                 self.retry_buffer.put_nowait(pkt)
 
-            if self.cur_link_width and self.cur_link_speed:
-                d = int(wire_size*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
-                if d:
-                    await Timer(d, 'step')
-            cocotb.fork(self._transmit(pkt))
+            await self.handle_tx(pkt)
 
-    async def _transmit(self, pkt):
-        if self.other is None:
-            raise Exception("Port not connected")
-        if self.link_delay:
-            await Timer(self.link_delay, self.link_delay_unit)
-        await self.other.ext_recv(pkt)
+    async def handle_tx(self, pkt):
+        raise NotImplementedError()
 
     async def ext_recv(self, pkt):
         if isinstance(pkt, Dllp):
@@ -253,3 +203,70 @@ class Port:
 
     async def send_nak(self):
         await self.send_dllp(Dllp.create_nak((self.next_recv_seq-1) & 0xfff))
+
+
+class SimPort(Port):
+    """Port to interconnect simulated PCIe devices"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.other = None
+
+        self.port_delay = 5e-9
+
+        self.link_delay_steps = 0
+
+    def connect(self, other):
+        if isinstance(other, SimPort):
+            self._connect(other)
+        else:
+            other.connect(self)
+
+    def _connect(self, port):
+        if self.other is not None:
+            raise Exception("Already connected")
+        port._connect_int(self)
+        self._connect_int(port)
+
+    def _connect_int(self, port):
+        if self.other is not None:
+            raise Exception("Already connected")
+        self.other = port
+        if self.max_link_speed:
+            if port.max_link_speed:
+                self.cur_link_speed = min(self.max_link_speed, port.max_link_speed)
+            else:
+                self.cur_link_speed = self.max_link_speed
+        else:
+            self.cur_link_speed = port.max_link_speed
+        if self.max_link_width:
+            if port.max_link_width:
+                self.cur_link_width = min(self.max_link_width, port.max_link_width)
+            else:
+                self.cur_link_width = self.max_link_width
+        else:
+            self.cur_link_width = port.max_link_width
+        if self.cur_link_width is not None and self.cur_link_speed is not None:
+            self.max_latency_timer = (self.max_payload_size / self.cur_link_width) * PCIE_GEN_SYMB_TIME[self.cur_link_speed]
+        else:
+            self.max_latency_timer = 0
+        self.link_delay_steps = (self.port_delay + port.port_delay) * self.time_scale
+
+    async def handle_tx(self, pkt):
+        if isinstance(pkt, Dllp):
+            wire_size = pkt.get_wire_size()
+        else:
+            wire_size = pkt[0].get_wire_size()
+
+        if self.cur_link_width and self.cur_link_speed:
+            d = int(wire_size*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
+            if d:
+                await Timer(d, 'step')
+        cocotb.fork(self._transmit(pkt))
+
+    async def _transmit(self, pkt):
+        if self.other is None:
+            raise Exception("Port not connected")
+        if self.link_delay_steps:
+            await Timer(self.link_delay_steps, "step")
+        await self.other.ext_recv(pkt)
