@@ -66,6 +66,8 @@ class Port:
         self.dllp_tx_queue = Queue()
         self.tx_queue_sync = Event()
 
+        self.rx_queue = Queue()
+
         self.cur_link_speed = None
         self.cur_link_width = None
         self.link_delay = 0
@@ -92,6 +94,7 @@ class Port:
         super().__init__(*args, **kwargs)
 
         cocotb.fork(self._run_transmit())
+        cocotb.fork(self._run_receive())
 
     def connect(self, other):
         if isinstance(other, Port):
@@ -169,8 +172,6 @@ class Port:
         await self.other.ext_recv(pkt)
 
     async def ext_recv(self, pkt):
-        if self.rx_handler is None:
-            raise Exception("Receive handler not set")
         if isinstance(pkt, Dllp):
             # DLLP
             self.log.debug("Receive DLLP %s", pkt)
@@ -183,8 +184,8 @@ class Port:
                 # expected seq
                 self.next_recv_seq = (self.next_recv_seq + 1) & 0xfff
                 self.nak_scheduled = False
-                await self.rx_handler(pkt)
                 self.start_ack_latency_timer()
+                await self.rx_queue.put(pkt)
             elif (self.next_recv_seq - seq) & 0xfff < 2048:
                 self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", seq, self.next_recv_seq)
                 self.stop_ack_latency_timer()
@@ -195,6 +196,13 @@ class Port:
                     self.nak_scheduled = True
                     self.stop_ack_latency_timer()
                     await self.send_nak()
+
+    async def _run_receive(self):
+        while True:
+            tlp = await self.rx_queue.get()
+            if self.rx_handler is None:
+                raise Exception("Receive handler not set")
+            await self.rx_handler(tlp)
 
     async def handle_dllp(self, dllp):
         if dllp.type == DllpType.NOP:
