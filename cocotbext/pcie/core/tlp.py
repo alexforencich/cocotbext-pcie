@@ -396,7 +396,7 @@ class Tlp:
 
     def get_wire_size(self):
         """Return size of TLP in bytes, including overhead"""
-        return self.get_size()+12
+        return self.get_size()+8
 
     def get_data_credits(self):
         """Return size of TLP in data credits (1 credit per 4 DW)"""
