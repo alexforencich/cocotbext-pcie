@@ -152,7 +152,7 @@ class Dllp:
 
         dw, = struct.unpack_from('>L', pkt)
 
-        dllp.type = DllpType((dw >> 24) & 0xff)
+        dllp.type = (dw >> 24) & 0xff
 
         if dllp.type in {DllpType.ACK, DllpType.NAK}:
             dllp.seq = dw & 0xfff
@@ -165,6 +165,7 @@ class Dllp:
         elif (dllp.type & DLLP_FC_TYPE_MASK) in {DllpType.INIT_FC1_P, DllpType.INIT_FC1_NP, DllpType.INIT_FC1_CPL,
                 DllpType.INIT_FC2_P, DllpType.INIT_FC2_NP, DllpType.INIT_FC2_CPL, DllpType.UPDATE_FC_P,
                 DllpType.UPDATE_FC_NP, DllpType.UPDATE_FC_CPL}:
+            dllp.type = dllp.type & DLLP_FC_TYPE_MASK
             dllp.vc = (dw >> 24) & DLLP_FC_VC_MASK
             dllp.data_fc = dw & 0xfff
             dllp.data_scale = (dw >> 12) & 0x3
@@ -172,6 +173,8 @@ class Dllp:
             dllp.hdr_scale = (dw >> 22) & 0x3
         else:
             raise Exception("TODO")
+
+        dllp.type = DllpType(dllp.type)
 
         return dllp
 
