@@ -194,7 +194,7 @@ class Tlp:
             self.address = tlp.address
             self.ph = tlp.ph
             self.register_number = tlp.register_number
-            self.data = tlp.data
+            self.data = bytearray(tlp.data)
 
     @property
     def fmt_type(self):
