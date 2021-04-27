@@ -200,7 +200,8 @@ class Dllp:
                 self.hdr_fc == other.hdr_fc and
                 self.data_scale == other.data_scale and
                 self.data_fc == other.data_fc and
-                self.feature_support == other.feature_support
+                self.feature_support == other.feature_support and
+                self.feature_ack == other.feature_ack
             )
         return False
 
@@ -213,7 +214,8 @@ class Dllp:
             f"hdr_fc={self.hdr_fc}, "
             f"data_scale={self.data_scale}, "
             f"data_fc={self.data_fc}, "
-            f"feature_support={self.feature_support})"
+            f"feature_support={self.feature_support}, "
+            f"feature_ack={self.feature_ack})"
         )
 
     def __bytes__(self):
