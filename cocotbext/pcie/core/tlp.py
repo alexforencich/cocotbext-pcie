@@ -170,6 +170,7 @@ class Tlp:
         self.ph = 0
         self.register_number = 0
         self.data = bytearray()
+        self.seq = 0
 
         if isinstance(tlp, Tlp):
             self.fmt = tlp.fmt
@@ -195,6 +196,7 @@ class Tlp:
             self.ph = tlp.ph
             self.register_number = tlp.register_number
             self.data = bytearray(tlp.data)
+            self.seq = tlp.seq
 
     @property
     def fmt_type(self):
@@ -563,7 +565,8 @@ class Tlp:
                 self.lower_address == other.lower_address and
                 self.address == other.address and
                 self.ph == other.ph and
-                self.register_number == other.register_number
+                self.register_number == other.register_number and
+                self.seq == other.seq
             )
         return False
 
@@ -591,7 +594,8 @@ class Tlp:
             f"lower_address={self.lower_address:#x}, "
             f"address={self.address:#x}, "
             f"ph={self.ph}, "
-            f"register_number={self.register_number:#x})"
+            f"register_number={self.register_number:#x}, "
+            f"seq={self.seq})"
         )
 
     def __bytes__(self):
