@@ -30,6 +30,7 @@ from cocotb.triggers import Event, Timer
 import cocotb.utils
 
 from .dllp import Dllp, DllpType
+from .tlp import Tlp
 
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
@@ -111,8 +112,8 @@ class Port:
                 self.log.debug("Send DLLP %s", pkt)
             else:
                 pkt = await self.tlp_tx_queue.get()
-                self.log.debug("Send TLP %s, seq %d", pkt, self.next_transmit_seq)
-                pkt = (pkt, self.next_transmit_seq)
+                pkt.seq = self.next_transmit_seq
+                self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
                 self.retry_buffer.put_nowait(pkt)
 
@@ -128,20 +129,19 @@ class Port:
             await self.handle_dllp(pkt)
         else:
             # TLP
-            pkt, seq = pkt
-            self.log.debug("Receive TLP %s, seq %d", pkt, seq)
-            if seq == self.next_recv_seq:
+            self.log.debug("Receive TLP %s", pkt)
+            if pkt.seq == self.next_recv_seq:
                 # expected seq
                 self.next_recv_seq = (self.next_recv_seq + 1) & 0xfff
                 self.nak_scheduled = False
                 self.start_ack_latency_timer()
-                await self.rx_queue.put(pkt)
-            elif (self.next_recv_seq - seq) & 0xfff < 2048:
-                self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", seq, self.next_recv_seq)
+                await self.rx_queue.put(Tlp(pkt))
+            elif (self.next_recv_seq - pkt.seq) & 0xfff < 2048:
+                self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
                 self.stop_ack_latency_timer()
                 await self.send_ack()
             else:
-                self.log.warning("Received out-of-sequence TLP, sending NAK (seq %d, expecting %d)", seq, self.next_recv_seq)
+                self.log.warning("Received out-of-sequence TLP, sending NAK (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
                 if not self.nak_scheduled:
                     self.nak_scheduled = True
                     self.stop_ack_latency_timer()
@@ -253,13 +253,8 @@ class SimPort(Port):
         self.link_delay_steps = (self.port_delay + port.port_delay) * self.time_scale
 
     async def handle_tx(self, pkt):
-        if isinstance(pkt, Dllp):
-            wire_size = pkt.get_wire_size()
-        else:
-            wire_size = pkt[0].get_wire_size()
-
         if self.cur_link_width and self.cur_link_speed:
-            d = int(wire_size*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
+            d = int(pkt.get_wire_size()*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
             if d:
                 await Timer(d, 'step')
         cocotb.fork(self._transmit(pkt))
