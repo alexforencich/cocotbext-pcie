@@ -471,9 +471,11 @@ class SwitchDownstreamPort(Bridge):
         self.downstream_port.connect(port)
 
 
-class HostBridge(SwitchUpstreamPort):
+class HostBridge(Bridge):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.pcie_device_type = 0x5
 
         self.vendor_id = 0x1234
         self.device_id = 0x0001
