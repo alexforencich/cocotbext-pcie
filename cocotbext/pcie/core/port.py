@@ -26,7 +26,7 @@ import logging
 
 import cocotb
 from cocotb.queue import Queue
-from cocotb.triggers import Event, Timer
+from cocotb.triggers import Event, First, Timer
 import cocotb.utils
 
 from .dllp import Dllp, DllpType
@@ -61,8 +61,7 @@ class Port:
         self.max_link_speed = None
         self.max_link_width = None
 
-        self.tlp_tx_queue = Queue(1)
-        self.dllp_tx_queue = Queue()
+        self.tx_queue = Queue(1)
         self.tx_queue_sync = Event()
 
         self.rx_queue = Queue()
@@ -86,6 +85,8 @@ class Port:
         self.max_payload_size = 128
         self.max_latency_timer = 0
 
+        self.send_ack = Event()
+
         self._ack_latency_timer_cr = None
 
         super().__init__(*args, **kwargs)
@@ -94,24 +95,28 @@ class Port:
         cocotb.fork(self._run_receive())
 
     async def send(self, pkt):
-        await self.tlp_tx_queue.put(pkt)
-        self.tx_queue_sync.set()
-
-    async def send_dllp(self, pkt):
-        await self.dllp_tx_queue.put(pkt)
+        await self.tx_queue.put(pkt)
         self.tx_queue_sync.set()
 
     async def _run_transmit(self):
         while True:
-            while self.tlp_tx_queue.empty() and self.dllp_tx_queue.empty():
+            while self.tx_queue.empty() and not self.send_ack.is_set():
                 self.tx_queue_sync.clear()
-                await self.tx_queue_sync.wait()
+                await First(self.tx_queue_sync.wait(), self.send_ack.wait())
 
-            if not self.dllp_tx_queue.empty():
-                pkt = await self.dllp_tx_queue.get()
+            pkt = None
+
+            if self.send_ack.is_set():
+                self.send_ack.clear()
+                if self.nak_scheduled:
+                    pkt = Dllp.create_nak((self.next_recv_seq-1) & 0xfff)
+                else:
+                    pkt = Dllp.create_ack((self.next_recv_seq-1) & 0xfff)
+
+            if pkt is not None:
                 self.log.debug("Send DLLP %s", pkt)
             else:
-                pkt = await self.tlp_tx_queue.get()
+                pkt = await self.tx_queue.get()
                 pkt.seq = self.next_transmit_seq
                 self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
@@ -139,13 +144,13 @@ class Port:
             elif (self.next_recv_seq - pkt.seq) & 0xfff < 2048:
                 self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
                 self.stop_ack_latency_timer()
-                await self.send_ack()
+                self.send_ack.set()
             else:
                 self.log.warning("Received out-of-sequence TLP, sending NAK (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
                 if not self.nak_scheduled:
                     self.nak_scheduled = True
                     self.stop_ack_latency_timer()
-                    await self.send_nak()
+                    self.send_ack.set()
 
     async def _run_receive(self):
         while True:
@@ -196,13 +201,7 @@ class Port:
         if d:
             await Timer(d, 'step')
         if not self.nak_scheduled:
-            await self.send_ack()
-
-    async def send_ack(self):
-        await self.send_dllp(Dllp.create_ack((self.next_recv_seq-1) & 0xfff))
-
-    async def send_nak(self):
-        await self.send_dllp(Dllp.create_nak((self.next_recv_seq-1) & 0xfff))
+            self.send_ack.set()
 
 
 class SimPort(Port):
