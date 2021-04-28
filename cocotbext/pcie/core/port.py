@@ -246,9 +246,10 @@ class SimPort(Port):
             self.cur_link_width = port.max_link_width
         if self.cur_link_width is not None and self.cur_link_speed is not None:
             self.max_latency_timer = (self.max_payload_size / self.cur_link_width) * PCIE_GEN_SYMB_TIME[self.cur_link_speed]
+            self.link_delay_steps = (self.port_delay + port.port_delay) * self.time_scale
         else:
             self.max_latency_timer = 0
-        self.link_delay_steps = (self.port_delay + port.port_delay) * self.time_scale
+            self.link_delay_steps = 0
 
     async def handle_tx(self, pkt):
         if self.cur_link_width and self.cur_link_speed:
