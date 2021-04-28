@@ -56,6 +56,25 @@ DLLP_FC_TYPE_MASK = 0b11111000
 DLLP_FC_VC_MASK   = 0b00000111
 
 
+class FcType(enum.Enum):
+    P   = 0  # posted
+    NP  = 1  # non-posted
+    CPL = 2  # completion
+
+
+dllp_type_fc_type_mapping = {
+    DllpType.INIT_FC1_P:     FcType.P,
+    DllpType.INIT_FC1_NP:    FcType.NP,
+    DllpType.INIT_FC1_CPL:   FcType.CPL,
+    DllpType.INIT_FC2_P:     FcType.P,
+    DllpType.INIT_FC2_NP:    FcType.NP,
+    DllpType.INIT_FC2_CPL:   FcType.CPL,
+    DllpType.UPDATE_FC_P:    FcType.P,
+    DllpType.UPDATE_FC_NP:   FcType.NP,
+    DllpType.UPDATE_FC_CPL:  FcType.CPL,
+}
+
+
 def crc16(data, crc=0xFFFF, poly=0xD008):
     for d in data:
         crc = crc ^ d
@@ -111,6 +130,9 @@ class Dllp:
     def get_wire_size(self):
         """Return size of DLLP in bytes, including overhead"""
         return 8
+
+    def get_fc_type(self):
+        return dllp_type_fc_type_mapping[self.type]
 
     def pack(self):
         """Pack DLLP as bytes"""

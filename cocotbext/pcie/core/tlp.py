@@ -25,6 +25,7 @@ THE SOFTWARE.
 import enum
 import struct
 
+from .dllp import FcType
 from .utils import PcieId
 
 
@@ -142,6 +143,44 @@ class CplStatus(enum.IntEnum):
     UR  = 0x1  # unsupported request
     CRS = 0x2  # configuration request retry status
     CA  = 0x4  # completer abort
+
+
+tlp_type_fc_type_mapping = {
+    TlpType.MEM_READ:            FcType.NP,
+    TlpType.MEM_READ_64:         FcType.NP,
+    TlpType.MEM_READ_LOCKED:     FcType.NP,
+    TlpType.MEM_READ_LOCKED_64:  FcType.NP,
+    TlpType.MEM_WRITE:           FcType.P,
+    TlpType.MEM_WRITE_64:        FcType.P,
+    TlpType.IO_READ:             FcType.NP,
+    TlpType.IO_WRITE:            FcType.NP,
+    TlpType.CFG_READ_0:          FcType.NP,
+    TlpType.CFG_WRITE_0:         FcType.NP,
+    TlpType.CFG_READ_1:          FcType.NP,
+    TlpType.CFG_WRITE_1:         FcType.NP,
+    TlpType.MSG_TO_RC:           FcType.P,
+    TlpType.MSG_ADDR:            FcType.P,
+    TlpType.MSG_ID:              FcType.P,
+    TlpType.MSG_BCAST:           FcType.P,
+    TlpType.MSG_LOCAL:           FcType.P,
+    TlpType.MSG_GATHER:          FcType.P,
+    TlpType.MSG_DATA_TO_RC:      FcType.P,
+    TlpType.MSG_DATA_ADDR:       FcType.P,
+    TlpType.MSG_DATA_ID:         FcType.P,
+    TlpType.MSG_DATA_BCAST:      FcType.P,
+    TlpType.MSG_DATA_LOCAL:      FcType.P,
+    TlpType.MSG_DATA_GATHER:     FcType.P,
+    TlpType.CPL:                 FcType.CPL,
+    TlpType.CPL_DATA:            FcType.CPL,
+    TlpType.CPL_LOCKED:          FcType.CPL,
+    TlpType.CPL_LOCKED_DATA:     FcType.CPL,
+    TlpType.FETCH_ADD:           FcType.NP,
+    TlpType.FETCH_ADD_64:        FcType.NP,
+    TlpType.SWAP:                FcType.NP,
+    TlpType.SWAP_64:             FcType.NP,
+    TlpType.CAS:                 FcType.NP,
+    TlpType.CAS_64:              FcType.NP,
+}
 
 
 class Tlp:
@@ -403,6 +442,18 @@ class Tlp:
     def get_data_credits(self):
         """Return size of TLP in data credits (1 credit per 4 DW)"""
         return (self.get_payload_size_dw()+3)//4
+
+    def get_fc_type(self):
+        return tlp_type_fc_type_mapping[self.fmt_type]
+
+    def is_posted(self):
+        return tlp_type_fc_type_mapping[self.fmt_type] == FcType.P
+
+    def is_nonposted(self):
+        return tlp_type_fc_type_mapping[self.fmt_type] == FcType.NP
+
+    def is_completion(self):
+        return tlp_type_fc_type_mapping[self.fmt_type] == FcType.CPL
 
     def pack_header(self):
         """Pack TLP header as bytes"""
