@@ -198,8 +198,7 @@ class Port:
 
     async def _run_ack_latency_timer(self):
         d = int(self.time_scale * self.max_latency_timer)
-        if d:
-            await Timer(d, 'step')
+        await Timer(max(d, 1), 'step')
         if not self.nak_scheduled:
             self.send_ack.set()
 
@@ -254,13 +253,13 @@ class SimPort(Port):
     async def handle_tx(self, pkt):
         if self.cur_link_width and self.cur_link_speed:
             d = int(pkt.get_wire_size()*8*self.time_scale / (PCIE_GEN_RATE[self.cur_link_speed]*self.cur_link_width))
-            if d:
-                await Timer(d, 'step')
+        else:
+            d = 1
+        await Timer(max(d, 1), 'step')
         cocotb.fork(self._transmit(pkt))
 
     async def _transmit(self, pkt):
         if self.other is None:
             raise Exception("Port not connected")
-        if self.link_delay_steps:
-            await Timer(self.link_delay_steps, "step")
+        await Timer(max(self.link_delay_steps, 1), "step")
         await self.other.ext_recv(pkt)
