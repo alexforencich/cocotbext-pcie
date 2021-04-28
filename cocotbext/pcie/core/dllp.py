@@ -75,6 +75,13 @@ dllp_type_fc_type_mapping = {
 }
 
 
+class FcScale(enum.IntEnum):
+    DIS  = 0  # scaled FC disabled
+    SF1  = 1  # scaled FC enabled with scale factor 1
+    SF4  = 2  # scaled FC enabled with scale factor 4
+    SF16 = 3  # scaled FC enabled with scale factor 16
+
+
 def crc16(data, crc=0xFFFF, poly=0xD008):
     for d in data:
         crc = crc ^ d
@@ -91,9 +98,9 @@ class Dllp:
         self.type = DllpType.NOP
         self.seq = 0
         self.vc = 0
-        self.hdr_scale = 0
+        self.hdr_scale = FcScale(0)
         self.hdr_fc = 0
-        self.data_scale = 0
+        self.data_scale = FcScale(0)
         self.data_fc = 0
         self.feature_support = 0
         self.feature_ack = False
@@ -190,9 +197,9 @@ class Dllp:
             dllp.type = dllp.type & DLLP_FC_TYPE_MASK
             dllp.vc = (dw >> 24) & DLLP_FC_VC_MASK
             dllp.data_fc = dw & 0xfff
-            dllp.data_scale = (dw >> 12) & 0x3
+            dllp.data_scale = FcScale((dw >> 12) & 0x3)
             dllp.hdr_fc = (dw >> 14) & 0xff
-            dllp.hdr_scale = (dw >> 22) & 0x3
+            dllp.hdr_scale = FcScale((dw >> 22) & 0x3)
         else:
             raise Exception("TODO")
 
@@ -232,9 +239,9 @@ class Dllp:
             f"{type(self).__name__}(type={self.type!s}, "
             f"seq={self.seq}, "
             f"vc={self.vc}, "
-            f"hdr_scale={self.hdr_scale}, "
+            f"hdr_scale={self.hdr_scale!s}, "
             f"hdr_fc={self.hdr_fc}, "
-            f"data_scale={self.data_scale}, "
+            f"data_scale={self.data_scale!s}, "
             f"data_fc={self.data_fc}, "
             f"feature_support={self.feature_support}, "
             f"feature_ack={self.feature_ack})"
