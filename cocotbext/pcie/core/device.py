@@ -124,11 +124,13 @@ class Device:
                 await f.upstream_recv(tlp)
                 return
 
+        tlp.release_fc()
+
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
-            # config type 0
+            # Config type 0
             self.log.info("Function not found: failed to route config type 0 TLP")
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
-            # config type 1
+            # Config type 1
             self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion

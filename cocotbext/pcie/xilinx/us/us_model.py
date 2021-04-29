@@ -658,6 +658,8 @@ class UltraScalePcieDevice(Device):
             if not self.config_space_enable:
                 self.log.warning("Configuration space disabled")
 
+                tlp.release_fc()
+
                 cpl = Tlp.create_crs_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
                 self.log.debug("CRS Completion: %s", repr(cpl))
                 await self.upstream_send(cpl)
@@ -672,16 +674,23 @@ class UltraScalePcieDevice(Device):
                         await f.upstream_recv(tlp)
                         return
 
+                tlp.release_fc()
+
                 self.log.info("Function not found: failed to route config type 0 TLP")
 
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # config type 1
+
+            tlp.release_fc()
+
             self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
             for f in self.functions:
                 if f.pcie_id == tlp.requester_id:
+
+                    tlp.release_fc()
 
                     tlp = Tlp_us(tlp)
 
@@ -698,6 +707,8 @@ class UltraScalePcieDevice(Device):
 
                     return
 
+            tlp.release_fc()
+
             self.log.warning("Unexpected completion: failed to route completion to function")
             return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
@@ -707,6 +718,8 @@ class UltraScalePcieDevice(Device):
                 bar = f.match_bar(tlp.address, True)
                 if len(bar) == 1:
 
+                    tlp.release_fc()
+
                     tlp = Tlp_us(tlp)
                     tlp.bar_id = bar[0][0]
                     tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
@@ -715,6 +728,8 @@ class UltraScalePcieDevice(Device):
 
                     return
 
+            tlp.release_fc()
+
             self.log.warning("No BAR match: IO request did not match any BARs")
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
@@ -722,6 +737,8 @@ class UltraScalePcieDevice(Device):
             for f in self.functions:
                 bar = f.match_bar(tlp.address)
                 if len(bar) == 1:
+
+                    tlp.release_fc()
 
                     tlp = Tlp_us(tlp)
                     tlp.bar_id = bar[0][0]
@@ -734,6 +751,8 @@ class UltraScalePcieDevice(Device):
                     self.cq_queue.put_nowait(tlp)
 
                     return
+
+            tlp.release_fc()
 
             if tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
                 self.log.warning("No BAR match: memory write request did not match any BARs")

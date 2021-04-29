@@ -209,8 +209,10 @@ class RootComplex(Switch):
             self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
+            tlp.release_fc()
             await self.rx_tlp_handler[tlp.fmt_type](tlp)
         else:
+            tlp.release_fc()
             raise Exception("Unhandled TLP")
 
     def register_rx_tlp_handler(self, fmt_type, func):
@@ -221,7 +223,9 @@ class RootComplex(Switch):
         sync = self.rx_cpl_sync[tag]
 
         if not queue.empty():
-            return queue.get_nowait()
+            cpl = queue.get_nowait()
+            cpl.release_fc()
+            return cpl
 
         sync.clear()
         if timeout:
@@ -230,7 +234,9 @@ class RootComplex(Switch):
             await sync.wait()
 
         if not queue.empty():
-            return queue.get_nowait()
+            cpl = queue.get_nowait()
+            cpl.release_fc()
+            return cpl
 
         return None
 

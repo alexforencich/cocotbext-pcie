@@ -171,6 +171,8 @@ class Switch:
             if ok:
                 continue
 
+            tlp.release_fc()
+
             if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
                 # Config type 0
                 self.log.info("Failed to route config type 0 TLP")

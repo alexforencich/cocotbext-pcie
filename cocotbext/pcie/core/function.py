@@ -421,9 +421,11 @@ class Function:
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
             # call registered handler
+            tlp.release_fc()
             await self.rx_tlp_handler[tlp.fmt_type](tlp)
         else:
             # no handler registered for TLP type
+            tlp.release_fc()
             raise Exception("Unhandled TLP")
 
     def register_rx_tlp_handler(self, fmt_type, func):
@@ -434,7 +436,9 @@ class Function:
         sync = self.rx_cpl_sync[tag]
 
         if not queue.empty():
-            return queue.get_nowait()
+            cpl = queue.get_nowait()
+            cpl.release_fc()
+            return cpl
 
         sync.clear()
         if timeout:
@@ -443,7 +447,9 @@ class Function:
             await sync.wait()
 
         if not queue.empty():
-            return queue.get_nowait()
+            cpl = queue.get_nowait()
+            cpl.release_fc()
+            return cpl
 
         return None
 

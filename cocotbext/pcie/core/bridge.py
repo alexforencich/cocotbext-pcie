@@ -337,6 +337,8 @@ class Bridge(Function):
             await self.route_downstream_tlp(tlp, False)
             return
 
+        tlp.release_fc()
+
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
             self.log.info("Failed to route config type 0 TLP")
@@ -389,6 +391,8 @@ class Bridge(Function):
             # Route TLPs from secondary side to primary side
             await self.upstream_send(tlp)
             return
+
+        tlp.release_fc()
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
