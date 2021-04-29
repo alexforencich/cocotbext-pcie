@@ -1070,31 +1070,28 @@ class UltraScalePcieDevice(Device):
 
             if (sel == 0b000):
                 # Receive credits at link partner
-                # TODO
-                cfg_fc_ph = 0
-                cfg_fc_pd = 0
-                cfg_fc_nph = 0
-                cfg_fc_npd = 0
-                cfg_fc_cplh = 0
-                cfg_fc_cpld = 0
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.rx_credits_available
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.rx_credits_available
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.rx_credits_available
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.rx_credits_available
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.rx_credits_available
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.rx_credits_available
             elif (sel == 0b001):
                 # Receive credit limit
-                # TODO
-                cfg_fc_ph = 0
-                cfg_fc_pd = 0
-                cfg_fc_nph = 0
-                cfg_fc_npd = 0
-                cfg_fc_cplh = 0
-                cfg_fc_cpld = 0
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.rx_credits_allocated
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.rx_credits_allocated
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.rx_credits_allocated
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.rx_credits_allocated
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.rx_credits_allocated
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.rx_credits_allocated
             elif (sel == 0b010):
                 # Receive credits consumed
-                # TODO
-                cfg_fc_ph = 0
-                cfg_fc_pd = 0
-                cfg_fc_nph = 0
-                cfg_fc_npd = 0
-                cfg_fc_cplh = 0
-                cfg_fc_cpld = 0
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.rx_credits_received
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.rx_credits_received
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.rx_credits_received
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.rx_credits_received
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.rx_credits_received
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.rx_credits_received
             elif (sel == 0b011):
                 # Available space in receive buffer
                 # TODO
@@ -1106,31 +1103,28 @@ class UltraScalePcieDevice(Device):
                 cfg_fc_cpld = 0
             elif (sel == 0b100):
                 # Transmit credits available
-                # TODO
-                cfg_fc_ph = 0x80
-                cfg_fc_pd = 0x800
-                cfg_fc_nph = 0x80
-                cfg_fc_npd = 0x800
-                cfg_fc_cplh = 0x80
-                cfg_fc_cpld = 0x800
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.tx_credits_available
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.tx_credits_available
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.tx_credits_available
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.tx_credits_available
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.tx_credits_available
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.tx_credits_available
             elif (sel == 0b101):
                 # Transmit credit limit
-                # TODO
-                cfg_fc_ph = 0x80
-                cfg_fc_pd = 0x800
-                cfg_fc_nph = 0x80
-                cfg_fc_npd = 0x800
-                cfg_fc_cplh = 0x80
-                cfg_fc_cpld = 0x800
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.tx_credit_limit
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.tx_credit_limit
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.tx_credit_limit
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.tx_credit_limit
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.tx_credit_limit
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.tx_credit_limit
             elif (sel == 0b110):
                 # Transmit credits consumed
-                # TODO
-                cfg_fc_ph = 0
-                cfg_fc_pd = 0
-                cfg_fc_nph = 0
-                cfg_fc_npd = 0
-                cfg_fc_cplh = 0
-                cfg_fc_cpld = 0
+                cfg_fc_ph = self.upstream_port.fc_state[0].ph.tx_credits_consumed
+                cfg_fc_pd = self.upstream_port.fc_state[0].pd.tx_credits_consumed
+                cfg_fc_nph = self.upstream_port.fc_state[0].nph.tx_credits_consumed
+                cfg_fc_npd = self.upstream_port.fc_state[0].npd.tx_credits_consumed
+                cfg_fc_cplh = self.upstream_port.fc_state[0].cplh.tx_credits_consumed
+                cfg_fc_cpld = self.upstream_port.fc_state[0].cpld.tx_credits_consumed
             else:
                 # Reserved
                 cfg_fc_ph = 0
