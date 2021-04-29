@@ -27,7 +27,6 @@ import itertools
 import logging
 import mmap
 import os
-import struct
 
 import cocotb_test.simulator
 import pytest
