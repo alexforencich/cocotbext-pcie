@@ -211,6 +211,8 @@ class Tlp:
         self.data = bytearray()
         self.seq = 0
 
+        self.release_fc_cb = None
+
         if isinstance(tlp, Tlp):
             self.fmt = tlp.fmt
             self.type = tlp.type
@@ -454,6 +456,10 @@ class Tlp:
 
     def is_completion(self):
         return tlp_type_fc_type_mapping[self.fmt_type] == FcType.CPL
+
+    def release_fc(self):
+        if self.release_fc_cb is not None:
+            self.release_fc_cb()
 
     def pack_header(self):
         """Pack TLP header as bytes"""
