@@ -505,7 +505,7 @@ class Port:
             if pkt is not None:
                 self.log.debug("Send DLLP %s", pkt)
             elif not self.tx_queue.empty():
-                pkt = await self.tx_queue.get()
+                pkt = self.tx_queue.get_nowait()
                 pkt.seq = self.next_transmit_seq
                 self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
@@ -521,7 +521,7 @@ class Port:
         if isinstance(pkt, Dllp):
             # DLLP
             self.log.debug("Receive DLLP %s", pkt)
-            await self.handle_dllp(pkt)
+            self.handle_dllp(pkt)
         else:
             # TLP
             self.log.debug("Receive TLP %s", pkt)
@@ -532,7 +532,7 @@ class Port:
                 self.start_ack_latency_timer()
                 pkt = Tlp(pkt)
                 self.fc_state[self.classify_tlp_vc(pkt)].rx_process_tlp_fc(pkt)
-                await self.rx_queue.put(pkt)
+                self.rx_queue.put_nowait(pkt)
             elif (self.next_recv_seq - pkt.seq) & 0xfff < 2048:
                 self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
                 self.stop_ack_latency_timer()
@@ -551,7 +551,7 @@ class Port:
                 raise Exception("Receive handler not set")
             await self.rx_handler(tlp)
 
-    async def handle_dllp(self, dllp):
+    def handle_dllp(self, dllp):
         if dllp.type == DllpType.NOP:
             # discard NOP
             pass
