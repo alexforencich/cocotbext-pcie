@@ -69,6 +69,8 @@ class TB:
 
         ep = TestEndpoint()
         self.dev = Device(ep)
+        self.dev.upstream_port.max_link_speed = 3
+        self.dev.upstream_port.max_link_width = 16
         self.ep.append(ep)
 
         self.rc.make_port().connect(self.dev)
@@ -79,18 +81,24 @@ class TB:
 
         ep = TestEndpoint()
         self.dev2 = Device(ep)
+        self.dev2.upstream_port.max_link_speed = 3
+        self.dev2.upstream_port.max_link_width = 16
         self.ep.append(ep)
 
         self.sw.make_port().connect(self.dev2)
 
         ep = TestEndpoint()
         self.dev3 = Device(ep)
+        self.dev3.upstream_port.max_link_speed = 3
+        self.dev3.upstream_port.max_link_width = 16
         self.ep.append(ep)
 
         self.sw.make_port().connect(self.dev3)
 
         ep = TestEndpoint()
         self.dev4 = Device(ep)
+        self.dev4.upstream_port.max_link_speed = 3
+        self.dev4.upstream_port.max_link_width = 16
         self.ep.append(ep)
 
         self.rc.make_port().connect(self.dev4)
