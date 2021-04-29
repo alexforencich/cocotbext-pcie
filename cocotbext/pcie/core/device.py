@@ -44,7 +44,7 @@ class Device:
         self.functions = []
         self.upstream_port = None
 
-        self.set_port(SimPort())
+        self.set_port(SimPort(fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
 
         if eps:
             try:

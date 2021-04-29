@@ -438,7 +438,7 @@ class SwitchUpstreamPort(Bridge):
 
         self.upstream_port = None
         self.upstream_tx_handler = None
-        self.set_upstream_port(SimPort())
+        self.set_upstream_port(SimPort(fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
     def set_upstream_port(self, port):
         port.log = self.log
@@ -462,7 +462,7 @@ class SwitchDownstreamPort(Bridge):
 
         self.downstream_port = None
         self.downstream_tx_handler = None
-        self.set_downstream_port(SimPort())
+        self.set_downstream_port(SimPort(fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
     def set_downstream_port(self, port):
         port.log = self.log
