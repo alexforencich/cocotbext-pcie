@@ -28,7 +28,7 @@ Installation for active development:
 
 ## Documentation and usage examples
 
-See the `tests` directory and [verilog-pcie](https://github.com/alexforencich/verilog-pcie) for complete testbenches using these modules.
+See the `tests` directory, [verilog-pcie](https://github.com/alexforencich/verilog-pcie), and [corundum](https://github.com/corundum/corundum) for complete testbenches using these modules.
 
 ### Core PCIe simulation framework
 
@@ -38,4 +38,4 @@ The core PCIe simulation framework is included in `cocotbext.pcie.core`.  This f
 
 #### Xilinx UltraScale and UltraScale+
 
-Models of the Xilinx UltraScale and UltraScale Plus PCIe hard cores are included in `cocotbext.pcie.xilinx.us`.  These modules can be used in combination with the PCIe BFM to test an HDL design that targets a Xilinx UltraScale or UltraScale Plus FPGA, up to PCIe gen 3 x16 or PCIe gen 4 x8.  The models currently only support operation as a device, not as a root port.
+Models of the Xilinx UltraScale and UltraScale+ PCIe hard cores are included in `cocotbext.pcie.xilinx.us`.  These modules can be used in combination with the PCIe BFM to test an HDL design that targets Xilinx UltraScale, UltraScale+, or Virtex 7 series FPGAs, up to PCIe gen 3 x16 or PCIe gen 4 x8.  The models currently only support operation as a device, not as a root port.
