@@ -854,7 +854,7 @@ class UltraScalePcieDevice(Device):
             if not tlp.requester_id_enable:
                 tlp.requester_id = tlp.requester_id._replace(bus=self.bus_num)
 
-            if tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ, TlpType.MEM_READ_64}:
+            if tlp.is_nonposted():
                 # non-posted request
 
                 if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
