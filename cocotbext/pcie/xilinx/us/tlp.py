@@ -110,6 +110,7 @@ class Tlp_us(Tlp):
         self.discontinue = False
         self.seq_num = 0
         self.error_code = ErrorCode.NORMAL_TERMINATION
+        self.request_completed = False
 
         if isinstance(tlp, Tlp_us):
             self.bar_id = tlp.bar_id
@@ -119,6 +120,7 @@ class Tlp_us(Tlp):
             self.discontinue = tlp.discontinue
             self.seq_num = tlp.seq_num
             self.error_code = tlp.error_code
+            self.request_completed == tlp.request_completed
 
     def pack_us_cq(self):
         pkt = UsPcieFrame()
@@ -403,7 +405,7 @@ class Tlp_us(Tlp):
             dw |= (self.byte_count & 0x1fff) << 16
             if self.fmt_type in {TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
                 dw |= 1 << 29
-            # TODO request completed
+            dw |= bool(self.request_completed) << 30
             pkt.data.append(dw)
             dw = self.length & 0x7ff
             dw |= (self.status & 0x7) << 11
@@ -460,6 +462,7 @@ class Tlp_us(Tlp):
         tlp.byte_count = (pkt.data[0] >> 16) & 0x1fff
         if pkt.data[0] & (1 << 29):
             tlp.fmt_type = TlpType.CPL_LOCKED
+        tlp.request_completed = pkt.data[0] & (1 << 30)
 
         tlp.length = pkt.data[1] & 0x7ff
         if tlp.length > 0:
