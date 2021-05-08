@@ -926,8 +926,6 @@ class UltraScalePcieDevice(Device):
 
     async def _run_rc_logic(self):
         while True:
-            await RisingEdge(self.user_clk)
-
             tlp = await self.rc_queue.get()
             await self.rc_source.send(tlp.pack_us_rc())
 
