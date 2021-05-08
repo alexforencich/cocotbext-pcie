@@ -328,6 +328,8 @@ class UltraScalePlusPcieDevice(Device):
         self.cpld_credit_count = 0
         self.cpld_credit_released = Event()
 
+        self.active_request = [None for x in range(256)]
+
         self.config_space_enable = False
 
         # configuration options
@@ -712,8 +714,44 @@ class UltraScalePlusPcieDevice(Device):
 
                     tlp.error_code = ErrorCode.NORMAL_TERMINATION
 
+                    if tlp.ep:
+                        self.log.warning("Poisoned TLP")
+                        tlp.error = ErrorCode.POISONED
+
                     if tlp.status != CplStatus.SC:
+                        self.log.warning("Bad status")
                         tlp.error = ErrorCode.BAD_STATUS
+
+                    req = self.active_request[tlp.tag]
+
+                    if not req:
+                        # tag not active
+                        self.log.warning("Invalid tag")
+                        tlp.error_code = ErrorCode.INVALID_TAG
+                    elif tlp.requester_id != req.requester_id or tlp.attr != req.attr or tlp.tc != req.tc:
+                        # requester ID, ATTR, or TC field mismatch
+                        self.log.warning("Mismatched fields")
+                        tlp.error_code = ErrorCode.MISMATCH
+                    elif req.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
+                        # completion for memory read request
+
+                        # reconstruct lower address MSBs
+                        lower_address = req.address + req.get_first_be_offset() + req.get_be_byte_count() - tlp.byte_count
+
+                        if tlp.lower_address != lower_address & 0x7f:
+                            self.log.warning("Lower address mismatch")
+                            tlp.error_code = ErrorCode.INVALID_ADDRESS
+                        else:
+                            tlp.lower_address = lower_address & 0xfff
+
+                        if tlp.byte_count <= tlp.length*4 - (tlp.lower_address & 0x3):
+                            tlp.request_completed = True
+                            self.active_request[tlp.tag] = None
+
+                    else:
+                        # completion for other request
+                        tlp.request_completed = True
+                        self.active_request[tlp.tag] = None
 
                     # TODO track individual operations
                     self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
@@ -872,10 +910,11 @@ class UltraScalePlusPcieDevice(Device):
                 if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
                     # queue empty and have data credits; skip queue and send immediately to preserve ordering
 
-                    # TODO track individual operations
-
                     if self.functions[tlp.requester_id.function].bus_master_enable:
                         self.cpld_credit_count += tlp.get_data_credits()
+
+                        assert not self.active_request[tlp.tag], "active tag reused"
+                        self.active_request[tlp.tag] = tlp
 
                         await self.send(Tlp(tlp))
                         self.rq_seq_num.put_nowait(tlp.seq_num)
@@ -906,8 +945,6 @@ class UltraScalePlusPcieDevice(Device):
             tlp = await self.rq_np_queue.get()
             self.rq_np_queue_dequeue.set()
 
-            # TODO track individual operations
-
             # wait for data credits
             while self.cpld_credit_count+tlp.get_data_credits() > self.cpld_credit_limit:
                 self.cpld_credit_released.clear()
@@ -915,6 +952,9 @@ class UltraScalePlusPcieDevice(Device):
 
             if self.functions[tlp.requester_id.function].bus_master_enable:
                 self.cpld_credit_count += tlp.get_data_credits()
+
+                assert not self.active_request[tlp.tag], "active tag reused"
+                self.active_request[tlp.tag] = tlp
 
                 await self.send(Tlp(tlp))
                 self.rq_seq_num.put_nowait(tlp.seq_num)
