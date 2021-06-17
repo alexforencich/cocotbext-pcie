@@ -65,8 +65,8 @@ class Bridge(Function):
         self.prefetchable_mem_base = 0x00000000
         self.prefetchable_mem_limit = 0x000fffff
         # Bridge control
-        self.parity_error_response_enable = 0
-        self.serr_enable = 0
+        self.bridge_parity_error_response_enable = 0
+        self.bridge_serr_enable = 0
         self.secondary_bus_reset = 0
 
         self.class_code = 0x060400
@@ -188,8 +188,8 @@ class Bridge(Function):
             # Interrupt pin
             val |= (self.interrupt_pin & 0xff) << 8
             # Bridge control
-            val |= bool(self.parity_error_response_enable) << 16
-            val |= bool(self.serr_enable) << 17
+            val |= bool(self.bridge_parity_error_response_enable) << 16
+            val |= bool(self.bridge_serr_enable) << 17
             val |= bool(self.secondary_bus_reset) << 22
             return val
         else:
@@ -268,8 +268,8 @@ class Bridge(Function):
                 self.interrupt_line = data & 0xff
             # bridge control
             if mask & 0x4:
-                self.parity_error_response_enable = (data & 1 << 16 != 0)
-                self.serr_enable = (data & 1 << 17 != 0)
+                self.bridge_parity_error_response_enable = (data & 1 << 16 != 0)
+                self.bridge_serr_enable = (data & 1 << 17 != 0)
                 self.secondary_bus_reset = (data & 1 << 22 != 0)
         else:
             await super().write_config_register(reg, data, mask)
