@@ -482,7 +482,8 @@ class Tlp:
 
         if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
                 TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
-                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE}:
+                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE, TlpType.FETCH_ADD,
+                TlpType.FETCH_ADD_64, TlpType.SWAP, TlpType.SWAP_64, TlpType.CAS, TlpType.CAS_64}:
             dw = self.first_be & 0xf
             dw |= (self.last_be & 0xf) << 4
             dw |= (self.tag & 0x0ff) << 8
@@ -551,7 +552,8 @@ class Tlp:
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
                 TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
-                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE}:
+                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE, TlpType.FETCH_ADD,
+                TlpType.FETCH_ADD_64, TlpType.SWAP, TlpType.SWAP_64, TlpType.CAS, TlpType.CAS_64}:
             dw, = struct.unpack_from('>L', pkt, 4)
             tlp.first_be = dw & 0xf
             tlp.last_be = (dw >> 4) & 0xf
