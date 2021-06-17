@@ -595,9 +595,6 @@ class UltraScalePlusPcieDevice(Device):
         assert self.user_clk_frequency in [62.5e6, 125e6, 250e6]
         assert self.alignment in ["address", "dword"]
 
-        self.upstream_port.max_speed = self.pcie_generation
-        self.upstream_port.max_width = self.pcie_link_width
-
         if self.dw < 256 or self.alignment != "dword":
             # straddle only supported with 256-bit or wider, DWORD-aligned interface
             assert not self.rq_rc_straddle
