@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 from .function import Function
 from .port import SimPort
-from .tlp import Tlp, TlpType
+from .tlp import Tlp, TlpType, CplStatus
 from .utils import byte_mask_update, PcieId
 
 
@@ -327,6 +327,13 @@ class Bridge(Function):
 
         # TLPs targeting bridge function
         if self.match_tlp(tlp):
+            if tlp.is_completion():
+                if tlp.status == CplStatus.CA:
+                    self.log.warning("Received completion with CA status on primary interface, reporting target abort")
+                    self.received_target_abort = True
+                elif tlp.status == CplStatus.UR:
+                    self.log.warning("Received completion with UR status on primary interface, reporting master abort")
+                    self.received_master_abort = True
             await self.handle_tlp(tlp)
             return
 
@@ -397,6 +404,13 @@ class Bridge(Function):
             pass
         elif not self.root and self.match_tlp(tlp):
             # TLPs targeting bridge function
+            if tlp.is_completion():
+                if tlp.status == CplStatus.CA:
+                    self.log.warning("Received completion with CA status on secondary interface, reporting target abort")
+                    self.sec_received_target_abort = True
+                elif tlp.status == CplStatus.UR:
+                    self.log.warning("Received completion with UR status on secondary interface, reporting master abort")
+                    self.sec_received_master_abort = True
             await self.handle_tlp(tlp)
             return
         elif not self.match_tlp_secondary(tlp) or self.root:
@@ -434,8 +448,14 @@ class Bridge(Function):
     async def send(self, tlp):
         # route local transmissions
         if self.match_tlp_secondary(tlp):
+            if tlp.is_completion() and tlp.status == CplStatus.CA:
+                self.log.warning("Sending completion with CA status on secondary interface, reporting target abort")
+                self.signaled_target_abort = True
             await self.route_downstream_tlp(tlp, False)
         else:
+            if tlp.is_completion() and tlp.status == CplStatus.CA:
+                self.log.warning("Sending completion with CA status on primary interface, reporting target abort")
+                self.signaled_target_abort = True
             await self.upstream_send(tlp)
 
 

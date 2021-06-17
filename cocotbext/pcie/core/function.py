@@ -410,11 +410,21 @@ class Function:
         await self.upstream_tx_handler(tlp)
 
     async def send(self, tlp):
+        if tlp.is_completion() and tlp.status == CplStatus.CA:
+            self.log.warning("Sending completion with CA status, reporting target abort")
+            self.signaled_target_abort = True
         await self.upstream_send(tlp)
 
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %s", repr(tlp))
         assert tlp.check()
+        if tlp.is_completion():
+            if tlp.status == CplStatus.CA:
+                self.log.warning("Received completion with CA status, reporting target abort")
+                self.received_target_abort = True
+            elif tlp.status == CplStatus.UR:
+                self.log.warning("Received completion with UR status, reporting master abort")
+                self.received_master_abort = True
         if self.parity_error_response_enable and tlp.ep:
             self.log.warning("Received poisoned TLP, reporting master data parity error")
             self.master_data_parity_error = True
