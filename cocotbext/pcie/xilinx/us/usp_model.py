@@ -691,7 +691,7 @@ class UltraScalePlusPcieDevice(Device):
 
                 tlp.release_fc()
 
-                self.log.info("Function not found: failed to route config type 0 TLP")
+                self.log.warning("Function not found: failed to route config type 0 TLP")
 
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # config type 1

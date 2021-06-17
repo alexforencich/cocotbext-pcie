@@ -128,7 +128,7 @@ class Device:
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
-            self.log.info("Function not found: failed to route config type 0 TLP")
+            self.log.warning("Function not found: failed to route config type 0 TLP")
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
             self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
