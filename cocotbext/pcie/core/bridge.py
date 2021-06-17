@@ -53,12 +53,12 @@ class Bridge(Function):
         self.io_limit = 0x0fff
         self.io_addr_capability = 0x1
         # Secondary status
-        self.master_data_parity_error = False
-        self.signaled_target_abort = False
-        self.received_target_abort = False
-        self.received_master_abort = False
-        self.received_system_error = False
-        self.detected_parity_error = False
+        self.sec_master_data_parity_error = False
+        self.sec_signaled_target_abort = False
+        self.sec_received_target_abort = False
+        self.sec_received_master_abort = False
+        self.sec_received_system_error = False
+        self.sec_detected_parity_error = False
         # Memory and limit registers
         self.mem_base = 0x00000000
         self.mem_limit = 0x000fffff
@@ -143,12 +143,12 @@ class Bridge(Function):
             val |= (self.io_addr_capability & 0xf) << 8
             val |= self.io_limit & 0xf000
             # Secondary status
-            val |= bool(self.master_data_parity_error) << 24
-            val |= bool(self.signaled_target_abort) << 27
-            val |= bool(self.received_target_abort) << 28
-            val |= bool(self.received_master_abort) << 29
-            val |= bool(self.received_system_error) << 30
-            val |= bool(self.detected_parity_error) << 31
+            val |= bool(self.sec_master_data_parity_error) << 24
+            val |= bool(self.sec_signaled_target_abort) << 27
+            val |= bool(self.sec_received_target_abort) << 28
+            val |= bool(self.sec_received_master_abort) << 29
+            val |= bool(self.sec_received_system_error) << 30
+            val |= bool(self.sec_detected_parity_error) << 31
             return val
         elif reg == 8:
             # Memory base
@@ -222,17 +222,17 @@ class Bridge(Function):
             if mask & 0x8:
                 # Secondary status
                 if data & 1 << 24:
-                    self.master_data_parity_error = False
+                    self.sec_master_data_parity_error = False
                 if data & 1 << 27:
-                    self.signaled_target_abort = False
+                    self.sec_signaled_target_abort = False
                 if data & 1 << 28:
-                    self.received_target_abort = False
+                    self.sec_received_target_abort = False
                 if data & 1 << 29:
-                    self.received_master_abort = False
+                    self.sec_received_master_abort = False
                 if data & 1 << 30:
-                    self.received_system_error = False
+                    self.sec_received_system_error = False
                 if data & 1 << 31:
-                    self.detected_parity_error = False
+                    self.sec_detected_parity_error = False
         elif reg == 8:
             # Memory base
             self.mem_base = byte_mask_update(self.mem_base, (mask & 0x3) << 2, data << 16, 0xfff00000)
