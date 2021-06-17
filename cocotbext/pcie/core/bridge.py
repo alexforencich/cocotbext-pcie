@@ -70,7 +70,7 @@ class Bridge(Function):
         self.secondary_bus_reset = 0
 
         self.class_code = 0x060400
-        self.pcie_device_type = 0x6
+        self.pcie_cap.pcie_device_type = 0x6
 
         self.root = False
 
@@ -431,7 +431,7 @@ class SwitchUpstreamPort(Bridge):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.pcie_device_type = 0x5
+        self.pcie_cap.pcie_device_type = 0x5
 
         self.vendor_id = 0x1234
         self.device_id = 0x0003
@@ -455,7 +455,7 @@ class SwitchDownstreamPort(Bridge):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.pcie_device_type = 0x6
+        self.pcie_cap.pcie_device_type = 0x6
 
         self.vendor_id = 0x1234
         self.device_id = 0x0004
@@ -479,7 +479,7 @@ class HostBridge(Bridge):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.pcie_device_type = 0x5
+        self.pcie_cap.pcie_device_type = 0x5
 
         self.vendor_id = 0x1234
         self.device_id = 0x0001
@@ -497,7 +497,7 @@ class RootPort(SwitchDownstreamPort):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.pcie_device_type = 0x4
+        self.pcie_cap.pcie_device_type = 0x4
 
         self.vendor_id = 0x1234
         self.device_id = 0x0002
