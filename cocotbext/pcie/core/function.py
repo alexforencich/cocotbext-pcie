@@ -402,6 +402,9 @@ class Function:
     async def upstream_send(self, tlp):
         self.log.debug("Sending upstream TLP: %s", repr(tlp))
         assert tlp.check()
+        if self.parity_error_response_enable and tlp.ep:
+            self.log.warning("Sending poisoned TLP, reporting master data parity error")
+            self.master_data_parity_error = True
         if self.upstream_tx_handler is None:
             raise Exception("Transmit handler not set")
         await self.upstream_tx_handler(tlp)
@@ -412,6 +415,9 @@ class Function:
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %s", repr(tlp))
         assert tlp.check()
+        if self.parity_error_response_enable and tlp.ep:
+            self.log.warning("Received poisoned TLP, reporting master data parity error")
+            self.master_data_parity_error = True
         await self.handle_tlp(tlp)
 
     async def handle_tlp(self, tlp):
