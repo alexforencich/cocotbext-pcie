@@ -66,7 +66,7 @@ class Function:
         self.io_space_enable = False
         self.memory_space_enable = False
         self.bus_master_enable = False
-        self.parity_error_response = False
+        self.parity_error_response_enable = False
         self.serr_enable = False
         self.interrupt_disable = False
         # Status
@@ -196,7 +196,7 @@ class Function:
             val |= bool(self.io_space_enable) << 0
             val |= bool(self.memory_space_enable) << 1
             val |= bool(self.bus_master_enable) << 2
-            val |= bool(self.parity_error_response) << 6
+            val |= bool(self.parity_error_response_enable) << 6
             val |= bool(self.serr_enable) << 8
             val |= bool(self.interrupt_disable) << 10
             # Status
@@ -253,7 +253,7 @@ class Function:
                 self.io_space_enable = (data & 1 << 0 != 0)
                 self.memory_space_enable = (data & 1 << 1 != 0)
                 self.bus_master_enable = (data & 1 << 2 != 0)
-                self.parity_error_response = (data & 1 << 6 != 0)
+                self.parity_error_response_enable = (data & 1 << 6 != 0)
             if mask & 0x2:
                 self.serr_enable = (data & 1 << 8 != 0)
                 self.interrupt_disable = (data & 1 << 10 != 0)
