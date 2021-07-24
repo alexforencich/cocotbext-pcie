@@ -790,9 +790,14 @@ class RootComplex(Switch):
             tlp.tc = tc
 
             first_pad = addr % 4
+            # remaining length
             byte_length = length-n
-            byte_length = min(byte_length, (128 << self.max_read_request_size)-first_pad)  # max read request size
-            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
+            # limit to max read request size
+            if byte_length > (128 << self.max_read_request_size) - first_pad:
+                # split on 128-byte read completion boundary
+                byte_length = min(byte_length, (128 << self.max_read_request_size) - (addr & 0x1f))
+            # 4k align
+            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be(addr, byte_length)
 
             tlp.tag = await self.alloc_tag()
