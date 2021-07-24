@@ -468,7 +468,7 @@ class RootComplex(Switch):
         n = 0
         data = b''
 
-        while n < length:
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.CFG_READ_1
             tlp.requester_id = PcieId(0, 0, 0)
@@ -497,6 +497,9 @@ class RootComplex(Switch):
 
             n += byte_length
             addr += byte_length
+
+            if n >= length:
+                break
 
         return data[:length]
 
@@ -528,7 +531,7 @@ class RootComplex(Switch):
     async def config_write(self, dev, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
 
-        while n < len(data):
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.CFG_WRITE_1
             tlp.requester_id = PcieId(0, 0, 0)
@@ -549,6 +552,9 @@ class RootComplex(Switch):
 
             n += byte_length
             addr += byte_length
+
+            if n >= len(data):
+                break
 
     async def config_write_words(self, dev, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
@@ -659,7 +665,7 @@ class RootComplex(Switch):
             val = await self.read_io_region(addr, length)
             return val
 
-        while n < length:
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_READ
             tlp.requester_id = PcieId(0, 0, 0)
@@ -687,6 +693,9 @@ class RootComplex(Switch):
 
             n += byte_length
             addr += byte_length
+
+            if n >= length:
+                break
 
         return data[:length]
 
@@ -722,7 +731,7 @@ class RootComplex(Switch):
             await self.write_io_region(addr, data)
             return
 
-        while n < len(data):
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_WRITE
             tlp.requester_id = PcieId(0, 0, 0)
@@ -745,6 +754,9 @@ class RootComplex(Switch):
 
             n += byte_length
             addr += byte_length
+
+            if n >= len(data):
+                break
 
     async def io_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data

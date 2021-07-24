@@ -552,7 +552,7 @@ class Function:
             self.log.warning("Bus mastering not enabled, aborting")
             return None
 
-        while n < length:
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_READ
             tlp.requester_id = self.pcie_id
@@ -580,6 +580,9 @@ class Function:
 
             n += byte_length
             addr += byte_length
+
+            if n >= length:
+                break
 
         return data[:length]
 
@@ -615,7 +618,7 @@ class Function:
             self.log.warning("Bus mastering not enabled, aborting")
             return
 
-        while n < len(data):
+        while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_WRITE
             tlp.requester_id = self.pcie_id
@@ -638,6 +641,9 @@ class Function:
 
             n += byte_length
             addr += byte_length
+
+            if n >= len(data):
+                break
 
     async def io_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data

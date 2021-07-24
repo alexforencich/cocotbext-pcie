@@ -301,7 +301,7 @@ class TB:
     async def dma_io_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
 
-        while n < len(data):
+        while True:
             tlp = Tlp_us()
             tlp.fmt_type = TlpType.IO_WRITE
             tlp.requester_id = PcieId(0, 0, 0)
@@ -328,11 +328,14 @@ class TB:
             n += byte_length
             addr += byte_length
 
+            if n >= len(data):
+                break
+
     async def dma_io_read(self, addr, length, timeout=0, timeout_unit='ns'):
         data = b''
         n = 0
 
-        while n < length:
+        while True:
             tlp = Tlp_us()
             tlp.fmt_type = TlpType.IO_READ
             tlp.requester_id = PcieId(0, 0, 0)
@@ -362,6 +365,9 @@ class TB:
 
             n += byte_length
             addr += byte_length
+
+            if n >= length:
+                break
 
         return data[:length]
 
@@ -635,7 +641,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
     dev_bar1 = tb.rc.tree[0][0].bar_addr[1]
     dev_bar3 = tb.rc.tree[0][0].bar_addr[3]
 
-    for length in list(range(1, 8)):
+    for length in list(range(0, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
             addr = dev_bar3+offset
@@ -704,7 +710,7 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
             assert await tb.dma_mem_read(addr, length, 5000, 'ns') == test_data
 
-    for length in list(range(1, 8)):
+    for length in list(range(0, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation (DMA) length: %d offset: %d", length, offset)
             addr = io_base+offset
