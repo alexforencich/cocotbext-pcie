@@ -125,8 +125,9 @@ class Tlp_us(Tlp):
     def pack_us_cq(self):
         pkt = UsPcieFrame()
 
-        if self.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ,
-                TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+        if self.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
+                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE, TlpType.FETCH_ADD,
+                TlpType.FETCH_ADD_64, TlpType.SWAP, TlpType.SWAP_64, TlpType.CAS, TlpType.CAS_64}:
             # Completer Request descriptor
             dw = self.at & 0x3
             dw |= self.address & 0xfffffffc
@@ -303,19 +304,21 @@ class Tlp_us(Tlp):
 
         if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
                 TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
-                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE}:
+                TlpType.MEM_WRITE, TlpType.MEM_WRITE_64, TlpType.IO_READ, TlpType.IO_WRITE, TlpType.FETCH_ADD,
+                TlpType.FETCH_ADD_64, TlpType.SWAP, TlpType.SWAP_64, TlpType.CAS, TlpType.CAS_64}:
             # Completer Request descriptor
-            if self.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ,
-                    TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
+                # configuration
+                dw = (self.register_number & 0x3ff) << 2
+                pkt.data.append(dw)
+                pkt.data.append(0)
+            else:
+                # memory, IO, or atomic operation
                 dw = self.at & 0x3
                 dw |= self.address & 0xfffffffc
                 pkt.data.append(dw)
                 dw = (self.address & 0xffffffff00000000) >> 32
                 pkt.data.append(dw)
-            elif self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
-                dw = (self.register_number & 0x3ff) << 2
-                pkt.data.append(dw)
-                pkt.data.append(0)
             dw = self.length & 0x7ff
             dw |= (tlp_type_to_req_type[self.fmt_type] & 0xf) << 11
             dw |= bool(self.ep) << 15
@@ -373,6 +376,7 @@ class Tlp_us(Tlp):
                     elif tlp.fmt == TlpFmt.THREE_DW_DATA:
                         tlp.fmt = TlpFmt.FOUR_DW_DATA
             else:
+                # configuration
                 tlp.register_number = (pkt.data[0] >> 2) & 0x3ff
             tlp.completer_id = PcieId.from_int(pkt.data[3] >> 8)
             tlp.requester_id_enable = bool(pkt.data[3] & (1 << 24))
