@@ -672,7 +672,7 @@ class Function:
             self.log.warning("Bus mastering not enabled, aborting")
             return None
 
-        while n < length:
+        while True:
             tlp = Tlp()
             if addr > 0xffffffff:
                 tlp.fmt_type = TlpType.MEM_READ_64
@@ -699,7 +699,7 @@ class Function:
 
             m = 0
 
-            while m < byte_length:
+            while True:
                 cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
 
                 if not cpl:
@@ -710,7 +710,7 @@ class Function:
                     raise Exception("Unsuccessful completion")
                 else:
                     assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
-                    assert cpl.byte_count == byte_length - m
+                    assert cpl.byte_count == max(byte_length - m, 1)
 
                     d = cpl.get_data()
 
@@ -719,12 +719,18 @@ class Function:
 
                 m += len(d)-offset
 
+                if m >= byte_length:
+                    break
+
             self.release_tag(tlp.tag)
 
             n += byte_length
             addr += byte_length
 
-        return data
+            if n >= length:
+                break
+
+        return data[:length]
 
     async def mem_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
         data = await self.mem_read(addr, count*ws, timeout, timeout_unit, attr, tc)

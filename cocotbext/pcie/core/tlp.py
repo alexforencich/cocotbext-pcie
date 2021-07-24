@@ -347,7 +347,11 @@ class Tlp:
         self.length = (length+first_pad+last_pad+3) // 4
         self.first_be = (0xf << first_pad) & 0xf
         self.last_be = (0xf >> last_pad)
-        if self.length == 1:
+        if self.length == 0:
+            self.length = 1
+            self.first_be = 0
+            self.last_be = 0
+        elif self.length == 1:
             self.first_be &= self.last_be
             self.last_be = 0
 
@@ -365,6 +369,9 @@ class Tlp:
         self.data = bytearray(first_pad)
         self.data.extend(data)
         self.data.extend(bytearray(last_pad))
+
+        if len(self.data) == 0:
+            self.data = b'\x00\x00\x00\x00'
 
     def get_data(self):
         return self.data

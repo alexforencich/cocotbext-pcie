@@ -400,7 +400,7 @@ async def run_test_ep_mem(dut, ep_index=0):
     ep.log.setLevel(logging.DEBUG)
     ti = tb.rc.tree.find_child_dev(ep.pcie_id)
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
             addr = ti.bar_addr[0]+offset
@@ -413,7 +413,7 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
             addr = ti.bar_addr[1]+offset
@@ -451,7 +451,7 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
     ep2.log.setLevel(logging.DEBUG)
     ti2 = tb.rc.tree.find_child_dev(ep2.pcie_id)
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[0]+offset
@@ -464,7 +464,7 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
             addr = ti2.bar_addr[1]+offset
@@ -502,7 +502,7 @@ async def run_test_dma(dut, ep_index=0):
     ep = tb.ep[ep_index]
     ep.log.setLevel(logging.DEBUG)
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (DMA) length: %d offset: %d", length, offset)
             addr = mem_base+offset

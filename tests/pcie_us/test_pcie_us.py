@@ -368,7 +368,7 @@ class TB:
     async def dma_mem_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
 
-        while n < len(data):
+        while True:
             tlp = Tlp_us()
             if addr > 0xffffffff:
                 tlp.fmt_type = TlpType.MEM_WRITE_64
@@ -389,11 +389,14 @@ class TB:
             n += byte_length
             addr += byte_length
 
+            if n >= len(data):
+                break
+
     async def dma_mem_read(self, addr, length, timeout=0, timeout_unit='ns'):
         data = b''
         n = 0
 
-        while n < length:
+        while True:
             tlp = Tlp_us()
             if addr > 0xffffffff:
                 tlp.fmt_type = TlpType.MEM_READ_64
@@ -415,7 +418,7 @@ class TB:
 
             m = 0
 
-            while m < byte_length:
+            while True:
                 pkt = await self.rc_sink.recv()
 
                 if not pkt:
@@ -426,6 +429,9 @@ class TB:
                 if cpl.status != CplStatus.SC:
                     raise Exception("Unsuccessful completion")
                 else:
+                    assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
+                    assert cpl.byte_count == max(byte_length - m, 1)
+
                     d = cpl.get_data()
 
                     offset = cpl.lower_address & 3
@@ -433,12 +439,18 @@ class TB:
 
                 m += len(d)-offset
 
+                if m >= byte_length:
+                    break
+
             self.release_tag(tlp.tag)
 
             n += byte_length
             addr += byte_length
 
-        return data
+            if n >= length:
+                break
+
+        return data[:length]
 
     async def _run_cq(self):
         while True:
@@ -634,7 +646,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
             assert await tb.rc.io_read(addr, length, 5000) == test_data
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
             addr = dev_bar0+offset
@@ -647,7 +659,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
             assert await tb.rc.mem_read(addr, length, 5000) == test_data
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
             addr = dev_bar1+offset
@@ -679,7 +691,7 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
     await tb.rc.enumerate(enable_bus_mastering=True, configure_msi=True)
 
-    for length in list(range(1, 32))+[1024]:
+    for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (DMA) length: %d offset: %d", length, offset)
             addr = mem_base+offset
