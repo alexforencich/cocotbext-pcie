@@ -713,11 +713,11 @@ class UltraScalePlusPcieDevice(Device):
 
                     if tlp.ep:
                         self.log.warning("Poisoned TLP")
-                        tlp.error = ErrorCode.POISONED
+                        tlp.error_code = ErrorCode.POISONED
 
                     if tlp.status != CplStatus.SC:
                         self.log.warning("Bad status")
-                        tlp.error = ErrorCode.BAD_STATUS
+                        tlp.error_code = ErrorCode.BAD_STATUS
 
                     req = self.active_request[tlp.tag]
 
