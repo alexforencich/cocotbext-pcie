@@ -159,7 +159,7 @@ class RootComplex(Switch):
         if len(region) == 3:
             return region[2][offset:offset+length]
         elif len(region) == 4:
-            await region[2](offset, length)
+            return await region[2](offset, length)
 
     async def write_region(self, addr, data):
         region = self.find_region(addr)
@@ -179,7 +179,7 @@ class RootComplex(Switch):
         if len(region) == 3:
             return region[2][offset:offset+length]
         elif len(region) == 4:
-            await region[2](offset, length)
+            return await region[2](offset, length)
 
     async def write_io_region(self, addr, data):
         region = self.find_io_region(addr)
