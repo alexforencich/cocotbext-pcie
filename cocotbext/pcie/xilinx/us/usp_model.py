@@ -712,12 +712,9 @@ class UltraScalePlusPcieDevice(Device):
                     tlp.error_code = ErrorCode.NORMAL_TERMINATION
 
                     if tlp.ep:
+                        # poisoned
                         self.log.warning("Poisoned TLP")
                         tlp.error_code = ErrorCode.POISONED
-
-                    if tlp.status != CplStatus.SC:
-                        self.log.warning("Bad status")
-                        tlp.error_code = ErrorCode.BAD_STATUS
 
                     req = self.active_request[tlp.tag]
 
@@ -729,6 +726,12 @@ class UltraScalePlusPcieDevice(Device):
                         # requester ID, ATTR, or TC field mismatch
                         self.log.warning("Mismatched fields")
                         tlp.error_code = ErrorCode.MISMATCH
+                    elif tlp.status != CplStatus.SC:
+                        # bad status
+                        self.log.warning("Bad status")
+                        tlp.error_code = ErrorCode.BAD_STATUS
+                        tlp.request_completed = True
+                        self.active_request[tlp.tag] = None
                     elif req.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                         # completion for memory read request
 
@@ -741,7 +744,14 @@ class UltraScalePlusPcieDevice(Device):
                         else:
                             tlp.lower_address = lower_address & 0xfff
 
+                        # mark request completed
                         if tlp.byte_count <= tlp.length*4 - (tlp.lower_address & 0x3):
+                            tlp.request_completed = True
+                            self.active_request[tlp.tag] = None
+
+                        # completion for read response has SC status but no data
+                        if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED}:
+                            tlp.error_code = ErrorCode.INVALID_LENGTH
                             tlp.request_completed = True
                             self.active_request[tlp.tag] = None
 
