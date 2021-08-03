@@ -554,7 +554,8 @@ class Tlp:
         tlp.type = (dw >> 24) & 0x1f
         tlp.fmt = (dw >> 29) & 0x7
 
-        if tlp.has_data() and tlp.length == 0:
+        if tlp.fmt_type not in {TlpType.CPL, TlpType.CPL_LOCKED, TlpType.MSG_TO_RC, TlpType.MSG_ADDR,
+                TlpType.MSG_ID, TlpType.MSG_BCAST, TlpType.MSG_LOCAL, TlpType.MSG_GATHER} and tlp.length == 0:
             tlp.length = 1024
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1,
