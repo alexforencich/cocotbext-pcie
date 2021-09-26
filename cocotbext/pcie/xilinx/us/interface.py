@@ -147,9 +147,9 @@ class UsPcieBase:
         self.queue_occupancy_frames = 0
 
         self.width = len(self.bus.tdata)
-        self.byte_width = len(self.bus.tkeep)
+        self.byte_lanes = len(self.bus.tkeep)
 
-        self.byte_size = self.width // self.byte_width
+        self.byte_size = self.width // self.byte_lanes
         self.byte_mask = 2**self.byte_size-1
 
         assert self.width in [64, 128, 256, 512]
@@ -435,7 +435,7 @@ class RqSource(UsPcieSource):
 
                     last_lane = 0
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -460,7 +460,7 @@ class RqSource(UsPcieSource):
                     if len(self.bus.tuser) == 62:
                         transaction.tuser |= ((frame.seq_num >> 4) & 0x3) << 60
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -509,7 +509,7 @@ class RqSink(UsPcieSink):
 
                 last_lane = 0
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.parity.append((sample.tuser >> (i*4+73)) & 0xf)
@@ -525,7 +525,7 @@ class RqSink(UsPcieSink):
 
                 frame.discontinue |= bool(sample.tuser & (1 << 11))
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.parity.append((sample.tuser >> (i*4+28)) & 0xf)
@@ -568,7 +568,7 @@ class RcSource(UsPcieSource):
 
                     last_lane = 0
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -591,7 +591,7 @@ class RcSource(UsPcieSource):
 
                     last_lane = 0
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -638,7 +638,7 @@ class RcSink(UsPcieSink):
 
                 last_lane = 0
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.byte_en.append((sample.tuser >> (i*4)) & 0xf)
@@ -649,7 +649,7 @@ class RcSink(UsPcieSink):
 
                 last_lane = 0
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.byte_en.append((sample.tuser >> (i*4)) & 0xf)
@@ -696,7 +696,7 @@ class CqSource(UsPcieSource):
 
                     last_lane = 0
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -719,7 +719,7 @@ class CqSource(UsPcieSource):
 
                     transaction.tuser |= bool(frame.discontinue) << 41
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -766,7 +766,7 @@ class CqSink(UsPcieSink):
 
                 last_lane = 0
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.byte_en.append((sample.tuser >> (i*4+16)) & 0xf)
@@ -779,7 +779,7 @@ class CqSink(UsPcieSink):
 
                 frame.discontinue |= bool(sample.tuser & (1 << 41))
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.byte_en.append((sample.tuser >> (i*4+8)) & 0xf)
@@ -823,7 +823,7 @@ class CcSource(UsPcieSource):
 
                     last_lane = 0
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -840,7 +840,7 @@ class CcSource(UsPcieSource):
                 else:
                     transaction.tuser |= bool(frame.discontinue)
 
-                    for i in range(self.byte_width):
+                    for i in range(self.byte_lanes):
                         if frame_offset < len(frame.data):
                             transaction.tdata |= frame.data[frame_offset] << i*32
                             transaction.tkeep |= 1 << i
@@ -882,7 +882,7 @@ class CcSink(UsPcieSink):
 
                 last_lane = 0
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.parity.append((sample.tuser >> (i*4+17)) & 0xf)
@@ -890,7 +890,7 @@ class CcSink(UsPcieSink):
             else:
                 frame.discontinue |= bool(sample.tuser & 1)
 
-                for i in range(self.byte_width):
+                for i in range(self.byte_lanes):
                     if sample.tkeep & (1 << i):
                         frame.data.append((sample.tdata >> (i*32)) & 0xffffffff)
                         frame.parity.append((sample.tuser >> (i*4+1)) & 0xf)
