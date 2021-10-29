@@ -531,7 +531,7 @@ class UltraScalePcieDevice(Device):
         self.cfg_ext_read_data_valid = init_signal(cfg_ext_read_data_valid, 1)
 
         # validate parameters
-        assert self.dw in [64, 128, 256]
+        assert self.dw in {64, 128, 256}
 
         # rescale clock frequency
         if self.user_clk_frequency is not None and self.user_clk_frequency < 1e6:
@@ -579,10 +579,10 @@ class UltraScalePcieDevice(Device):
         self.log.info("  Enable PF0 MSI: %s", self.enable_pf0_msi)
         self.log.info("  Enable PF1 MSI: %s", self.enable_pf1_msi)
 
-        assert self.pcie_generation in [1, 2, 3]
-        assert self.pcie_link_width in [1, 2, 4, 8, 16]
-        assert self.user_clk_frequency in [62.5e6, 125e6, 250e6]
-        assert self.alignment in ["address", "dword"]
+        assert self.pcie_generation in {1, 2, 3}
+        assert self.pcie_link_width in {1, 2, 4, 8, 16}
+        assert self.user_clk_frequency in {62.5e6, 125e6, 250e6}
+        assert self.alignment in {"address", "dword"}
 
         if self.dw < 256 or self.alignment != "dword":
             # straddle only supported with 256-bit or wider, DWORD-aligned interface

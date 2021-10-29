@@ -152,7 +152,7 @@ class UsPcieBase:
         self.byte_size = self.width // self.byte_lanes
         self.byte_mask = 2**self.byte_size-1
 
-        assert self.width in [64, 128, 256, 512]
+        assert self.width in {64, 128, 256, 512}
         assert self.byte_size == 32
 
     def _init(self):
