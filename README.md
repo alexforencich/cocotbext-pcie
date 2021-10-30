@@ -39,3 +39,7 @@ The core PCIe simulation framework is included in `cocotbext.pcie.core`.  This f
 #### Xilinx UltraScale and UltraScale+
 
 Models of the Xilinx UltraScale and UltraScale+ PCIe hard cores are included in `cocotbext.pcie.xilinx.us`.  These modules can be used in combination with the PCIe BFM to test an HDL design that targets Xilinx UltraScale, UltraScale+, or Virtex 7 series FPGAs, up to PCIe gen 3 x16 or PCIe gen 4 x8.  The models currently only support operation as a device, not as a root port.
+
+#### Intel Stratix 10 H-Tile/L-Tile
+
+Models of the Intel Stratix 10 H-Tile/L-Tile PCIe hard cores are included in `cocotbext.pcie.intel.s10`.  These modules can be used in combination with the PCIe BFM to test an HDL design that targets Intel Stratix 10 GX, SX, TX, and MX series FPGAs that contain H-Tiles or L-Tiles, up to PCIe gen 3 x16.  The models currently only support operation as a device, not as a root port.
