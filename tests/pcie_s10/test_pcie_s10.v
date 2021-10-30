@@ -24,7 +24,9 @@ THE SOFTWARE.
 
 // Language: Verilog 2001
 
+`resetall
 `timescale 1ns / 1ns
+`default_nettype none
 
 /*
  * Intel Stratix 10 H-Tile/L-Tile PCIe IP core model test module
@@ -142,3 +144,5 @@ module test_pcie_s10 #
 );
 
 endmodule
+
+`resetall

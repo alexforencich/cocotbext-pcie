@@ -24,7 +24,9 @@ THE SOFTWARE.
 
 // Language: Verilog 2001
 
+`resetall
 `timescale 1ns / 1ns
+`default_nettype none
 
 /*
  * Xilinx UltraScale PCIe IP core model test module
@@ -179,3 +181,5 @@ module test_pcie_us #
 );
 
 endmodule
+
+`resetall
