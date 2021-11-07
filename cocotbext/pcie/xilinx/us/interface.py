@@ -277,11 +277,7 @@ class UsPcieSource(UsPcieBase):
 
             if self.reset is not None and self.reset.value:
                 self.active = False
-                self.bus.tdata <= 0
                 self.bus.tvalid <= 0
-                self.bus.tlast <= 0
-                self.bus.tkeep <= 0
-                self.bus.tuser <= 0
                 continue
 
             if (tready_sample and tvalid_sample) or not tvalid_sample:
