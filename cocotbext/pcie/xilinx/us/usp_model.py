@@ -579,7 +579,7 @@ class UltraScalePlusPcieDevice(Device):
         self.log.info("  Alignment: %s", self.alignment)
         self.log.info("  Enable CQ/CC straddling: %s", self.cq_cc_straddle)
         self.log.info("  Enable RQ/RC straddling: %s", self.rq_rc_straddle)
-        self.log.info("  Enable RC 4 TLP stradding: %s", self.rc_4tlp_straddle)
+        self.log.info("  Enable RC 4 TLP straddling: %s", self.rc_4tlp_straddle)
         self.log.info("  Enable PF1: %s", self.enable_pf1)
         self.log.info("  Enable client tag: %s", self.enable_client_tag)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
