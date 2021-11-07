@@ -277,7 +277,7 @@ class UsPcieSource(UsPcieBase):
 
             if self.reset is not None and self.reset.value:
                 self.active = False
-                self.bus.tvalid <= 0
+                self.bus.tvalid.value = 0
                 continue
 
             if (tready_sample and tvalid_sample) or not tvalid_sample:
@@ -285,10 +285,10 @@ class UsPcieSource(UsPcieBase):
                     self.bus.drive(self.drive_obj)
                     self.drive_obj = None
                     self.drive_sync.set()
-                    self.bus.tvalid <= 1
+                    self.bus.tvalid.value = 1
                     self.active = True
                 else:
-                    self.bus.tvalid <= 0
+                    self.bus.tvalid.value = 0
                     self.active = bool(self.drive_obj)
                     if not self.drive_obj:
                         self.idle_event.set()
@@ -380,7 +380,7 @@ class UsPcieSink(UsPcieBase):
             tvalid_sample = self.bus.tvalid.value
 
             if self.reset is not None and self.reset.value:
-                self.bus.tready <= 0
+                self.bus.tready.value = 0
                 continue
 
             if tready_sample and tvalid_sample:
@@ -388,7 +388,7 @@ class UsPcieSink(UsPcieBase):
                 self.bus.sample(self.sample_obj)
                 self.sample_sync.set()
 
-            self.bus.tready <= (not self.full() and not self.pause)
+            self.bus.tready.value = (not self.full() and not self.pause)
 
     async def _run(self):
         raise NotImplementedError()

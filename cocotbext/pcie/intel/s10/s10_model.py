@@ -529,11 +529,11 @@ class S10PcieDevice(Device):
             await RisingEdge(self.coreclkout_hip)
 
             if self.pld_clk_inuse is not None:
-                self.pld_clk_inuse <= 1
+                self.pld_clk_inuse.value = 1
             if self.reset_status is not None:
-                self.reset_status <= 1
+                self.reset_status.value = 1
             if self.clr_st is not None:
-                self.clr_st <= 1
+                self.clr_st.value = 1
 
             if self.pin_perst is not None:
                 if not self.pin_perst.value:
@@ -547,11 +547,11 @@ class S10PcieDevice(Device):
                 await RisingEdge(self.coreclkout_hip)
 
             if self.pld_clk_inuse is not None:
-                self.pld_clk_inuse <= 0
+                self.pld_clk_inuse.value = 0
             if self.reset_status is not None:
-                self.reset_status <= 0
+                self.reset_status.value = 0
             if self.clr_st is not None:
-                self.clr_st <= 0
+                self.clr_st.value = 0
 
             if self.pin_perst is not None:
                 await FallingEdge(self.pin_perst)
@@ -572,18 +572,18 @@ class S10PcieDevice(Device):
     async def _run_tx_fc_logic(self):
         while True:
             if self.tx_ph_cdts is not None:
-                self.tx_ph_cdts <= self.upstream_port.fc_state[0].ph.tx_credits_available
+                self.tx_ph_cdts.value = self.upstream_port.fc_state[0].ph.tx_credits_available
             if self.tx_pd_cdts is not None:
-                self.tx_pd_cdts <= self.upstream_port.fc_state[0].pd.tx_credits_available
+                self.tx_pd_cdts.value = self.upstream_port.fc_state[0].pd.tx_credits_available
             if self.tx_nph_cdts is not None:
-                self.tx_nph_cdts <= self.upstream_port.fc_state[0].nph.tx_credits_available
+                self.tx_nph_cdts.value = self.upstream_port.fc_state[0].nph.tx_credits_available
             if self.tx_cplh_cdts is not None:
-                self.tx_cplh_cdts <= self.upstream_port.fc_state[0].cplh.tx_credits_available
+                self.tx_cplh_cdts.value = self.upstream_port.fc_state[0].cplh.tx_credits_available
             if self.l_tile:
                 if self.tx_npd_cdts is not None:
-                    self.tx_npd_cdts <= self.upstream_port.fc_state[0].npd.tx_credits_available
+                    self.tx_npd_cdts.value = self.upstream_port.fc_state[0].npd.tx_credits_available
                 if self.tx_cpld_cdts is not None:
-                    self.tx_cpld_cdts <= self.upstream_port.fc_state[0].cpld.tx_credits_available
+                    self.tx_cpld_cdts.value = self.upstream_port.fc_state[0].cpld.tx_credits_available
             # self.tx_hdr_cdts_consumed
             # self.tx_data_cdts_consumed
             # self.tx_cdts_type
@@ -635,9 +635,9 @@ class S10PcieDevice(Device):
             app_msi_tc = self.app_msi_tc.value.integer
             await self.functions[app_msi_func_num].msi_cap.issue_msi_interrupt(app_msi_num, tc=app_msi_tc)
 
-            self.app_msi_ack <= 1
+            self.app_msi_ack.value = 1
             await RisingEdge(self.coreclkout_hip)
-            self.app_msi_ack <= 0
+            self.app_msi_ack.value = 0
 
             while self.app_msi_req.value.integer:
                 await RisingEdge(self.coreclkout_hip)
@@ -651,9 +651,9 @@ class S10PcieDevice(Device):
     async def _run_cfg_out_logic_htile(self):
         while True:
             for func in self.functions:
-                self.tl_cfg_func <= func.pcie_id.function
+                self.tl_cfg_func.value = func.pcie_id.function
 
-                self.tl_cfg_add <= 0x00
+                self.tl_cfg_add.value = 0x00
                 val = bool(func.pcie_cap.ido_request_enable) << 31
                 val |= bool(func.pcie_cap.enable_no_snoop) << 30
                 val |= bool(func.pcie_cap.enable_relaxed_ordering) << 29
@@ -671,10 +671,10 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.extended_tag_field_enable) << 6
                 val |= (func.pcie_cap.max_read_request_size & 0x7) << 3
                 val |= (func.pcie_cap.max_payload_size & 0x7)
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x01
+                self.tl_cfg_add.value = 0x01
                 # num vfs
                 val = bool(func.pm_cap.no_soft_reset) << 15
                 val |= bool(func.pcie_cap.read_completion_boundary) << 14
@@ -683,10 +683,10 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.power_controller_control) << 4
                 val |= (func.pcie_cap.attention_indicator_control & 0x3) << 2
                 val |= func.pcie_cap.power_indicator_control & 0x3
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x02
+                self.tl_cfg_add.value = 0x02
                 val = (func.pcie_cap.current_link_speed & 0xf) << 28
                 # start vf
                 # ats
@@ -694,22 +694,22 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.atomic_op_requester_enable) << 6
                 # tph
                 # vf en
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x03
-                self.tl_cfg_ctl <= func.msi_cap.msi_message_address & 0xffffffff
+                self.tl_cfg_add.value = 0x03
+                self.tl_cfg_ctl.value = func.msi_cap.msi_message_address & 0xffffffff
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x04
-                self.tl_cfg_ctl <= (func.msi_cap.msi_message_address >> 32) & 0xffffffff
+                self.tl_cfg_add.value = 0x04
+                self.tl_cfg_ctl.value = (func.msi_cap.msi_message_address >> 32) & 0xffffffff
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x05
-                self.tl_cfg_ctl <= func.msi_cap.msi_mask_bits
+                self.tl_cfg_add.value = 0x05
+                self.tl_cfg_ctl.value = func.msi_cap.msi_mask_bits
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x06
+                self.tl_cfg_add.value = 0x06
                 val = (func.msi_cap.msi_message_data & 0xffff) << 16
                 val |= bool(func.pcie_cap.system_error_on_fatal_error_enable) << 15
                 val |= bool(func.pcie_cap.system_error_on_non_fatal_error_enable) << 14
@@ -720,30 +720,30 @@ class S10PcieDevice(Device):
                 val |= (func.msi_cap.msi_multiple_message_enable & 0x7) << 2
                 val |= bool(func.msi_cap.msi_64bit_address_capable) << 1
                 val |= bool(func.msi_cap.msi_enable)
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x07
+                self.tl_cfg_add.value = 0x07
                 # AER uncorrectable error mask
-                self.tl_cfg_ctl <= await func.aer_ext_cap.read_register(2)
+                self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(2)
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x08
+                self.tl_cfg_add.value = 0x08
                 # AER correctable error mask
-                self.tl_cfg_ctl <= await func.aer_ext_cap.read_register(5)
+                self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(5)
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x09
+                self.tl_cfg_add.value = 0x09
                 # AER uncorrectable error severity
-                self.tl_cfg_ctl <= await func.aer_ext_cap.read_register(3)
+                self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(3)
                 await RisingEdge(self.coreclkout_hip)
 
     async def _run_cfg_out_logic_ltile(self):
         while True:
             for func in self.functions:
-                self.tl_cfg_func <= func.pcie_id.function
+                self.tl_cfg_func.value = func.pcie_id.function
 
-                self.tl_cfg_add <= 0x00
+                self.tl_cfg_add.value = 0x00
                 val = bool(func.pcie_cap.ido_request_enable) << 31
                 val |= bool(func.pcie_cap.enable_no_snoop) << 30
                 val |= bool(func.pcie_cap.enable_relaxed_ordering) << 29
@@ -756,10 +756,10 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.extended_tag_field_enable) << 6
                 val |= (func.pcie_cap.max_read_request_size & 0x7) << 3
                 val |= (func.pcie_cap.max_payload_size & 0x7)
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x01
+                self.tl_cfg_add.value = 0x01
                 val = bool(func.pcie_cap.system_error_on_fatal_error_enable) << 31
                 val |= bool(func.pcie_cap.system_error_on_non_fatal_error_enable) << 30
                 val |= bool(func.pcie_cap.system_error_on_correctable_error_enable) << 29
@@ -772,10 +772,10 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.power_controller_control) << 4
                 val |= (func.pcie_cap.attention_indicator_control & 0x3) << 2
                 val |= func.pcie_cap.power_indicator_control & 0x3
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x02
+                self.tl_cfg_add.value = 0x02
                 # start vf
                 # num vfs
                 val = (func.pcie_cap.current_link_speed & 0xf) << 12
@@ -784,35 +784,35 @@ class S10PcieDevice(Device):
                 val |= bool(func.pcie_cap.atomic_op_requester_enable) << 4
                 # tph
                 # vf en
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x03
-                self.tl_cfg_ctl <= func.msi_cap.msi_message_address & 0xffffffff
+                self.tl_cfg_add.value = 0x03
+                self.tl_cfg_ctl.value = func.msi_cap.msi_message_address & 0xffffffff
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x04
-                self.tl_cfg_ctl <= (func.msi_cap.msi_message_address >> 32) & 0xffffffff
+                self.tl_cfg_add.value = 0x04
+                self.tl_cfg_ctl.value = (func.msi_cap.msi_message_address >> 32) & 0xffffffff
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x05
-                self.tl_cfg_ctl <= func.msi_cap.msi_mask_bits
+                self.tl_cfg_add.value = 0x05
+                self.tl_cfg_ctl.value = func.msi_cap.msi_mask_bits
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x06
+                self.tl_cfg_add.value = 0x06
                 val = (func.msi_cap.msi_message_data & 0xffff) << 16
                 val |= bool(func.msix_cap.msix_function_mask) << 6
                 val |= bool(func.msix_cap.msix_enable) << 5
                 val |= (func.msi_cap.msi_multiple_message_enable & 0x7) << 2
                 val |= bool(func.msi_cap.msi_64bit_address_capable) << 1
                 val |= bool(func.msi_cap.msi_enable)
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
-                self.tl_cfg_add <= 0x07
+                self.tl_cfg_add.value = 0x07
                 val = (func.pcie_cap.current_link_speed & 0xf) << 6
                 val |= func.pcie_cap.negotiated_link_width & 0x3f
-                self.tl_cfg_ctl <= val
+                self.tl_cfg_ctl.value = val
                 await RisingEdge(self.coreclkout_hip)
 
     # Configuration extension bus

@@ -740,9 +740,9 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
         tb.log.info("Send MSI %d", k)
 
         await RisingEdge(dut.user_clk)
-        tb.dut.cfg_interrupt_msi_int <= 1 << k
+        tb.dut.cfg_interrupt_msi_int.value = 1 << k
         await RisingEdge(dut.user_clk)
-        tb.dut.cfg_interrupt_msi_int <= 0
+        tb.dut.cfg_interrupt_msi_int.value = 0
 
         event = tb.rc.msi_get_event(tb.dev.functions[0].pcie_id, k)
         event.clear()

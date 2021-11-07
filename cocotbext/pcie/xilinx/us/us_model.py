@@ -818,7 +818,7 @@ class UltraScalePcieDevice(Device):
             await RisingEdge(self.user_clk)
 
             if self.user_reset is not None:
-                self.user_reset <= 1
+                self.user_reset.value = 1
 
             if self.sys_reset is not None:
                 if not self.sys_reset.value:
@@ -832,7 +832,7 @@ class UltraScalePcieDevice(Device):
                 await RisingEdge(self.user_clk)
 
             if self.user_reset is not None:
-                self.user_reset <= 0
+                self.user_reset.value = 0
 
             if self.sys_reset is not None:
                 await FallingEdge(self.sys_reset)
@@ -877,7 +877,7 @@ class UltraScalePcieDevice(Device):
 
             # output new cq_np_req_count
             if self.pcie_cq_np_req_count is not None:
-                self.pcie_cq_np_req_count <= self.cq_np_req_count
+                self.pcie_cq_np_req_count.value = self.cq_np_req_count
 
     async def _run_cc_logic(self):
         while True:
@@ -962,10 +962,10 @@ class UltraScalePcieDevice(Device):
             await RisingEdge(self.user_clk)
 
             if self.pcie_rq_seq_num is not None:
-                self.pcie_rq_seq_num_vld <= 0
+                self.pcie_rq_seq_num_vld.value = 0
                 if not self.rq_seq_num.empty():
-                    self.pcie_rq_seq_num <= self.rq_seq_num.get_nowait()
-                    self.pcie_rq_seq_num_vld <= 1
+                    self.pcie_rq_seq_num.value = self.rq_seq_num.get_nowait()
+                    self.pcie_rq_seq_num_vld.value = 1
             elif not self.rq_seq_num.empty():
                 self.rq_seq_num.get_nowait()
 
@@ -983,9 +983,9 @@ class UltraScalePcieDevice(Device):
             # transmit flow control
             # TODO
             if self.pcie_tfc_nph_av is not None:
-                self.pcie_tfc_nph_av <= 0x3
+                self.pcie_tfc_nph_av.value = 0x3
             if self.pcie_tfc_npd_av is not None:
-                self.pcie_tfc_npd_av <= 0x3
+                self.pcie_tfc_npd_av.value = 0x3
 
     async def _run_cfg_mgmt_logic(self):
         while True:
@@ -1001,7 +1001,7 @@ class UltraScalePcieDevice(Device):
             cfg_mgmt_write = self.cfg_mgmt_write.value.integer
 
             if self.cfg_mgmt_read_write_done.value:
-                self.cfg_mgmt_read_write_done <= 0
+                self.cfg_mgmt_read_write_done.value = 0
             elif cfg_mgmt_read or cfg_mgmt_write:
                 for k in range(3):
                     await RisingEdge(self.user_clk)
@@ -1010,14 +1010,14 @@ class UltraScalePcieDevice(Device):
                         # internal register access
                         pass
                     else:
-                        self.cfg_mgmt_read_data <= await self.functions[function].read_config_register(reg_num)
+                        self.cfg_mgmt_read_data.value = await self.functions[function].read_config_register(reg_num)
                 else:
                     if cfg_mgmt_addr & (1 << 18):
                         # internal register access
                         pass
                     else:
                         await self.functions[function].write_config_register(reg_num, write_data, byte_enable)
-                self.cfg_mgmt_read_write_done <= 1
+                self.cfg_mgmt_read_write_done.value = 1
             # cfg_mgmt_type1_cfg_reg_access
 
     async def _run_cfg_status_logic(self):
@@ -1027,24 +1027,24 @@ class UltraScalePcieDevice(Device):
             # configuration status
             if self.sys_reset is not None and not self.sys_reset.value:
                 if self.cfg_phy_link_down is not None:
-                    self.cfg_phy_link_down <= 1
+                    self.cfg_phy_link_down.value = 1
                 if self.user_lnk_up is not None:
-                    self.user_lnk_up <= 0
+                    self.user_lnk_up.value = 0
             else:
                 if self.cfg_phy_link_down is not None:
-                    self.cfg_phy_link_down <= 0  # TODO
+                    self.cfg_phy_link_down.value = 0  # TODO
                 if self.user_lnk_up is not None:
-                    self.user_lnk_up <= 1  # TODO
+                    self.user_lnk_up.value = 1  # TODO
 
             # cfg_phy_link_status
             if self.cfg_negotiated_width is not None:
-                self.cfg_negotiated_width <= self.functions[0].pcie_cap.negotiated_link_width
+                self.cfg_negotiated_width.value = self.functions[0].pcie_cap.negotiated_link_width
             if self.cfg_current_speed is not None:
-                self.cfg_current_speed <= (1 << (self.functions[0].pcie_cap.current_link_speed & 3)) >> 1
+                self.cfg_current_speed.value = (1 << (self.functions[0].pcie_cap.current_link_speed & 3)) >> 1
             if self.cfg_max_payload is not None:
-                self.cfg_max_payload <= self.functions[0].pcie_cap.max_payload_size
+                self.cfg_max_payload.value = self.functions[0].pcie_cap.max_payload_size
             if self.cfg_max_read_req is not None:
-                self.cfg_max_read_req <= self.functions[0].pcie_cap.max_read_request_size
+                self.cfg_max_read_req.value = self.functions[0].pcie_cap.max_read_request_size
 
             if self.cfg_function_status is not None:
                 status = 0
@@ -1053,7 +1053,7 @@ class UltraScalePcieDevice(Device):
                         status |= 0x07 << k*4
                     if self.functions[k].interrupt_disable:
                         status |= 0x08 << k*4
-                self.cfg_function_status <= status
+                self.cfg_function_status.value = status
 
             # cfg_vf_status
             # cfg_function_power_state
@@ -1071,7 +1071,7 @@ class UltraScalePcieDevice(Device):
                 for k in range(len(self.functions)):
                     if self.functions[k].read_completion_boundary:
                         status |= 1 << k
-                self.cfg_rcb_status <= status
+                self.cfg_rcb_status.value = status
 
             # cfg_dpa_substate_change
             # cfg_obff_enable
@@ -1180,17 +1180,17 @@ class UltraScalePcieDevice(Device):
                 cfg_fc_cpld = 0
 
             if self.cfg_fc_ph is not None:
-                self.cfg_fc_ph <= cfg_fc_ph
+                self.cfg_fc_ph.value = cfg_fc_ph
             if self.cfg_fc_pd is not None:
-                self.cfg_fc_pd <= cfg_fc_pd
+                self.cfg_fc_pd.value = cfg_fc_pd
             if self.cfg_fc_nph is not None:
-                self.cfg_fc_nph <= cfg_fc_nph
+                self.cfg_fc_nph.value = cfg_fc_nph
             if self.cfg_fc_npd is not None:
-                self.cfg_fc_npd <= cfg_fc_npd
+                self.cfg_fc_npd.value = cfg_fc_npd
             if self.cfg_fc_cplh is not None:
-                self.cfg_fc_cplh <= cfg_fc_cplh
+                self.cfg_fc_cplh.value = cfg_fc_cplh
             if self.cfg_fc_cpld is not None:
-                self.cfg_fc_cpld <= cfg_fc_cpld
+                self.cfg_fc_cpld.value = cfg_fc_cpld
 
     async def _run_cfg_ctrl_logic(self):
         while True:
@@ -1270,37 +1270,37 @@ class UltraScalePcieDevice(Device):
                 for k in range(min(len(self.functions), 2)):
                     if self.functions[k].msi_cap.msi_enable:
                         val |= 1 << k
-                self.cfg_interrupt_msi_enable <= val
+                self.cfg_interrupt_msi_enable.value = val
 
             # cfg_interrupt_msi_vf_enable
 
             if self.cfg_interrupt_msi_sent is not None:
-                self.cfg_interrupt_msi_sent <= 0
+                self.cfg_interrupt_msi_sent.value = 0
             if self.cfg_interrupt_msi_fail is not None:
-                self.cfg_interrupt_msi_fail <= 0
+                self.cfg_interrupt_msi_fail.value = 0
             if msi_int:
                 bits = [i for i in range(32) if msi_int >> i & 1]
                 if len(bits) == 1 and msi_function_number < len(self.functions):
                     await self.functions[msi_function_number].msi_cap.issue_msi_interrupt(bits[0], attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
-                        self.cfg_interrupt_msi_sent <= 1
+                        self.cfg_interrupt_msi_sent.value = 1
 
             if self.cfg_interrupt_msi_mmenable is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
                     val |= (self.functions[k].msi_cap.msi_multiple_message_enable & 0x7) << k*3
-                self.cfg_interrupt_msi_mmenable <= val
+                self.cfg_interrupt_msi_mmenable.value = val
 
             # cfg_interrupt_msi_mask_update
 
             if self.cfg_interrupt_msi_data is not None:
                 if msi_select == 0b1111:
-                    self.cfg_interrupt_msi_data <= 0
+                    self.cfg_interrupt_msi_data.value = 0
                 else:
                     if msi_select < len(self.functions):
-                        self.cfg_interrupt_msi_data <= self.functions[msi_select].msi_cap.msi_mask_bits
+                        self.cfg_interrupt_msi_data.value = self.functions[msi_select].msi_cap.msi_mask_bits
                     else:
-                        self.cfg_interrupt_msi_data <= 0
+                        self.cfg_interrupt_msi_data.value = 0
             if msi_pending_status_data_enable:
                 if msi_pending_status_function_num < len(self.functions):
                     self.functions[msi_pending_status_function_num].msi_cap.msi_pending_bits = msi_pending_status
@@ -1311,13 +1311,13 @@ class UltraScalePcieDevice(Device):
                 for k in range(min(len(self.functions), 2)):
                     if self.functions[k].msix_cap.msix_enable:
                         val |= 1 << k
-                self.cfg_interrupt_msix_enable <= val
+                self.cfg_interrupt_msix_enable.value = val
             if self.cfg_interrupt_msix_mask is not None:
                 val = 0
                 for k in range(min(len(self.functions), 2)):
                     if self.functions[k].msix_cap.msix_function_mask:
                         val |= 1 << k
-                self.cfg_interrupt_msix_mask <= val
+                self.cfg_interrupt_msix_mask.value = val
             # cfg_interrupt_msix_vf_enable
             # cfg_interrupt_msix_vf_mask
 
@@ -1325,7 +1325,7 @@ class UltraScalePcieDevice(Device):
                 if msi_function_number < len(self.functions):
                     await self.functions[msi_function_number].msix_cap.issue_msix_interrupt(msix_address, msix_data, attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
-                        self.cfg_interrupt_msi_sent <= 1
+                        self.cfg_interrupt_msi_sent.value = 1
 
             # MSI/MSI-X
             # cfg_interrupt_msi_tph_present

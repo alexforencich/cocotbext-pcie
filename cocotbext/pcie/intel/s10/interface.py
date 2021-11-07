@@ -391,7 +391,7 @@ class S10PcieSource(S10PcieBase):
 
             if self.reset is not None and self.reset.value:
                 self.active = False
-                self.bus.valid <= 0
+                self.bus.valid.value = 0
                 continue
 
             # ready delay
@@ -408,7 +408,7 @@ class S10PcieSource(S10PcieBase):
                     self.drive_sync.set()
                     self.active = True
                 else:
-                    self.bus.valid <= 0
+                    self.bus.valid.value = 0
                     self.active = bool(self.drive_obj)
                     if not self.drive_obj:
                         self.idle_event.set()
@@ -548,7 +548,7 @@ class S10PcieSink(S10PcieBase):
             valid_sample = self.bus.valid.value
 
             if self.reset is not None and self.reset.value:
-                self.bus.ready <= 0
+                self.bus.ready.value = 0
                 continue
 
             # ready delay
@@ -565,7 +565,7 @@ class S10PcieSink(S10PcieBase):
             elif self.ready_latency > 0:
                 assert not valid_sample, "handshake error: valid asserted outside of ready cycle"
 
-            self.bus.ready <= (not self.full() and not self.pause)
+            self.bus.ready.value = (not self.full() and not self.pause)
 
     async def _run(self):
         self.active = False
