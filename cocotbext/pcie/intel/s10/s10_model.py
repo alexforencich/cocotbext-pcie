@@ -231,10 +231,10 @@ class S10PcieDevice(Device):
         self.npor = init_signal(reset_status, 1)
         self.pin_perst = init_signal(pin_perst, 1)
         self.ninit_done = init_signal(ninit_done, 1)
-        self.pld_clk_inuse = init_signal(pld_clk_inuse, 1, 1)
+        self.pld_clk_inuse = init_signal(pld_clk_inuse, 1, 0)
         self.pld_core_ready = init_signal(pld_core_ready, 1)
-        self.reset_status = init_signal(reset_status, 1, 1)
-        self.clr_st = init_signal(clr_st, 1, 1)
+        self.reset_status = init_signal(reset_status, 1, 0)
+        self.clr_st = init_signal(clr_st, 1, 0)
         self.refclk = init_signal(refclk, 1)
         self.coreclkout_hip = init_signal(coreclkout_hip, 1, 0)
 
