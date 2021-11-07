@@ -301,6 +301,11 @@ class Tlp:
             if (self.byte_count + (self.lower_address & 3) + 3) < self.length*4:
                 print("TLP validation failed, completion byte count too small: %s" % repr(self))
                 ret = False
+        if self.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED, TlpType.MSG_TO_RC, TlpType.MSG_ADDR,
+                TlpType.MSG_ID, TlpType.MSG_BCAST, TlpType.MSG_LOCAL, TlpType.MSG_GATHER}:
+            if self.length != 0:
+                print("TLP validation failed, length field is reserved: %s" % repr(self))
+                ret = False
         return ret
 
     @classmethod
