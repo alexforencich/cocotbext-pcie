@@ -279,32 +279,32 @@ class Tlp:
         ret = True
         if self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA:
             if self.length*4 != len(self.data):
-                print("TLP validation failed, length field does not match data: %s" % repr(self))
+                print(f"TLP validation failed, length field does not match data: {self!r}")
                 ret = False
             if 0 > self.length > 1024:
-                print("TLP validation failed, length out of range: %s" % repr(self))
+                print(f"TLP validation failed, length out of range: {self!r}")
                 ret = False
         if self.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED,
                 TlpType.MEM_READ_LOCKED_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             if self.length*4 > 0x1000 - (self.address & 0xfff):
-                print("TLP validation failed, request crosses 4K boundary: %s" % repr(self))
+                print(f"TLP validation failed, request crosses 4K boundary: {self!r}")
                 ret = False
         if self.fmt_type == {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,
                 TlpType.CFG_WRITE_1, TlpType.IO_READ, TlpType.IO_WRITE}:
             if self.length != 1:
-                print("TLP validation failed, invalid length for IO or configuration request: %s" % repr(self))
+                print(f"TLP validation failed, invalid length for IO or configuration request: {self!r}")
                 ret = False
             if self.last_be != 0:
-                print("TLP validation failed, invalid last BE for IO or configuration request: %s" % repr(self))
+                print(f"TLP validation failed, invalid last BE for IO or configuration request: {self!r}")
                 ret = False
         if self.fmt_type in {TlpType.CPL_DATA, TlpType.CPL_LOCKED_DATA}:
             if (self.byte_count + (self.lower_address & 3) + 3) < self.length*4:
-                print("TLP validation failed, completion byte count too small: %s" % repr(self))
+                print(f"TLP validation failed, completion byte count too small: {self!r}")
                 ret = False
         if self.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED, TlpType.MSG_TO_RC, TlpType.MSG_ADDR,
                 TlpType.MSG_ID, TlpType.MSG_BCAST, TlpType.MSG_LOCAL, TlpType.MSG_GATHER}:
             if self.length != 0:
-                print("TLP validation failed, length field is reserved: %s" % repr(self))
+                print(f"TLP validation failed, length field is reserved: {self!r}")
                 ret = False
         return ret
 
@@ -654,12 +654,12 @@ class Tlp:
             f"attr={self.attr!s}, "
             f"at={self.at!s}, "
             f"length={self.length}, "
-            f"completer_id={repr(self.completer_id)}, "
+            f"completer_id={self.completer_id!r}, "
             f"status={self.status!s}, "
             f"bcm={self.bcm}, "
             f"byte_count={self.byte_count}, "
-            f"requester_id={repr(self.requester_id)}, "
-            f"dest_id={repr(self.dest_id)}, "
+            f"requester_id={self.requester_id!r}, "
+            f"dest_id={self.dest_id!r}, "
             f"tag={self.tag}, "
             f"first_be={self.first_be:#x}, "
             f"last_be={self.last_be:#x}, "

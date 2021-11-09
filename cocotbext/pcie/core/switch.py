@@ -198,7 +198,7 @@ class Switch:
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, port.bridge.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await port.tx_handler(cpl)
 
     async def _run_arbitration(self, port):

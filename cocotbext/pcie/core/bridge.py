@@ -319,7 +319,7 @@ class Bridge(Function):
         await self.upstream_tx_handler(tlp)
 
     async def upstream_recv(self, tlp):
-        self.log.debug("Routing downstream TLP: %s", repr(tlp))
+        self.log.debug("Routing downstream TLP: %r", tlp)
         assert tlp.check()
         if self.parity_error_response_enable and tlp.ep:
             self.log.warning("Received poisoned TLP on primary interface, reporting master data parity error")
@@ -377,7 +377,7 @@ class Bridge(Function):
 
         # Unsupported request
         cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-        self.log.debug("UR Completion: %s", repr(cpl))
+        self.log.debug("UR Completion: %r", cpl)
         await self.upstream_send(cpl)
 
     async def route_downstream_tlp(self, tlp, from_downstream=False):
@@ -393,7 +393,7 @@ class Bridge(Function):
         await self.downstream_tx_handler(tlp)
 
     async def downstream_recv(self, tlp):
-        self.log.debug("Routing upstream TLP: %s", repr(tlp))
+        self.log.debug("Routing upstream TLP: %r", tlp)
         assert tlp.check()
         if self.bridge_parity_error_response_enable and tlp.ep:
             self.log.warning("Received poisoned TLP on secondary interface, reporting master data parity error")
@@ -442,7 +442,7 @@ class Bridge(Function):
 
         # Unsupported request
         cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-        self.log.debug("UR Completion: %s", repr(cpl))
+        self.log.debug("UR Completion: %r", cpl)
         await self.downstream_send(cpl)
 
     async def send(self, tlp):

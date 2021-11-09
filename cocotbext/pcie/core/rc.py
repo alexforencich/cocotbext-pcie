@@ -192,7 +192,7 @@ class RootComplex(Switch):
             await region[3](offset, data)
 
     async def downstream_send(self, tlp):
-        self.log.debug("Sending TLP: %s", repr(tlp))
+        self.log.debug("Sending TLP: %r", tlp)
         assert tlp.check()
         await self.upstream_bridge.upstream_recv(tlp)
 
@@ -200,7 +200,7 @@ class RootComplex(Switch):
         await self.downstream_send(tlp)
 
     async def downstream_recv(self, tlp):
-        self.log.debug("Got TLP: %s", repr(tlp))
+        self.log.debug("Got TLP: %r", tlp)
         assert tlp.check()
         await self.handle_tlp(tlp)
 
@@ -296,7 +296,7 @@ class RootComplex(Switch):
             cpl.byte_count = 4
             cpl.length = 1
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.send(cpl)
 
         else:
@@ -304,7 +304,7 @@ class RootComplex(Switch):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(0, 0, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_io_write_tlp(self, tlp):
@@ -341,7 +341,7 @@ class RootComplex(Switch):
 
             cpl.byte_count = 4
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.send(cpl)
 
         else:
@@ -349,7 +349,7 @@ class RootComplex(Switch):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(0, 0, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_mem_read_tlp(self, tlp):
@@ -389,7 +389,7 @@ class RootComplex(Switch):
 
                 cpl.set_data(data[m*4:(m+cpl_dw_length)*4])
 
-                self.log.debug("Completion: %s", repr(cpl))
+                self.log.debug("Completion: %r", cpl)
                 await self.send(cpl)
 
                 m += cpl_dw_length
@@ -401,7 +401,7 @@ class RootComplex(Switch):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(0, 0, 0))
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_mem_write_tlp(self, tlp):

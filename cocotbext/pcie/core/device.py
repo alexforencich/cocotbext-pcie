@@ -110,7 +110,7 @@ class Device:
         self.upstream_port.connect(port)
 
     async def upstream_recv(self, tlp):
-        self.log.debug("Got downstream TLP: %s", repr(tlp))
+        self.log.debug("Got downstream TLP: %r", tlp)
         assert tlp.check()
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
@@ -151,11 +151,11 @@ class Device:
 
         # Unsupported request
         cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-        self.log.debug("UR Completion: %s", repr(cpl))
+        self.log.debug("UR Completion: %r", cpl)
         await self.upstream_send(cpl)
 
     async def upstream_send(self, tlp):
-        self.log.debug("Sending upstream TLP: %s", repr(tlp))
+        self.log.debug("Sending upstream TLP: %r", tlp)
         assert tlp.check()
         await self.upstream_port.send(tlp)
 

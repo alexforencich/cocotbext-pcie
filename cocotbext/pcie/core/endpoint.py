@@ -261,7 +261,7 @@ class MemoryEndpoint(Endpoint):
             cpl.byte_count = 4
             cpl.length = 1
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.send(cpl)
 
         else:
@@ -269,7 +269,7 @@ class MemoryEndpoint(Endpoint):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_io_write_tlp(self, tlp):
@@ -308,7 +308,7 @@ class MemoryEndpoint(Endpoint):
 
             cpl.byte_count = 4
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.send(cpl)
 
         else:
@@ -316,7 +316,7 @@ class MemoryEndpoint(Endpoint):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_mem_read_tlp(self, tlp):
@@ -358,7 +358,7 @@ class MemoryEndpoint(Endpoint):
 
                 cpl.set_data(data[m*4:(m+cpl_dw_length)*4])
 
-                self.log.debug("Completion: %s", repr(cpl))
+                self.log.debug("Completion: %r", cpl)
                 await self.send(cpl)
 
                 m += cpl_dw_length
@@ -370,7 +370,7 @@ class MemoryEndpoint(Endpoint):
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
 
     async def handle_mem_write_tlp(self, tlp):

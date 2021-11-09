@@ -665,7 +665,7 @@ class UltraScalePlusPcieDevice(Device):
         cocotb.fork(self._run_reset())
 
     async def upstream_recv(self, tlp):
-        self.log.debug("Got downstream TLP: %s", repr(tlp))
+        self.log.debug("Got downstream TLP: %r", tlp)
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
@@ -676,7 +676,7 @@ class UltraScalePlusPcieDevice(Device):
                 tlp.release_fc()
 
                 cpl = Tlp.create_crs_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-                self.log.debug("CRS Completion: %s", repr(cpl))
+                self.log.debug("CRS Completion: %r", cpl)
                 await self.upstream_send(cpl)
                 return
             else:
@@ -825,7 +825,7 @@ class UltraScalePlusPcieDevice(Device):
 
         # Unsupported request
         cpl = Tlp.create_ur_completion_for_tlp(tlp, PcieId(self.bus_num, 0, 0))
-        self.log.debug("UR Completion: %s", repr(cpl))
+        self.log.debug("UR Completion: %r", cpl)
         await self.upstream_send(cpl)
 
     async def _run_reset(self):

@@ -400,7 +400,7 @@ class Function:
         return False
 
     async def upstream_send(self, tlp):
-        self.log.debug("Sending upstream TLP: %s", repr(tlp))
+        self.log.debug("Sending upstream TLP: %r", tlp)
         assert tlp.check()
         if self.parity_error_response_enable and tlp.ep:
             self.log.warning("Sending poisoned TLP, reporting master data parity error")
@@ -416,7 +416,7 @@ class Function:
         await self.upstream_send(tlp)
 
     async def upstream_recv(self, tlp):
-        self.log.debug("Got downstream TLP: %s", repr(tlp))
+        self.log.debug("Got downstream TLP: %r", tlp)
         assert tlp.check()
         if tlp.is_completion():
             if tlp.status == CplStatus.CA:
@@ -506,14 +506,14 @@ class Function:
             cpl.set_data(struct.pack('<L', data))
             cpl.byte_count = 4
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.upstream_send(cpl)
         else:
             self.log.warning("Type 0 configuration read request device and function number mismatch")
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.upstream_send(cpl)
 
     async def handle_config_0_write_tlp(self, tlp):
@@ -534,14 +534,14 @@ class Function:
             # prepare completion TLP
             cpl = Tlp.create_completion_for_tlp(tlp, self.pcie_id)
 
-            self.log.debug("Completion: %s", repr(cpl))
+            self.log.debug("Completion: %r", cpl)
             await self.upstream_send(cpl)
         else:
             self.log.warning("Type 0 configuration write request device and function number mismatch")
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %s", repr(cpl))
+            self.log.debug("UR Completion: %r", cpl)
             await self.upstream_send(cpl)
 
     async def io_read(self, addr, length, timeout=0, timeout_unit='ns'):
