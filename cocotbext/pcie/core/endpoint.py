@@ -224,213 +224,213 @@ class MemoryEndpoint(Endpoint):
             self.regions[region][addr:addr+len(data)] = data
 
     async def handle_io_read_tlp(self, tlp):
-        m = self.match_bar(tlp.address, True)
-        if len(m) == 1:
-            self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
+        self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
                 tlp.address, tlp.first_be, tlp.tag)
 
-            assert tlp.length == 1
+        bar = self.match_bar(tlp.address, True)
 
-            # prepare completion TLP
-            cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
-
-            region = m[0][0]
-            addr = m[0][1]
-            offset = 0
-            start_offset = None
-            mask = tlp.first_be
-
-            # perform read
-            data = bytearray(4)
-
-            for k in range(4):
-                if mask & (1 << k):
-                    if start_offset is None:
-                        start_offset = offset
-                else:
-                    if start_offset is not None and offset != start_offset:
-                        data[start_offset:offset] = await self.read_region(region, addr+start_offset, offset-start_offset)
-                    start_offset = None
-
-                offset += 1
-
-            if start_offset is not None and offset != start_offset:
-                data[start_offset:offset] = await self.read_region(region, addr+start_offset, offset-start_offset)
-
-            cpl.set_data(data)
-            cpl.byte_count = 4
-            cpl.length = 1
-
-            self.log.debug("Completion: %r", cpl)
-            await self.send(cpl)
-
-        else:
-            self.log.warning("IO request did not match any BARs")
+        if not bar:
+            self.log.warning("IO request did not match any BARs: %r", tlp)
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
             self.log.debug("UR Completion: %r", cpl)
             await self.send(cpl)
+            return
 
-    async def handle_io_write_tlp(self, tlp):
-        m = self.match_bar(tlp.address, True)
-        if len(m) == 1:
-            self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, struct.unpack('<L', tlp.get_data())[0])
+        assert tlp.length == 1
 
-            assert tlp.length == 1
+        # prepare completion TLP
+        cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
 
-            # prepare completion TLP
-            cpl = Tlp.create_completion_for_tlp(tlp, self.pcie_id)
+        region, addr = bar
+        offset = 0
+        start_offset = None
+        mask = tlp.first_be
 
-            region = m[0][0]
-            addr = m[0][1]
-            offset = 0
-            start_offset = None
-            mask = tlp.first_be
+        # perform read
+        data = bytearray(4)
 
-            # perform write
-            data = tlp.get_data()
-
-            for k in range(4):
-                if mask & (1 << k):
-                    if start_offset is None:
-                        start_offset = offset
-                else:
-                    if start_offset is not None and offset != start_offset:
-                        await self.write_region(region, addr+start_offset, data[start_offset:offset])
-                    start_offset = None
-
-                offset += 1
-
-            if start_offset is not None and offset != start_offset:
-                await self.write_region(region, addr+start_offset, data[start_offset:offset])
-
-            cpl.byte_count = 4
-
-            self.log.debug("Completion: %r", cpl)
-            await self.send(cpl)
-
-        else:
-            self.log.warning("IO request did not match any BARs")
-
-            # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %r", cpl)
-            await self.send(cpl)
-
-    async def handle_mem_read_tlp(self, tlp):
-        m = self.match_bar(tlp.address)
-        if len(m) == 1:
-            self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
-
-            # perform operation
-            region = m[0][0]
-            addr = m[0][1]
-
-            # check for 4k boundary crossing
-            if tlp.length*4 > 0x1000 - (addr & 0xfff):
-                print("Request crossed 4k boundary, discarding request")
-                return
-
-            # perform read
-            data = bytearray(await self.read_region(region, addr, tlp.length*4))
-
-            # prepare completion TLP(s)
-            m = 0
-            n = 0
-            addr = tlp.address+tlp.get_first_be_offset()
-            dw_length = tlp.length
-            byte_length = tlp.get_be_byte_count()
-
-            while m < dw_length:
-                cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
-
-                cpl_dw_length = dw_length - m
-                cpl_byte_length = byte_length - n
-                cpl.byte_count = cpl_byte_length
-                if cpl_dw_length > 32 << self.pcie_cap.max_payload_size:
-                    cpl_dw_length = 32 << self.pcie_cap.max_payload_size  # max payload size
-                    cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
-
-                cpl.lower_address = addr & 0x7f
-
-                cpl.set_data(data[m*4:(m+cpl_dw_length)*4])
-
-                self.log.debug("Completion: %r", cpl)
-                await self.send(cpl)
-
-                m += cpl_dw_length
-                n += cpl_dw_length*4 - (addr & 3)
-                addr += cpl_dw_length*4 - (addr & 3)
-
-        else:
-            self.log.warning("Memory request did not match any BARs")
-
-            # Unsupported request
-            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
-            self.log.debug("UR Completion: %r", cpl)
-            await self.send(cpl)
-
-    async def handle_mem_write_tlp(self, tlp):
-        m = self.match_bar(tlp.address)
-        if len(m) == 1:
-            self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
-
-            # perform operation
-            region = m[0][0]
-            addr = m[0][1]
-            offset = 0
-            start_offset = None
-            mask = tlp.first_be
-
-            # check for 4k boundary crossing
-            if tlp.length*4 > 0x1000 - (addr & 0xfff):
-                self.log.warning("Request crossed 4k boundary, discarding request")
-                return
-
-            # perform write
-            data = tlp.get_data()
-
-            # first dword
-            for k in range(4):
-                if mask & (1 << k):
-                    if start_offset is None:
-                        start_offset = offset
-                else:
-                    if start_offset is not None and offset != start_offset:
-                        await self.write_region(region, addr+start_offset, data[start_offset:offset])
-                    start_offset = None
-
-                offset += 1
-
-            if tlp.length > 2:
-                # middle dwords
+        for k in range(4):
+            if mask & (1 << k):
                 if start_offset is None:
                     start_offset = offset
-                offset += (tlp.length-2)*4
+            else:
+                if start_offset is not None and offset != start_offset:
+                    data[start_offset:offset] = await self.read_region(region, addr+start_offset, offset-start_offset)
+                start_offset = None
 
-            if tlp.length > 1:
-                # last dword
-                mask = tlp.last_be
+            offset += 1
 
-                for k in range(4):
-                    if mask & (1 << k):
-                        if start_offset is None:
-                            start_offset = offset
-                    else:
-                        if start_offset is not None and offset != start_offset:
-                            await self.write_region(region, addr+start_offset, data[start_offset:offset])
-                        start_offset = None
+        if start_offset is not None and offset != start_offset:
+            data[start_offset:offset] = await self.read_region(region, addr+start_offset, offset-start_offset)
 
-                    offset += 1
+        cpl.set_data(data)
+        cpl.byte_count = 4
+        cpl.length = 1
 
-            if start_offset is not None and offset != start_offset:
-                await self.write_region(region, addr+start_offset, data[start_offset:offset])
+        self.log.debug("Completion: %r", cpl)
+        await self.send(cpl)
 
-            # memory writes are posted, so don't send a completion
+    async def handle_io_write_tlp(self, tlp):
+        self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
+                tlp.address, tlp.first_be, tlp.tag, struct.unpack('<L', tlp.get_data())[0])
 
-        else:
-            self.log.warning("Memory request did not match any BARs")
+        bar = self.match_bar(tlp.address, True)
+
+        if not bar:
+            self.log.warning("IO request did not match any BARs: %r", tlp)
+
+            # Unsupported request
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+            self.log.debug("UR Completion: %r", cpl)
+            await self.send(cpl)
+            return
+
+        assert tlp.length == 1
+
+        # prepare completion TLP
+        cpl = Tlp.create_completion_for_tlp(tlp, self.pcie_id)
+
+        region, addr = bar
+        offset = 0
+        start_offset = None
+        mask = tlp.first_be
+
+        # perform write
+        data = tlp.get_data()
+
+        for k in range(4):
+            if mask & (1 << k):
+                if start_offset is None:
+                    start_offset = offset
+            else:
+                if start_offset is not None and offset != start_offset:
+                    await self.write_region(region, addr+start_offset, data[start_offset:offset])
+                start_offset = None
+
+            offset += 1
+
+        if start_offset is not None and offset != start_offset:
+            await self.write_region(region, addr+start_offset, data[start_offset:offset])
+
+        cpl.byte_count = 4
+
+        self.log.debug("Completion: %r", cpl)
+        await self.send(cpl)
+
+    async def handle_mem_read_tlp(self, tlp):
+        self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
+
+        bar = self.match_bar(tlp.address)
+
+        if not bar:
+            self.log.warning("Memory request did not match any BARs: %r", tlp)
+
+            # Unsupported request
+            cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
+            self.log.debug("UR Completion: %r", cpl)
+            await self.send(cpl)
+            return
+
+        # perform operation
+        region, addr = bar
+
+        # check for 4k boundary crossing
+        if tlp.length*4 > 0x1000 - (addr & 0xfff):
+            print("Request crossed 4k boundary, discarding request")
+            return
+
+        # perform read
+        data = bytearray(await self.read_region(region, addr, tlp.length*4))
+
+        # prepare completion TLP(s)
+        m = 0
+        n = 0
+        addr = tlp.address+tlp.get_first_be_offset()
+        dw_length = tlp.length
+        byte_length = tlp.get_be_byte_count()
+
+        while m < dw_length:
+            cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
+
+            cpl_dw_length = dw_length - m
+            cpl_byte_length = byte_length - n
+            cpl.byte_count = cpl_byte_length
+            if cpl_dw_length > 32 << self.pcie_cap.max_payload_size:
+                cpl_dw_length = 32 << self.pcie_cap.max_payload_size  # max payload size
+                cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
+
+            cpl.lower_address = addr & 0x7f
+
+            cpl.set_data(data[m*4:(m+cpl_dw_length)*4])
+
+            self.log.debug("Completion: %r", cpl)
+            await self.send(cpl)
+
+            m += cpl_dw_length
+            n += cpl_dw_length*4 - (addr & 3)
+            addr += cpl_dw_length*4 - (addr & 3)
+
+    async def handle_mem_write_tlp(self, tlp):
+        self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
+                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
+
+        bar = self.match_bar(tlp.address)
+
+        if not bar:
+            self.log.warning("Memory request did not match any BARs: %r", tlp)
+            return
+
+        # perform operation
+        region, addr = bar
+        offset = 0
+        start_offset = None
+        mask = tlp.first_be
+
+        # check for 4k boundary crossing
+        if tlp.length*4 > 0x1000 - (addr & 0xfff):
+            self.log.warning("Request crossed 4k boundary, discarding request")
+            return
+
+        # perform write
+        data = tlp.get_data()
+
+        # first dword
+        for k in range(4):
+            if mask & (1 << k):
+                if start_offset is None:
+                    start_offset = offset
+            else:
+                if start_offset is not None and offset != start_offset:
+                    await self.write_region(region, addr+start_offset, data[start_offset:offset])
+                start_offset = None
+
+            offset += 1
+
+        if tlp.length > 2:
+            # middle dwords
+            if start_offset is None:
+                start_offset = offset
+            offset += (tlp.length-2)*4
+
+        if tlp.length > 1:
+            # last dword
+            mask = tlp.last_be
+
+            for k in range(4):
+                if mask & (1 << k):
+                    if start_offset is None:
+                        start_offset = offset
+                else:
+                    if start_offset is not None and offset != start_offset:
+                        await self.write_region(region, addr+start_offset, data[start_offset:offset])
+                    start_offset = None
+
+                offset += 1
+
+        if start_offset is not None and offset != start_offset:
+            await self.write_region(region, addr+start_offset, data[start_offset:offset])
+
+        # memory writes are posted, so don't send a completion

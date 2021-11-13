@@ -338,7 +338,6 @@ class Function:
         self.configure_bar(idx, size, io=True)
 
     def match_bar(self, addr, io=False):
-        m = []
         bar = 0
         while bar < len(self.bar):
             bar_val = self.bar[bar]
@@ -354,8 +353,8 @@ class Function:
             if bar_val & 1:
                 # IO BAR
 
-                if io and addr & bar_mask == bar_val & bar_mask:
-                    m.append((orig_bar, addr & ~bar_mask))
+                if io and (addr ^ bar_val) & bar_mask == 0:
+                    return (orig_bar, addr & ~bar_mask)
 
             else:
                 # Memory BAR
@@ -371,10 +370,10 @@ class Function:
 
                     bar += 1
 
-                if not io and addr & bar_mask == bar_val & bar_mask:
-                    m.append((orig_bar, addr & ~bar_mask))
+                if not io and (addr ^ bar_val) & bar_mask == 0:
+                    return (orig_bar, addr & ~bar_mask)
 
-        return m
+        return None
 
     def match_io_bar(self, addr):
         return self.match_bar(addr, io=True)
@@ -509,7 +508,7 @@ class Function:
             self.log.debug("Completion: %r", cpl)
             await self.upstream_send(cpl)
         else:
-            self.log.warning("Type 0 configuration read request device and function number mismatch")
+            self.log.warning("Type 0 configuration read request device and function number mismatch: %r", tlp)
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
@@ -537,7 +536,7 @@ class Function:
             self.log.debug("Completion: %r", cpl)
             await self.upstream_send(cpl)
         else:
-            self.log.warning("Type 0 configuration write request device and function number mismatch")
+            self.log.warning("Type 0 configuration write request device and function number mismatch: %r", tlp)
 
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)

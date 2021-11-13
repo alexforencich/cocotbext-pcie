@@ -691,14 +691,14 @@ class UltraScalePlusPcieDevice(Device):
 
                 tlp.release_fc()
 
-                self.log.warning("Function not found: failed to route config type 0 TLP")
+                self.log.warning("Function not found: failed to route config type 0 TLP: %r", tlp)
 
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # config type 1
 
             tlp.release_fc()
 
-            self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
+            self.log.warning("Malformed TLP: endpoint received config type 1 TLP: %r", tlp)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
@@ -770,20 +770,20 @@ class UltraScalePlusPcieDevice(Device):
 
             tlp.release_fc()
 
-            self.log.warning("Unexpected completion: failed to route completion to function")
+            self.log.warning("Unexpected completion: failed to route completion to function: %r", tlp)
             return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
             for f in self.functions:
                 bar = f.match_bar(tlp.address, True)
-                if len(bar) == 1:
+                if bar:
 
                     tlp.release_fc()
 
                     tlp = Tlp_us(tlp)
-                    tlp.bar_id = bar[0][0]
-                    tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
+                    tlp.bar_id = bar[0]
+                    tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0]] & 0xffffffff).bit_length()
                     tlp.completer_id = tlp.completer_id._replace(bus=self.bus_num)
                     self.cq_queue.put_nowait(tlp)
 
@@ -791,23 +791,23 @@ class UltraScalePlusPcieDevice(Device):
 
             tlp.release_fc()
 
-            self.log.warning("No BAR match: IO request did not match any BARs")
+            self.log.warning("No BAR match: IO request did not match any BARs: %r", tlp)
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
 
             for f in self.functions:
                 bar = f.match_bar(tlp.address)
-                if len(bar) == 1:
+                if bar:
 
                     tlp.release_fc()
 
                     tlp = Tlp_us(tlp)
-                    tlp.bar_id = bar[0][0]
-                    if self.functions[0].bar[bar[0][0]] & 4:
-                        tlp.bar_aperture = (~(self.functions[0].bar_mask[bar[0][0]] |
-                            (self.functions[0].bar_mask[bar[0][0]+1] << 32)) & 0xffffffffffffffff).bit_length()
+                    tlp.bar_id = bar[0]
+                    if self.functions[0].bar[bar[0]] & 4:
+                        tlp.bar_aperture = (~(self.functions[0].bar_mask[bar[0]] |
+                            (self.functions[0].bar_mask[bar[0]+1] << 32)) & 0xffffffffffffffff).bit_length()
                     else:
-                        tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0][0]] & 0xffffffff).bit_length()
+                        tlp.bar_aperture = (~self.functions[0].bar_mask[bar[0]] & 0xffffffff).bit_length()
                     tlp.completer_id = f.pcie_id
                     self.cq_queue.put_nowait(tlp)
 
@@ -816,10 +816,10 @@ class UltraScalePlusPcieDevice(Device):
             tlp.release_fc()
 
             if tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
-                self.log.warning("No BAR match: memory write request did not match any BARs")
+                self.log.warning("No BAR match: memory write request did not match any BARs: %r", tlp)
                 return  # no UR response for write request
             else:
-                self.log.warning("No BAR match: memory read request did not match any BARs")
+                self.log.warning("No BAR match: memory read request did not match any BARs: %r", tlp)
         else:
             raise Exception("TODO")
 

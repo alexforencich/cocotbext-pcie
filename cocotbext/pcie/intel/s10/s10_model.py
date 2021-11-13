@@ -442,13 +442,13 @@ class S10PcieDevice(Device):
 
             tlp.release_fc()
 
-            self.log.warning("Function not found: failed to route config type 0 TLP")
+            self.log.warning("Function not found: failed to route config type 0 TLP: %r", tlp)
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # config type 1
 
             tlp.release_fc()
 
-            self.log.warning("Malformed TLP: endpoint received config type 1 TLP")
+            self.log.warning("Malformed TLP: endpoint received config type 1 TLP: %r", tlp)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
 
@@ -467,14 +467,14 @@ class S10PcieDevice(Device):
 
             tlp.release_fc()
 
-            self.log.warning("Unexpected completion: failed to route completion to function")
+            self.log.warning("Unexpected completion: failed to route completion to function: %r", tlp)
             return  # no UR response for completion
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
 
             for f in self.functions:
                 bar = f.match_bar(tlp.address, True)
-                if len(bar) == 1:
+                if bar:
 
                     frame = S10PcieFrame.from_tlp(tlp)
 
@@ -489,17 +489,17 @@ class S10PcieDevice(Device):
 
             tlp.release_fc()
 
-            self.log.warning("No BAR match: IO request did not match any BARs")
+            self.log.warning("No BAR match: IO request did not match any BARs: %r", tlp)
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
 
             for f in self.functions:
                 bar = f.match_bar(tlp.address)
-                if len(bar) == 1:
+                if bar:
 
                     frame = S10PcieFrame.from_tlp(tlp)
 
-                    frame.bar_range = bar[0][0]
+                    frame.bar_range = bar[0]
                     frame.func_num = tlp.requester_id.function
 
                     await self.rx_queue.put(frame)
@@ -511,10 +511,10 @@ class S10PcieDevice(Device):
             tlp.release_fc()
 
             if tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
-                self.log.warning("No BAR match: memory write request did not match any BARs")
+                self.log.warning("No BAR match: memory write request did not match any BARs: %r", tlp)
                 return  # no UR response for write request
             else:
-                self.log.warning("No BAR match: memory read request did not match any BARs")
+                self.log.warning("No BAR match: memory read request did not match any BARs: %r", tlp)
         else:
             raise Exception("TODO")
 
