@@ -83,6 +83,22 @@ class Switch:
         self.min_dev = 1
         self.endpoints = []
 
+    @property
+    def pcie_id(self):
+        return self.upstream_bridge._pcie_id
+
+    @property
+    def bus_num(self):
+        return self.pcie_id.bus
+
+    @property
+    def device_num(self):
+        return self.pcie_id.device
+
+    @property
+    def function_num(self):
+        return self.pcie_id.function
+
     def next_free_device_number(self):
         self.endpoints.sort(key=lambda x: (x.device_num, x.function_num))
         d = self.min_dev
