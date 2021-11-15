@@ -713,22 +713,22 @@ class UltraScalePlusPcieDevice(Device):
 
                     if tlp.ep:
                         # poisoned
-                        self.log.warning("Poisoned TLP")
+                        self.log.warning("Poisoned TLP: %r", tlp)
                         tlp.error_code = ErrorCode.POISONED
 
                     req = self.active_request[tlp.tag]
 
                     if not req:
                         # tag not active
-                        self.log.warning("Invalid tag")
+                        self.log.warning("Invalid tag: %r", tlp)
                         tlp.error_code = ErrorCode.INVALID_TAG
                     elif tlp.requester_id != req.requester_id or tlp.attr != req.attr or tlp.tc != req.tc:
                         # requester ID, ATTR, or TC field mismatch
-                        self.log.warning("Mismatched fields")
+                        self.log.warning("Mismatched fields: %r", tlp)
                         tlp.error_code = ErrorCode.MISMATCH
                     elif tlp.status != CplStatus.SC:
                         # bad status
-                        self.log.warning("Bad status")
+                        self.log.warning("Bad status: %r", tlp)
                         tlp.error_code = ErrorCode.BAD_STATUS
                         tlp.request_completed = True
                         self.active_request[tlp.tag] = None
@@ -739,7 +739,7 @@ class UltraScalePlusPcieDevice(Device):
                         lower_address = req.address + req.get_first_be_offset() + req.get_be_byte_count() - tlp.byte_count
 
                         if tlp.lower_address != lower_address & 0x7f:
-                            self.log.warning("Lower address mismatch")
+                            self.log.warning("Lower address mismatch: %r", tlp)
                             tlp.error_code = ErrorCode.INVALID_ADDRESS
                         else:
                             tlp.lower_address = lower_address & 0xfff
