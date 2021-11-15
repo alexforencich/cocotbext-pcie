@@ -175,23 +175,23 @@ class Switch:
 
             if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
                 # Config type 0
-                self.log.warning("Failed to route config type 0 TLP")
+                self.log.warning("Failed to route config type 0 TLP: %r", tlp)
             elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
                 # Config type 1
-                self.log.warning("Failed to route config type 1 TLP")
+                self.log.warning("Failed to route config type 1 TLP: %r", tlp)
             elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
                 # Completion
-                self.log.warning("Unexpected completion: failed to route completion")
+                self.log.warning("Unexpected completion: failed to route completion: %r", tlp)
                 continue  # no UR response for completion
             elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
                 # IO read/write
-                self.log.warning("No address match: IO request could not be routed")
+                self.log.warning("No address match: IO request could not be routed: %r", tlp)
             elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
                 # Memory read/write
-                self.log.warning("No address match: memory read request could not be routed")
+                self.log.warning("No address match: memory read request could not be routed: %r", tlp)
             elif tlp.fmt_type in {TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
                 # Memory read/write
-                self.log.warning("No address match: memory write request could not be routed")
+                self.log.warning("No address match: memory write request could not be routed: %r", tlp)
                 continue  # no UR response for write request
             else:
                 raise Exception("TODO")
