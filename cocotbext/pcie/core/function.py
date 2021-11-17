@@ -28,8 +28,11 @@ import struct
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
 
+from cocotbext.axi import AddressSpace
+
 from .caps import PcieCapList, PcieExtCapList
 from .caps import PmCapability, PcieCapability
+from .region import MemoryTlpRegion, IoTlpRegion
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId
 
@@ -117,6 +120,15 @@ class Function:
 
         self.pcie_cap = PcieCapability()
         self.register_capability(self.pcie_cap)
+
+        self.mem_address_space = AddressSpace(2**64)
+        self.io_address_space = AddressSpace(2**32)
+
+        self.mem_region = MemoryTlpRegion(self)
+        self.io_region = IoTlpRegion(self)
+
+        self.mem_address_space.register_region(self.mem_region, 0, 2**64)
+        self.io_address_space.register_region(self.io_region, 0, 2**32)
 
         super().__init__(*args, **kwargs)
 
@@ -544,46 +556,7 @@ class Function:
             await self.upstream_send(cpl)
 
     async def io_read(self, addr, length, timeout=0, timeout_unit='ns'):
-        n = 0
-        data = b''
-
-        if not self.bus_master_enable:
-            self.log.warning("Bus mastering not enabled, aborting")
-            return None
-
-        while True:
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.IO_READ
-            tlp.requester_id = self.pcie_id
-
-            first_pad = addr % 4
-            byte_length = min(length-n, 4-first_pad)
-            tlp.set_addr_be(addr, byte_length)
-
-            tlp.tag = await self.alloc_tag()
-
-            await self.send(tlp)
-            cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.release_tag(tlp.tag)
-
-            if not cpl:
-                raise Exception("Timeout")
-            if cpl.status != CplStatus.SC:
-                raise Exception("Unsuccessful completion")
-            else:
-                assert cpl.length == 1
-                d = cpl.get_data()
-
-            data += d[first_pad:]
-
-            n += byte_length
-            addr += byte_length
-
-            if n >= length:
-                break
-
-        return data[:length]
+        return await self.io_address_space.read(addr, length, timeout=timeout, timeout_unit=timeout_unit)
 
     async def io_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         data = await self.io_read(addr, count*ws, timeout, timeout_unit)
@@ -611,38 +584,7 @@ class Function:
         return (await self.io_read_qwords(addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def io_write(self, addr, data, timeout=0, timeout_unit='ns'):
-        n = 0
-
-        if not self.bus_master_enable:
-            self.log.warning("Bus mastering not enabled, aborting")
-            return
-
-        while True:
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.IO_WRITE
-            tlp.requester_id = self.pcie_id
-
-            first_pad = addr % 4
-            byte_length = min(len(data)-n, 4-first_pad)
-            tlp.set_addr_be_data(addr, data[n:n+byte_length])
-
-            tlp.tag = await self.alloc_tag()
-
-            await self.send(tlp)
-            cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.release_tag(tlp.tag)
-
-            if not cpl:
-                raise Exception("Timeout")
-            if cpl.status != CplStatus.SC:
-                raise Exception("Unsuccessful completion")
-
-            n += byte_length
-            addr += byte_length
-
-            if n >= len(data):
-                break
+        await self.io_address_space.write(addr, data, timeout=timeout, timeout_unit=timeout_unit)
 
     async def io_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
@@ -670,72 +612,7 @@ class Function:
         await self.io_write_qwords(addr, [data], byteorder, timeout, timeout_unit)
 
     async def mem_read(self, addr, length, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
-        n = 0
-        data = b''
-
-        if not self.bus_master_enable:
-            self.log.warning("Bus mastering not enabled, aborting")
-            return None
-
-        while True:
-            tlp = Tlp()
-            if addr > 0xffffffff:
-                tlp.fmt_type = TlpType.MEM_READ_64
-            else:
-                tlp.fmt_type = TlpType.MEM_READ
-            tlp.requester_id = self.pcie_id
-            tlp.attr = attr
-            tlp.tc = tc
-
-            first_pad = addr % 4
-            # remaining length
-            byte_length = length-n
-            # limit to max read request size
-            if byte_length > (128 << self.pcie_cap.max_read_request_size) - first_pad:
-                # split on 128-byte read completion boundary
-                byte_length = min(byte_length, (128 << self.pcie_cap.max_read_request_size) - (addr & 0x1f))
-            # 4k align
-            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
-            tlp.set_addr_be(addr, byte_length)
-
-            tlp.tag = await self.alloc_tag()
-
-            await self.send(tlp)
-
-            m = 0
-
-            while True:
-                cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-                if not cpl:
-                    self.release_tag(tlp.tag)
-                    raise Exception("Timeout")
-                if cpl.status != CplStatus.SC:
-                    self.release_tag(tlp.tag)
-                    raise Exception("Unsuccessful completion")
-                else:
-                    assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
-                    assert cpl.byte_count == max(byte_length - m, 1)
-
-                    d = cpl.get_data()
-
-                    offset = cpl.lower_address & 3
-                    data += d[offset:offset+cpl.byte_count]
-
-                m += len(d)-offset
-
-                if m >= byte_length:
-                    break
-
-            self.release_tag(tlp.tag)
-
-            n += byte_length
-            addr += byte_length
-
-            if n >= length:
-                break
-
-        return data[:length]
+        return await self.mem_address_space.read(addr, length, timeout=timeout, timeout_unit=timeout_unit, attr=attr, tc=tc)
 
     async def mem_read_words(self, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
         data = await self.mem_read(addr, count*ws, timeout, timeout_unit, attr, tc)
@@ -763,32 +640,7 @@ class Function:
         return (await self.mem_read_qwords(addr, 1, byteorder, timeout, timeout_unit, attr, tc))[0]
 
     async def mem_write(self, addr, data, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
-        n = 0
-
-        if not self.bus_master_enable:
-            self.log.warning("Bus mastering not enabled, aborting")
-            return
-
-        while n < len(data):
-            tlp = Tlp()
-            if addr > 0xffffffff:
-                tlp.fmt_type = TlpType.MEM_WRITE_64
-            else:
-                tlp.fmt_type = TlpType.MEM_WRITE
-            tlp.requester_id = self.pcie_id
-            tlp.attr = attr
-            tlp.tc = tc
-
-            first_pad = addr % 4
-            byte_length = len(data)-n
-            byte_length = min(byte_length, (128 << self.pcie_cap.max_payload_size)-first_pad)  # max payload size
-            byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
-            tlp.set_addr_be_data(addr, data[n:n+byte_length])
-
-            await self.send(tlp)
-
-            n += byte_length
-            addr += byte_length
+        await self.mem_address_space.write(addr, data, timeout=timeout, timeout_unit=timeout_unit, attr=attr, tc=tc)
 
     async def mem_write_words(self, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
         words = data

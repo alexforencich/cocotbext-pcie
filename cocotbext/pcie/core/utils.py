@@ -98,6 +98,7 @@ class TreeItem:
         self.bar_raw = [None]*6
         self.bar_addr = [None]*6
         self.bar_size = [None]*6
+        self.bar_window = [None]*6
 
         self.expansion_rom_raw = None
         self.expansion_rom_addr = None
