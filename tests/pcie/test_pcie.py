@@ -110,8 +110,11 @@ async def run_test_rc_mem(dut):
 
     tb.rc.log.setLevel(logging.DEBUG)
 
-    mem_base, mem_data = tb.rc.alloc_region(1024*1024)
-    io_base, io_data = tb.rc.alloc_io_region(1024)
+    mem = tb.rc.mem_pool.alloc_region(16*1024*1024)
+    mem_base = mem.get_absolute_address(0)
+
+    io = tb.rc.io_pool.alloc_region(1024)
+    io_base = io.get_absolute_address(0)
 
     for length in list(range(1, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
@@ -120,7 +123,7 @@ async def run_test_rc_mem(dut):
             test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.mem_write(addr, test_data)
-            assert mem_data[offset:offset+length] == test_data
+            assert mem[offset:offset+length] == test_data
 
             assert await tb.rc.mem_read(addr, length) == test_data
 
@@ -131,7 +134,7 @@ async def run_test_rc_mem(dut):
             test_data = bytearray([x % 256 for x in range(length)])
 
             await tb.rc.io_write(addr, test_data)
-            assert io_data[offset:offset+length] == test_data
+            assert io[offset:offset+length] == test_data
 
             assert await tb.rc.io_read(addr, length) == test_data
 
@@ -143,16 +146,16 @@ async def run_test_config(dut):
     tb.rc.log.setLevel(logging.DEBUG)
 
     tb.log.info("Read complete config space")
-    orig = await tb.rc.config_read(PcieId(0, 1, 0), 0x000, 256, 1000, 'ns')
+    orig = await tb.rc.config_read(PcieId(0, 1, 0), 0x000, 256, timeout=1000, timeout_unit='ns')
 
     tb.log.info("Read and write interrupt line register")
-    await tb.rc.config_write(PcieId(0, 1, 0), 0x03c, b'\x12', 1000, 'ns')
-    val = await tb.rc.config_read(PcieId(0, 1, 0), 0x03c, 1, 1000, 'ns')
+    await tb.rc.config_write(PcieId(0, 1, 0), 0x03c, b'\x12', timeout=1000, timeout_unit='ns')
+    val = await tb.rc.config_read(PcieId(0, 1, 0), 0x03c, 1, timeout=1000, timeout_unit='ns')
 
     assert val == b'\x12'
 
     tb.log.info("Write complete config space")
-    await tb.rc.config_write(PcieId(0, 1, 0), 0x000, orig, 1000, 'ns')
+    await tb.rc.config_write(PcieId(0, 1, 0), 0x000, orig, timeout=1000, timeout_unit='ns')
 
 
 async def run_test_enumerate(dut):
@@ -400,42 +403,43 @@ async def run_test_ep_mem(dut, ep_index=0):
     ep.log.setLevel(logging.DEBUG)
     ti = tb.rc.tree.find_child_dev(ep.pcie_id)
 
+    dev_bar0 = ti.bar_window[0]
+    dev_bar1 = ti.bar_window[1]
+    dev_bar3 = ti.bar_window[3]
+
     for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (32-bit BAR) length: %d offset: %d", length, offset)
-            addr = ti.bar_addr[0]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await tb.rc.mem_write(addr, test_data, 1000, 'ns')
+            await dev_bar0.write(offset, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await tb.rc.mem_read(addr, 1, 1000, 'ns')
+            await dev_bar0.read(offset, 1, timeout=1000, timeout_unit='ns')
             assert await ep.read_region(0, offset, length) == test_data
 
-            assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
+            assert await dev_bar0.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
 
     for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
             tb.log.info("Memory operation (64-bit BAR) length: %d offset: %d", length, offset)
-            addr = ti.bar_addr[1]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await tb.rc.mem_write(addr, test_data, 1000, 'ns')
+            await dev_bar1.write(offset, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await tb.rc.mem_read(addr, 1, 1000, 'ns')
+            await dev_bar1.read(offset, 1, timeout=1000, timeout_unit='ns')
             assert await ep.read_region(1, offset, length) == test_data
 
-            assert await tb.rc.mem_read(addr, length, 1000, 'ns') == test_data
+            assert await dev_bar1.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
 
     for length in list(range(0, 8)):
         for offset in list(range(8)):
             tb.log.info("IO operation length: %d offset: %d", length, offset)
-            addr = ti.bar_addr[3]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await tb.rc.io_write(addr, test_data, 1000, 'ns')
+            await dev_bar3.write(offset, test_data, timeout=1000, timeout_unit='ns')
             assert await ep.read_region(3, offset, length) == test_data
 
-            assert await tb.rc.io_read(addr, length, 1000, 'ns') == test_data
+            assert await dev_bar3.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
 
 
 async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
@@ -457,12 +461,12 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
             addr = ti2.bar_addr[0]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await ep1.mem_write(addr, test_data, 1000, 'ns')
+            await ep1.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep1.mem_read(addr, 1, 1000, 'ns')
+            await ep1.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
             assert await ep2.read_region(0, offset, length) == test_data
 
-            assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
+            assert await ep1.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
     for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
@@ -470,12 +474,12 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
             addr = ti2.bar_addr[1]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await ep1.mem_write(addr, test_data, 1000, 'ns')
+            await ep1.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep1.mem_read(addr, 1, 1000, 'ns')
+            await ep1.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
             assert await ep2.read_region(1, offset, length) == test_data
 
-            assert await ep1.mem_read(addr, length, 1000, 'ns') == test_data
+            assert await ep1.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
     for length in list(range(0, 8)):
         for offset in list(range(8)):
@@ -483,18 +487,21 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
             addr = ti2.bar_addr[3]+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await ep1.io_write(addr, test_data, 1000, 'ns')
+            await ep1.io_write(addr, test_data, timeout=1000, timeout_unit='ns')
             assert await ep2.read_region(3, offset, length) == test_data
 
-            assert await ep1.io_read(addr, length, 1000, 'ns') == test_data
+            assert await ep1.io_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
 
 async def run_test_dma(dut, ep_index=0):
 
     tb = TB(dut)
 
-    mem_base, mem_data = tb.rc.alloc_region(1024*1024)
-    io_base, io_data = tb.rc.alloc_io_region(1024)
+    mem = tb.rc.mem_pool.alloc_region(16*1024*1024)
+    mem_base = mem.get_absolute_address(0)
+
+    io = tb.rc.io_pool.alloc_region(1024)
+    io_base = io.get_absolute_address(0)
 
     await tb.rc.enumerate(enable_bus_mastering=True, configure_msi=True)
     tb.rc.log.setLevel(logging.DEBUG)
@@ -508,12 +515,12 @@ async def run_test_dma(dut, ep_index=0):
             addr = mem_base+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await ep.mem_write(addr, test_data, 1000, 'ns')
+            await ep.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep.mem_read(addr, 1, 1000, 'ns')
-            assert mem_data[offset:offset+length] == test_data
+            await ep.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
+            assert mem[offset:offset+length] == test_data
 
-            assert await ep.mem_read(addr, length, 1000, 'ns') == test_data
+            assert await ep.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
     for length in list(range(0, 8)):
         for offset in list(range(8)):
@@ -521,10 +528,10 @@ async def run_test_dma(dut, ep_index=0):
             addr = io_base+offset
             test_data = bytearray([x % 256 for x in range(length)])
 
-            await ep.io_write(addr, test_data, 1000, 'ns')
-            assert io_data[offset:offset+length] == test_data
+            await ep.io_write(addr, test_data, timeout=1000, timeout_unit='ns')
+            assert io[offset:offset+length] == test_data
 
-            assert await ep.io_read(addr, length, 1000, 'ns') == test_data
+            assert await ep.io_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
 
 async def run_test_msi(dut, ep_index=0):
