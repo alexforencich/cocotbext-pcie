@@ -1281,6 +1281,7 @@ class UltraScalePcieDevice(Device):
             if msi_int:
                 bits = [i for i in range(32) if msi_int >> i & 1]
                 if len(bits) == 1 and msi_function_number < len(self.functions):
+                    self.log.info("Issue MSI interrupt (index %d)", bits[0])
                     await self.functions[msi_function_number].msi_cap.issue_msi_interrupt(bits[0], attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
                         self.cfg_interrupt_msi_sent.value = 1
@@ -1323,6 +1324,7 @@ class UltraScalePcieDevice(Device):
 
             if msix_int:
                 if msi_function_number < len(self.functions):
+                    self.log.info("Issue MSI-X interrupt (addr 0x%08x, data 0x%08x)", msix_address, msix_data)
                     await self.functions[msi_function_number].msix_cap.issue_msix_interrupt(msix_address, msix_data, attr=msi_attr)
                     if self.cfg_interrupt_msi_sent is not None:
                         self.cfg_interrupt_msi_sent.value = 1
