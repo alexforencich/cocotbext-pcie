@@ -829,9 +829,11 @@ class UltraScalePlusPcieDevice(Device):
         await self.upstream_send(cpl)
 
     async def _run_reset(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
+            await clock_edge_event
 
             if self.user_reset is not None:
                 self.user_reset.value = 1
@@ -856,8 +858,10 @@ class UltraScalePlusPcieDevice(Device):
                 return
 
     async def _run_cq_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # increment cq_np_req_count and saturate at 32
             if self.pcie_cq_np_req is None or self.pcie_cq_np_req.value:
@@ -970,8 +974,10 @@ class UltraScalePlusPcieDevice(Device):
                 # TODO: internal response
 
     async def _run_rq_seq_num_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             if self.pcie_rq_seq_num0 is not None:
                 self.pcie_rq_seq_num_vld0.value = 0
@@ -999,8 +1005,10 @@ class UltraScalePlusPcieDevice(Device):
             await self.rc_source.send(tlp.pack_us_rc())
 
     async def _run_tx_fc_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # transmit flow control
             # TODO
@@ -1010,8 +1018,10 @@ class UltraScalePlusPcieDevice(Device):
                 self.pcie_tfc_npd_av.value = 0xf
 
     async def _run_cfg_mgmt_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # configuration management
             function = self.cfg_mgmt_function_number.value.integer
@@ -1034,8 +1044,10 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_mgmt_debug_access
 
     async def _run_cfg_status_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # configuration status
             if self.sys_reset is not None and not self.sys_reset.value:
@@ -1096,16 +1108,20 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_vf_tph_st_mode
 
     async def _run_cfg_msg_rx_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # cfg_msg_received
             # cfg_msg_received_data
             # cfg_msg_received_type
 
     async def _run_cfg_msg_tx_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # cfg_msg_transmit
             # cfg_msg_transmit_type
@@ -1113,8 +1129,10 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_msg_transmit_done
 
     async def _run_cfg_fc_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             if isinstance(self.cfg_fc_sel, int):
                 sel = self.cfg_fc_sel
@@ -1176,8 +1194,10 @@ class UltraScalePlusPcieDevice(Device):
                 self.cfg_fc_cpld.value = cfg_fc_cpld
 
     async def _run_cfg_ctrl_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             if self.sys_reset is not None and not self.sys_reset.value:
                 self.config_space_enable = False
@@ -1211,8 +1231,10 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_link_training_enable
 
     async def _run_cfg_int_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             msi_int = 0
             msi_function_number = 0
@@ -1320,8 +1342,10 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_interrupt_msi_tph_st_tag
 
     async def _run_cfg_extend_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
         while True:
-            await RisingEdge(self.user_clk)
+            await clock_edge_event
 
             # cfg_ext_read_received
             # cfg_ext_write_received

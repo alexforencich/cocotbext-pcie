@@ -524,9 +524,11 @@ class S10PcieDevice(Device):
         await self.upstream_send(cpl)
 
     async def _run_reset(self):
+        clock_edge_event = RisingEdge(self.coreclkout_hip)
+
         while True:
-            await RisingEdge(self.coreclkout_hip)
-            await RisingEdge(self.coreclkout_hip)
+            await clock_edge_event
+            await clock_edge_event
 
             if self.pld_clk_inuse is not None:
                 self.pld_clk_inuse.value = 1
@@ -544,7 +546,7 @@ class S10PcieDevice(Device):
                     continue
             else:
                 await Timer(100, 'ns')
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
             if self.pld_clk_inuse is not None:
                 self.pld_clk_inuse.value = 0
@@ -570,6 +572,8 @@ class S10PcieDevice(Device):
             await self.send(tlp)
 
     async def _run_tx_fc_logic(self):
+        clock_edge_event = RisingEdge(self.coreclkout_hip)
+
         while True:
             if self.tx_ph_cdts is not None:
                 self.tx_ph_cdts.value = self.upstream_port.fc_state[0].ph.tx_credits_available
@@ -588,7 +592,7 @@ class S10PcieDevice(Device):
             # self.tx_data_cdts_consumed
             # self.tx_cdts_type
             # self.tx_cdts_data_value
-            await RisingEdge(self.coreclkout_hip)
+            await clock_edge_event
 
     async def _run_status_logic(self):
         pass
@@ -622,12 +626,15 @@ class S10PcieDevice(Device):
         # app_xfer_pending
 
     async def _run_int_logic(self):
+        clock_edge_event = RisingEdge(self.coreclkout_hip)
+
         while True:
-            await RisingEdge(self.coreclkout_hip)
+            await clock_edge_event
 
             # Interrupt interface
             while not self.app_msi_req.value.integer:
-                await RisingEdge(self.coreclkout_hip)
+                await RisingEdge(self.app_msi_req)
+                await clock_edge_event
 
             # issue MSI interrupt
             app_msi_func_num = self.app_msi_func_num.value.integer
@@ -636,11 +643,11 @@ class S10PcieDevice(Device):
             await self.functions[app_msi_func_num].msi_cap.issue_msi_interrupt(app_msi_num, tc=app_msi_tc)
 
             self.app_msi_ack.value = 1
-            await RisingEdge(self.coreclkout_hip)
+            await clock_edge_event
             self.app_msi_ack.value = 0
 
             while self.app_msi_req.value.integer:
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
     # Error interface
     # app_err_valid
@@ -649,6 +656,8 @@ class S10PcieDevice(Device):
     # app_err_func_num
 
     async def _run_cfg_out_logic_htile(self):
+        clock_edge_event = RisingEdge(self.coreclkout_hip)
+
         while True:
             for func in self.functions:
                 self.tl_cfg_func.value = func.pcie_id.function
@@ -672,7 +681,7 @@ class S10PcieDevice(Device):
                 val |= (func.pcie_cap.max_read_request_size & 0x7) << 3
                 val |= (func.pcie_cap.max_payload_size & 0x7)
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x01
                 # num vfs
@@ -684,7 +693,7 @@ class S10PcieDevice(Device):
                 val |= (func.pcie_cap.attention_indicator_control & 0x3) << 2
                 val |= func.pcie_cap.power_indicator_control & 0x3
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x02
                 val = (func.pcie_cap.current_link_speed & 0xf) << 28
@@ -695,19 +704,19 @@ class S10PcieDevice(Device):
                 # tph
                 # vf en
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x03
                 self.tl_cfg_ctl.value = func.msi_cap.msi_message_address & 0xffffffff
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x04
                 self.tl_cfg_ctl.value = (func.msi_cap.msi_message_address >> 32) & 0xffffffff
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x05
                 self.tl_cfg_ctl.value = func.msi_cap.msi_mask_bits
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x06
                 val = (func.msi_cap.msi_message_data & 0xffff) << 16
@@ -721,24 +730,26 @@ class S10PcieDevice(Device):
                 val |= bool(func.msi_cap.msi_64bit_address_capable) << 1
                 val |= bool(func.msi_cap.msi_enable)
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x07
                 # AER uncorrectable error mask
                 self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(2)
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x08
                 # AER correctable error mask
                 self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(5)
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x09
                 # AER uncorrectable error severity
                 self.tl_cfg_ctl.value = await func.aer_ext_cap.read_register(3)
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
     async def _run_cfg_out_logic_ltile(self):
+        clock_edge_event = RisingEdge(self.coreclkout_hip)
+
         while True:
             for func in self.functions:
                 self.tl_cfg_func.value = func.pcie_id.function
@@ -757,7 +768,7 @@ class S10PcieDevice(Device):
                 val |= (func.pcie_cap.max_read_request_size & 0x7) << 3
                 val |= (func.pcie_cap.max_payload_size & 0x7)
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x01
                 val = bool(func.pcie_cap.system_error_on_fatal_error_enable) << 31
@@ -773,7 +784,7 @@ class S10PcieDevice(Device):
                 val |= (func.pcie_cap.attention_indicator_control & 0x3) << 2
                 val |= func.pcie_cap.power_indicator_control & 0x3
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x02
                 # start vf
@@ -785,19 +796,19 @@ class S10PcieDevice(Device):
                 # tph
                 # vf en
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x03
                 self.tl_cfg_ctl.value = func.msi_cap.msi_message_address & 0xffffffff
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x04
                 self.tl_cfg_ctl.value = (func.msi_cap.msi_message_address >> 32) & 0xffffffff
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x05
                 self.tl_cfg_ctl.value = func.msi_cap.msi_mask_bits
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x06
                 val = (func.msi_cap.msi_message_data & 0xffff) << 16
@@ -807,13 +818,13 @@ class S10PcieDevice(Device):
                 val |= bool(func.msi_cap.msi_64bit_address_capable) << 1
                 val |= bool(func.msi_cap.msi_enable)
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
                 self.tl_cfg_add.value = 0x07
                 val = (func.pcie_cap.current_link_speed & 0xf) << 6
                 val |= func.pcie_cap.negotiated_link_width & 0x3f
                 self.tl_cfg_ctl.value = val
-                await RisingEdge(self.coreclkout_hip)
+                await clock_edge_event
 
     # Configuration extension bus
     # ceb_req

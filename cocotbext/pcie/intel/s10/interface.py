@@ -288,9 +288,11 @@ class S10PcieBase:
         self.set_pause_generator(None)
 
     async def _run_pause(self):
+        clock_edge_event = RisingEdge(self.clock)
+
         for val in self._pause_generator:
             self.pause = val
-            await RisingEdge(self.clock)
+            await clock_edge_event
 
 
 class S10PcieSource(S10PcieBase):
@@ -382,8 +384,10 @@ class S10PcieSource(S10PcieBase):
         self.active = False
         ready_delay = []
 
+        clock_edge_event = RisingEdge(self.clock)
+
         while True:
-            await RisingEdge(self.clock)
+            await clock_edge_event
 
             # read handshake signals
             ready_sample = self.bus.ready.value
@@ -540,8 +544,10 @@ class S10PcieSink(S10PcieBase):
     async def _run_sink(self):
         ready_delay = []
 
+        clock_edge_event = RisingEdge(self.clock)
+
         while True:
-            await RisingEdge(self.clock)
+            await clock_edge_event
 
             # read handshake signals
             ready_sample = self.bus.ready.value
