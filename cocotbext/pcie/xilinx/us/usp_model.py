@@ -642,27 +642,27 @@ class UltraScalePlusPcieDevice(Device):
         # fork coroutines
 
         if self.user_clk is not None:
-            cocotb.fork(Clock(self.user_clk, int(1e9/self.user_clk_frequency), units="ns").start())
+            cocotb.start_soon(Clock(self.user_clk, int(1e9/self.user_clk_frequency), units="ns").start())
 
         if self.rq_sink:
-            cocotb.fork(self._run_rq_logic())
-            cocotb.fork(self._run_rq_np_queue_logic())
-            cocotb.fork(self._run_rq_seq_num_logic())
+            cocotb.start_soon(self._run_rq_logic())
+            cocotb.start_soon(self._run_rq_np_queue_logic())
+            cocotb.start_soon(self._run_rq_seq_num_logic())
         if self.rc_source:
-            cocotb.fork(self._run_rc_logic())
+            cocotb.start_soon(self._run_rc_logic())
         if self.cq_source:
-            cocotb.fork(self._run_cq_logic())
+            cocotb.start_soon(self._run_cq_logic())
         if self.cc_sink:
-            cocotb.fork(self._run_cc_logic())
+            cocotb.start_soon(self._run_cc_logic())
         if self.cfg_mgmt_addr is not None:
-            cocotb.fork(self._run_cfg_mgmt_logic())
-        cocotb.fork(self._run_cfg_status_logic())
+            cocotb.start_soon(self._run_cfg_mgmt_logic())
+        cocotb.start_soon(self._run_cfg_status_logic())
         if self.cfg_fc_sel is not None:
-            cocotb.fork(self._run_cfg_fc_logic())
-        cocotb.fork(self._run_cfg_ctrl_logic())
-        cocotb.fork(self._run_cfg_int_logic())
+            cocotb.start_soon(self._run_cfg_fc_logic())
+        cocotb.start_soon(self._run_cfg_ctrl_logic())
+        cocotb.start_soon(self._run_cfg_int_logic())
 
-        cocotb.fork(self._run_reset())
+        cocotb.start_soon(self._run_reset())
 
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %r", tlp)

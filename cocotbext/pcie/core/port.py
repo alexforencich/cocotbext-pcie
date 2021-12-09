@@ -395,9 +395,9 @@ class Port:
         # VC0 is always active
         self.fc_state[0].active = True
 
-        cocotb.fork(self._run_transmit())
-        cocotb.fork(self._run_receive())
-        cocotb.fork(self._run_fc_update_idle_timer())
+        cocotb.start_soon(self._run_transmit())
+        cocotb.start_soon(self._run_receive())
+        cocotb.start_soon(self._run_fc_update_idle_timer())
 
     def classify_tlp_vc(self, tlp):
         return 0
@@ -586,7 +586,7 @@ class Port:
             if not self._ack_latency_timer_cr._finished:
                 # already running
                 return
-        self._ack_latency_timer_cr = cocotb.fork(self._run_ack_latency_timer())
+        self._ack_latency_timer_cr = cocotb.start_soon(self._run_ack_latency_timer())
 
     def stop_ack_latency_timer(self):
         if self._ack_latency_timer_cr is not None:
@@ -603,7 +603,7 @@ class Port:
             if not self._fc_update_timer_cr._finished:
                 # already running
                 return
-        self._fc_update_timer_cr = cocotb.fork(self._run_fc_update_timer())
+        self._fc_update_timer_cr = cocotb.start_soon(self._run_fc_update_timer())
 
     def stop_fc_update_timer(self):
         if self._fc_update_timer_cr is not None:
@@ -677,7 +677,7 @@ class SimPort(Port):
 
     async def handle_tx(self, pkt):
         await Timer(max(int(pkt.get_wire_size() * self.symbol_period * self.time_scale), 1), 'step')
-        cocotb.fork(self._transmit(pkt))
+        cocotb.start_soon(self._transmit(pkt))
 
     async def _transmit(self, pkt):
         if self.other is None:

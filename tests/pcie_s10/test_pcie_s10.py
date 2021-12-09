@@ -225,8 +225,8 @@ class TB:
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)
         self.dev.functions[0].configure_bar(3, len(self.regions[3]), False, False, True)
 
-        cocotb.fork(self._run_rx_tlp())
-        cocotb.fork(self._run_cfg())
+        cocotb.start_soon(self._run_rx_tlp())
+        cocotb.start_soon(self._run_cfg())
 
     def set_idle_generator(self, generator=None):
         if generator:

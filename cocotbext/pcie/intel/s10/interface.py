@@ -282,7 +282,7 @@ class S10PcieBase:
         self._pause_generator = generator
 
         if self._pause_generator is not None:
-            self._pause_cr = cocotb.fork(self._run_pause())
+            self._pause_cr = cocotb.start_soon(self._run_pause())
 
     def clear_pause_generator(self):
         self.set_pause_generator(None)
@@ -337,8 +337,8 @@ class S10PcieSource(S10PcieBase):
         if hasattr(self.bus, "parity"):
             self.bus.parity.setimmediatevalue(0)
 
-        cocotb.fork(self._run_source())
-        cocotb.fork(self._run())
+        cocotb.start_soon(self._run_source())
+        cocotb.start_soon(self._run())
 
     async def _drive(self, obj):
         if self.drive_obj is not None:
@@ -504,8 +504,8 @@ class S10PcieSink(S10PcieBase):
 
         self.bus.ready.setimmediatevalue(0)
 
-        cocotb.fork(self._run_sink())
-        cocotb.fork(self._run())
+        cocotb.start_soon(self._run_sink())
+        cocotb.start_soon(self._run())
 
     def _recv(self, frame):
         if self.queue.empty():

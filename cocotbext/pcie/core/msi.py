@@ -52,7 +52,7 @@ class MsiRegion(Region):
         assert number in self.msi_events
         self.msi_events[number].set()
         for cb in self.msi_callbacks[number]:
-            cocotb.fork(cb())
+            cocotb.start_soon(cb())
 
     async def configure_msi(self, dev):
         if not self.rc.tree:

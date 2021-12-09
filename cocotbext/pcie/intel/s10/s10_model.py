@@ -407,23 +407,23 @@ class S10PcieDevice(Device):
         # fork coroutines
 
         if self.coreclkout_hip is not None:
-            cocotb.fork(Clock(self.coreclkout_hip, int(1e9/self.pld_clk_frequency), units="ns").start())
+            cocotb.start_soon(Clock(self.coreclkout_hip, int(1e9/self.pld_clk_frequency), units="ns").start())
 
         if self.rx_source:
-            cocotb.fork(self._run_rx_logic())
+            cocotb.start_soon(self._run_rx_logic())
         if self.tx_sink:
-            cocotb.fork(self._run_tx_logic())
+            cocotb.start_soon(self._run_tx_logic())
         if self.tx_pd_cdts:
-            cocotb.fork(self._run_tx_fc_logic())
+            cocotb.start_soon(self._run_tx_fc_logic())
         if self.app_msi_req:
-            cocotb.fork(self._run_int_logic())
+            cocotb.start_soon(self._run_int_logic())
         if self.tl_cfg_ctl:
             if self.l_tile:
-                cocotb.fork(self._run_cfg_out_logic_ltile())
+                cocotb.start_soon(self._run_cfg_out_logic_ltile())
             else:
-                cocotb.fork(self._run_cfg_out_logic_htile())
+                cocotb.start_soon(self._run_cfg_out_logic_htile())
 
-        cocotb.fork(self._run_reset())
+        cocotb.start_soon(self._run_reset())
 
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %r", tlp)

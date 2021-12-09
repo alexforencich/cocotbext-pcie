@@ -142,8 +142,8 @@ class Switch:
 
     def add_switch_port(self, port):
         self.switch_ports.append(port)
-        cocotb.fork(self._run_routing(port))
-        cocotb.fork(self._run_arbitration(port))
+        cocotb.start_soon(self._run_routing(port))
+        cocotb.start_soon(self._run_arbitration(port))
 
         for k in range(len(self.switch_ports)-1):
             tx_queue = Queue()
@@ -219,8 +219,8 @@ class Switch:
 
     async def _run_arbitration(self, port):
         while True:
-            port.rx_event.clear()
             await port.rx_event.wait()
+            port.rx_event.clear()
 
             while True:
                 ok = False
