@@ -161,6 +161,8 @@ class Bridge(Function):
             val = (self.prefetchable_mem_base & 0xfff00000) >> 16
             # Prefetchable memory limit
             val |= self.prefetchable_mem_limit & 0xfff00000
+            # supports 64 bit addresses
+            val |= 0x00010001
             return val
         elif reg == 10:
             # Prefetchable memory base (upper)
