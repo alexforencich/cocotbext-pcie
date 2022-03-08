@@ -249,10 +249,10 @@ class Function:
             # Interrupt pin
             val |= (self.interrupt_pin & 0xff) << 8
             return val
-        elif 16 <= reg < 256:
+        elif 16 <= reg < 64:
             # PCIe capabilities
             return await self.read_capability_register(reg)
-        elif 256 <= reg < 4096:
+        elif 64 <= reg < 1024:
             # PCIe extended capabilities
             return await self.read_extended_capability_register(reg)
         else:
@@ -294,10 +294,10 @@ class Function:
             # Interrupt line
             if mask & 1:
                 self.interrupt_line = data & 0xff
-        elif 16 <= reg < 256:
+        elif 16 <= reg < 64:
             # PCIe capabilities
             await self.write_capability_register(reg, data, mask)
-        elif 256 <= reg < 4096:
+        elif 64 <= reg < 1024:
             # PCIe extended capabilities
             await self.write_extended_capability_register(reg, data, mask)
 
