@@ -201,6 +201,20 @@ class PcieCapList:
 
         self.list.append(cap)
 
+        self._build_linked_list()
+
+        # re-insert bumped caps
+        for c in bump_list:
+            c.offset = None
+            self.register(c)
+
+    def deregister(self, cap):
+        if cap in self.list:
+            self.list.remove(cap)
+
+        self._build_linked_list()
+
+    def _build_linked_list(self):
         # sort list by offset
         self.list.sort(key=lambda x: x.offset)
 
@@ -208,11 +222,6 @@ class PcieCapList:
         for k in range(1, len(self.list)):
             self.list[k-1].next_cap = self.list[k].offset*4
             self.list[k].next_cap = 0
-
-        # re-insert bumped caps
-        for c in bump_list:
-            c.offset = None
-            self.register(c)
 
 
 class PcieExtCapList(PcieCapList):

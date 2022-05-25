@@ -315,6 +315,9 @@ class Function:
         else:
             self.capabilities_ptr = 0
 
+    def deregister_capability(self, cap):
+        self.capabilities.deregister(cap)
+
     async def read_extended_capability_register(self, reg):
         return await self.ext_capabilities.read_register(reg)
 
@@ -324,6 +327,9 @@ class Function:
     def register_extended_capability(self, cap, offset=None):
         cap.parent = self
         self.ext_capabilities.register(cap, offset)
+
+    def deregister_extended_capability(self, cap):
+        self.ext_capabilities.deregister(cap)
 
     def configure_bar(self, idx, size, ext=False, prefetch=False, io=False):
         mask = 2**((size-1).bit_length())-1
