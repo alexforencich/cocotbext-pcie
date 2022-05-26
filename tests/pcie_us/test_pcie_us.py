@@ -61,7 +61,7 @@ class TB:
             # user_clk_frequency=250e6,
             alignment="dword",
             straddle=False,
-            enable_pf1=False,
+            pf_count=1,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,

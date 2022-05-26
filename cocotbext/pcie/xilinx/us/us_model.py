@@ -121,7 +121,7 @@ class UltraScalePcieDevice(Device):
             user_clk_frequency=None,
             alignment="dword",
             straddle=False,
-            enable_pf1=False,
+            pf_count=1,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,
@@ -332,7 +332,7 @@ class UltraScalePcieDevice(Device):
         self.user_clk_frequency = user_clk_frequency
         self.alignment = alignment
         self.straddle = straddle
-        self.enable_pf1 = enable_pf1
+        self.pf_count = pf_count
         self.enable_client_tag = enable_client_tag
         self.enable_extended_tag = enable_extended_tag
         self.enable_parity = enable_parity
@@ -569,7 +569,7 @@ class UltraScalePcieDevice(Device):
         self.log.info("  User clock frequency: %d MHz", self.user_clk_frequency/1e6)
         self.log.info("  Alignment: %s", self.alignment)
         self.log.info("  Enable RC straddling: %s", self.straddle)
-        self.log.info("  Enable PF1: %s", self.enable_pf1)
+        self.log.info("  PF count: %d", self.pf_count)
         self.log.info("  Enable client tag: %s", self.enable_client_tag)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
         self.log.info("  Enable parity: %s", self.enable_parity)
@@ -617,7 +617,7 @@ class UltraScalePcieDevice(Device):
 
         self.make_function()
 
-        if self.enable_pf1:
+        if self.pf_count > 1:
             self.make_function()
 
         if self.cfg_config_space_enable is None:

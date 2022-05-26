@@ -130,7 +130,7 @@ class UltraScalePlusPcieDevice(Device):
             cq_cc_straddle=False,
             rq_rc_straddle=False,
             rc_4tlp_straddle=False,
-            enable_pf1=False,
+            pf_count=1,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,
@@ -340,7 +340,7 @@ class UltraScalePlusPcieDevice(Device):
         self.cq_cc_straddle = cq_cc_straddle
         self.rq_rc_straddle = rq_rc_straddle
         self.rc_4tlp_straddle = rc_4tlp_straddle
-        self.enable_pf1 = enable_pf1
+        self.pf_count = pf_count
         self.enable_client_tag = enable_client_tag
         self.enable_extended_tag = enable_extended_tag
         self.enable_parity = enable_parity
@@ -580,7 +580,7 @@ class UltraScalePlusPcieDevice(Device):
         self.log.info("  Enable CQ/CC straddling: %s", self.cq_cc_straddle)
         self.log.info("  Enable RQ/RC straddling: %s", self.rq_rc_straddle)
         self.log.info("  Enable RC 4 TLP straddling: %s", self.rc_4tlp_straddle)
-        self.log.info("  Enable PF1: %s", self.enable_pf1)
+        self.log.info("  PF count: %d", self.pf_count)
         self.log.info("  Enable client tag: %s", self.enable_client_tag)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
         self.log.info("  Enable parity: %s", self.enable_parity)
@@ -633,7 +633,13 @@ class UltraScalePlusPcieDevice(Device):
 
         self.make_function()
 
-        if self.enable_pf1:
+        if self.pf_count > 1:
+            self.make_function()
+
+        if self.pf_count > 2:
+            self.make_function()
+
+        if self.pf_count > 3:
             self.make_function()
 
         if self.cfg_config_space_enable is None:

@@ -106,6 +106,7 @@ class S10PcieDevice(Device):
             pcie_link_width=None,
             pld_clk_frequency=None,
             l_tile=False,
+            pf_count=1,
 
             # signals
             # Clock and reset
@@ -224,6 +225,7 @@ class S10PcieDevice(Device):
         self.pcie_link_width = pcie_link_width
         self.pld_clk_frequency = pld_clk_frequency
         self.l_tile = l_tile
+        self.pf_count = pf_count
 
         # signals
 
@@ -374,6 +376,7 @@ class S10PcieDevice(Device):
         self.log.info("  PCIe link width: x%d", self.pcie_link_width)
         self.log.info("  PLD clock frequency: %d MHz", self.pld_clk_frequency/1e6)
         self.log.info("  Tile: %s", "L-Tile" if self.l_tile else "H-Tile")
+        self.log.info("  PF count: %d", self.pf_count)
 
         assert self.pcie_generation in {1, 2, 3}
         assert self.pcie_link_width in {1, 2, 4, 8, 16}
@@ -403,6 +406,15 @@ class S10PcieDevice(Device):
         # configure functions
 
         self.make_function()
+
+        if self.pf_count > 1:
+            self.make_function()
+
+        if self.pf_count > 2:
+            self.make_function()
+
+        if self.pf_count > 3:
+            self.make_function()
 
         # fork coroutines
 

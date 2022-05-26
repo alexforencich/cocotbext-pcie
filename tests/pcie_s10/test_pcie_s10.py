@@ -59,6 +59,7 @@ class TB:
             # pcie_link_width=2,
             # pld_clk_frequency=250e6,
             l_tile=False,
+            pf_count=1,
 
             # signals
             # Clock and reset

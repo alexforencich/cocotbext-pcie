@@ -63,7 +63,7 @@ class TB:
             cq_cc_straddle=False,
             rq_rc_straddle=False,
             rc_4tlp_straddle=False,
-            enable_pf1=False,
+            pf_count=1,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,
