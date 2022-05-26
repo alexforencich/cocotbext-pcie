@@ -32,7 +32,7 @@ from cocotbext.axi import AddressSpace
 
 from .version import __version__
 from .bridge import HostBridge, RootPort
-from .caps import PcieCapId
+from .caps import PciCapId
 from .msi import MsiRegion
 from .region import MemoryTlpRegion, IoTlpRegion
 from .switch import Switch
@@ -1072,8 +1072,8 @@ class RootComplex(Switch):
                     ptr = next_ptr
 
                 # set max payload size, max read request size, and extended tag enable
-                dev_cap = await self.capability_read_dword(cur_func, PcieCapId.EXP, 4)
-                dev_ctrl_sta = await self.capability_read_dword(cur_func, PcieCapId.EXP, 8)
+                dev_cap = await self.capability_read_dword(cur_func, PciCapId.EXP, 4)
+                dev_ctrl_sta = await self.capability_read_dword(cur_func, PciCapId.EXP, 8)
 
                 max_payload = min(0x5, min(self.max_payload_size, dev_cap & 7))
                 ext_tag = bool(self.extended_tag_field_enable and (dev_cap & (1 << 5)))
@@ -1081,7 +1081,7 @@ class RootComplex(Switch):
 
                 new_dev_ctrl = (dev_ctrl_sta & 0x00008e1f) | (max_payload << 5) | (ext_tag << 8) | (max_read_req << 12)
 
-                await self.capability_write_dword(cur_func, PcieCapId.EXP, 8, new_dev_ctrl)
+                await self.capability_write_dword(cur_func, PciCapId.EXP, 8, new_dev_ctrl)
 
                 # configure command register
                 val = await self.config_read_word(cur_func, 0x04)

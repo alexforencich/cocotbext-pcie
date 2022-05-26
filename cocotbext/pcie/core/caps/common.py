@@ -25,8 +25,8 @@ THE SOFTWARE.
 import enum
 
 
-# PCIe capability IDs
-class PcieCapId(enum.IntEnum):
+# PCI capability IDs
+class PciCapId(enum.IntEnum):
     NULL    = 0x00  # Null capability
     PM      = 0x01  # Power Management
     AGP     = 0x02  # Accelerated Graphics Port
@@ -51,7 +51,7 @@ class PcieCapId(enum.IntEnum):
     FPB     = 0x15  # Flattening portal bridge
 
 
-class PcieExtCapId(enum.IntEnum):
+class PciExtCapId(enum.IntEnum):
     NULL    = 0x0000  # Null capability
     AER     = 0x0001  # Advanced Error Reporting
     VC      = 0x0002  # Virtual Channel
@@ -98,9 +98,9 @@ class PcieExtCapId(enum.IntEnum):
     SFI     = 0x002C  # System Firmware Intermediary
 
 
-class PcieCap:
+class PciCap:
     def __init__(self, *args, **kwargs):
-        self.cap_id = PcieCapId.NULL
+        self.cap_id = PciCapId.NULL
         self.cap_ver = 0
         self.length = 1
         self.offset = None
@@ -134,16 +134,16 @@ class PcieCap:
         )
 
 
-class PcieExtCap(PcieCap):
+class PciExtCap(PciCap):
     async def read_register(self, reg):
         if reg == 0:
             return ((self.next_cap & 0xfff) << 20) | ((self.cap_ver & 0xf) << 16) | (self.cap_id & 0xffff)
         return await self._read_register(reg)
 
 
-class PcieCapList:
+class PciCapList:
     def __init__(self):
-        self.cap_type = PcieCap
+        self.cap_type = PciCap
         self.list = []
         self.start = 0x10
         self.end = 0x3f
@@ -224,9 +224,9 @@ class PcieCapList:
             self.list[k].next_cap = 0
 
 
-class PcieExtCapList(PcieCapList):
+class PciExtCapList(PciCapList):
     def __init__(self):
         super().__init__()
-        self.cap_type = PcieExtCap
+        self.cap_type = PciExtCap
         self.start = 0x40
         self.end = 0x3ff

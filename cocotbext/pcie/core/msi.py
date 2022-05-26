@@ -29,7 +29,7 @@ from cocotb.triggers import Event
 
 from cocotbext.axi import Region
 
-from .caps import PcieCapId
+from .caps import PciCapId
 
 
 class MsiRegion(Region):
@@ -60,7 +60,7 @@ class MsiRegion(Region):
         ti = self.rc.tree.find_child_dev(dev)
         if not ti:
             raise Exception("Invalid device")
-        if ti.get_capability_offset(PcieCapId.MSI) is None:
+        if ti.get_capability_offset(PciCapId.MSI) is None:
             raise Exception("Device does not support MSI")
         if ti.msi_addr is not None and ti.msi_data is not None:
             # already configured
@@ -68,7 +68,7 @@ class MsiRegion(Region):
 
         self.rc.log.info("Configure MSI on %s", ti.pcie_id)
 
-        msg_ctrl = await self.rc.capability_read_dword(dev, PcieCapId.MSI, 0)
+        msg_ctrl = await self.rc.capability_read_dword(dev, PciCapId.MSI, 0)
 
         msi_64bit = (msg_ctrl >> 23) & 1
         msi_mmcap = (msg_ctrl >> 17) & 7
@@ -76,24 +76,24 @@ class MsiRegion(Region):
         msi_addr = self.get_absolute_address(0)
 
         # message address
-        await self.rc.capability_write_dword(dev, PcieCapId.MSI, 4, msi_addr & 0xfffffffc)
+        await self.rc.capability_write_dword(dev, PciCapId.MSI, 4, msi_addr & 0xfffffffc)
 
         if msi_64bit:
             # 64 bit message address
             # message upper address
-            await self.rc.capability_write_dword(dev, PcieCapId.MSI, 8, (msi_addr >> 32) & 0xffffffff)
+            await self.rc.capability_write_dword(dev, PciCapId.MSI, 8, (msi_addr >> 32) & 0xffffffff)
             # message data
-            await self.rc.capability_write_dword(dev, PcieCapId.MSI, 12, self.msi_msg_limit)
+            await self.rc.capability_write_dword(dev, PciCapId.MSI, 12, self.msi_msg_limit)
 
         else:
             # 32 bit message address
             # message data
-            await self.rc.capability_write_dword(dev, PcieCapId.MSI, 8, self.msi_msg_limit)
+            await self.rc.capability_write_dword(dev, PciCapId.MSI, 8, self.msi_msg_limit)
 
         # enable and set enabled messages
         msg_ctrl |= 1 << 16
         msg_ctrl = (msg_ctrl & ~(7 << 20)) | (msi_mmcap << 20)
-        await self.rc.capability_write_dword(dev, PcieCapId.MSI, 0, msg_ctrl)
+        await self.rc.capability_write_dword(dev, PciCapId.MSI, 0, msg_ctrl)
 
         ti.msi_count = 2**msi_mmcap
         ti.msi_addr = msi_addr

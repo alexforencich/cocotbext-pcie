@@ -22,14 +22,14 @@ THE SOFTWARE.
 
 """
 
-from .common import PcieCapId, PcieCap
+from .common import PciCapId, PciCap
 
 
-class PmCapability(PcieCap):
+class PmCapability(PciCap):
     """Power Management capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cap_id = PcieCapId.PM
+        self.cap_id = PciCapId.PM
         self.length = 2
 
         # Power management capability registers

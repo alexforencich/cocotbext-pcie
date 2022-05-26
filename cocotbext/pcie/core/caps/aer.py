@@ -22,14 +22,14 @@ THE SOFTWARE.
 
 """
 
-from .common import PcieExtCapId, PcieExtCap
+from .common import PciExtCapId, PciExtCap
 
 
-class AerExtendedCapability(PcieExtCap):
+class AerExtendedCapability(PciExtCap):
     """Advanced Error Reporting extended capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cap_id = PcieExtCapId.AER
+        self.cap_id = PciExtCapId.AER
         self.cap_ver = 2
         self.length = 11
 

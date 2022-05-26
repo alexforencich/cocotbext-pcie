@@ -30,7 +30,7 @@ from cocotb.triggers import Event, Timer, First
 
 from cocotbext.axi import AddressSpace
 
-from .caps import PcieCapList, PcieExtCapList
+from .caps import PciCapList, PciExtCapList
 from .caps import PmCapability, PcieCapability
 from .region import MemoryTlpRegion, IoTlpRegion
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
@@ -57,8 +57,8 @@ class Function:
 
         self.rx_tlp_handler = {}
 
-        self.capabilities = PcieCapList()
-        self.ext_capabilities = PcieExtCapList()
+        self.capabilities = PciCapList()
+        self.ext_capabilities = PciExtCapList()
 
         # configuration registers
         # Vendor ID

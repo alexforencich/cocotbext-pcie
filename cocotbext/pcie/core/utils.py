@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 from collections import namedtuple
 
-from .caps import PcieCapId, PcieExtCapId
+from .caps import PciCapId, PciExtCapId
 
 
 def align(val, mask):
@@ -162,11 +162,11 @@ class TreeItem:
         return None
 
     def get_capability_offset(self, cap_id):
-        if isinstance(cap_id, PcieCapId):
+        if isinstance(cap_id, PciCapId):
             for c in self.capabilities:
                 if c[0] == cap_id:
                     return c[1]
-        elif isinstance(cap_id, PcieExtCapId):
+        elif isinstance(cap_id, PciExtCapId):
             for c in self.ext_capabilities:
                 if c[0] == cap_id:
                     return c[1]

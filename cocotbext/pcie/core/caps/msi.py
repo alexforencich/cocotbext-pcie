@@ -24,16 +24,16 @@ THE SOFTWARE.
 
 import struct
 
-from .common import PcieCapId, PcieCap
+from .common import PciCapId, PciCap
 from ..tlp import TlpAttr, TlpTc
 from ..utils import byte_mask_update
 
 
-class MsiCapability(PcieCap):
+class MsiCapability(PciCap):
     """Message-signalled interrupt capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cap_id = PcieCapId.MSI
+        self.cap_id = PciCapId.MSI
         self.length = 6
 
         # MSI Capability Registers
@@ -175,11 +175,11 @@ class MsiCapability(PcieCap):
         await self.parent.mem_write(self.msi_message_address, struct.pack('<L', data), attr=attr, tc=tc)
 
 
-class MsixCapability(PcieCap):
+class MsixCapability(PciCap):
     """Message-signalled interrupt capability"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cap_id = PcieCapId.MSIX
+        self.cap_id = PciCapId.MSIX
         self.length = 3
 
         # MSI-X Capability Registers
