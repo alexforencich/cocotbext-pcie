@@ -61,6 +61,15 @@ class TB:
             l_tile=False,
             pf_count=1,
 
+            pf0_msi_enable=True,
+            pf0_msi_count=32,
+            pf1_msi_enable=False,
+            pf1_msi_count=1,
+            pf2_msi_enable=False,
+            pf2_msi_count=1,
+            pf3_msi_enable=False,
+            pf3_msi_count=1,
+
             # signals
             # Clock and reset
             npor=dut.npor,
@@ -219,8 +228,6 @@ class TB:
         self.dev_msi_address = 0
         self.dev_msi_data = 0
         self.dev_msi_mask = 0
-
-        self.dev.functions[0].msi_cap.msi_multiple_message_capable = 5
 
         self.dev.functions[0].configure_bar(0, len(self.regions[0]))
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)

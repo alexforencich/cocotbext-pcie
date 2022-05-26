@@ -129,8 +129,10 @@ class UltraScalePcieDevice(Device):
             enable_sriov=False,
             enable_extended_configuration=False,
 
-            enable_pf0_msi=False,
-            enable_pf1_msi=False,
+            pf0_msi_enable=False,
+            pf0_msi_count=1,
+            pf1_msi_enable=False,
+            pf1_msi_count=1,
 
             # signals
             # Clock and Reset Interface
@@ -340,8 +342,10 @@ class UltraScalePcieDevice(Device):
         self.enable_sriov = enable_sriov
         self.enable_extended_configuration = enable_extended_configuration
 
-        self.enable_pf0_msi = enable_pf0_msi
-        self.enable_pf1_msi = enable_pf1_msi
+        self.pf0_msi_enable = pf0_msi_enable
+        self.pf0_msi_count = pf0_msi_count
+        self.pf1_msi_enable = pf1_msi_enable
+        self.pf1_msi_count = pf1_msi_count
 
         # signals
 
@@ -576,8 +580,10 @@ class UltraScalePcieDevice(Device):
         self.log.info("  Enable RX message interface: %s", self.enable_rx_msg_interface)
         self.log.info("  Enable SR-IOV: %s", self.enable_sriov)
         self.log.info("  Enable extended configuration: %s", self.enable_extended_configuration)
-        self.log.info("  Enable PF0 MSI: %s", self.enable_pf0_msi)
-        self.log.info("  Enable PF1 MSI: %s", self.enable_pf1_msi)
+        self.log.info("  Enable PF0 MSI: %s", self.pf0_msi_enable)
+        self.log.info("  PF0 MSI vector count: %d", self.pf0_msi_count)
+        self.log.info("  Enable PF1 MSI: %s", self.pf1_msi_enable)
+        self.log.info("  PF1 MSI vector count: %d", self.pf1_msi_count)
 
         assert self.pcie_generation in {1, 2, 3}
         assert self.pcie_link_width in {1, 2, 4, 8, 16}
@@ -617,8 +623,18 @@ class UltraScalePcieDevice(Device):
 
         self.make_function()
 
+        if self.pf0_msi_enable:
+            self.functions[0].msi_cap.msi_multiple_message_capable = (self.pf0_msi_count-1).bit_length()
+        else:
+            self.functions[0].deregister_capability(self.functions[0].msi_cap)
+
         if self.pf_count > 1:
             self.make_function()
+
+            if self.pf1_msi_enable:
+                self.functions[1].msi_cap.msi_multiple_message_capable = (self.pf1_msi_count-1).bit_length()
+            else:
+                self.functions[1].deregister_capability(self.functions[1].msi_cap)
 
         if self.cfg_config_space_enable is None:
             self.config_space_enable = True

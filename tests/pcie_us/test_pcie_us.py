@@ -69,8 +69,10 @@ class TB:
             enable_sriov=False,
             enable_extended_configuration=False,
 
-            enable_pf0_msi=True,
-            enable_pf1_msi=False,
+            pf0_msi_enable=True,
+            pf0_msi_count=32,
+            pf1_msi_enable=False,
+            pf1_msi_count=1,
 
             # signals
             user_clk=dut.user_clk,
@@ -259,8 +261,6 @@ class TB:
         self.tag_count = 32
         self.tag_active = [False]*256
         self.tag_release = Event()
-
-        self.dev.functions[0].msi_cap.msi_multiple_message_capable = 5
 
         self.dev.functions[0].configure_bar(0, len(self.regions[0]))
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)
