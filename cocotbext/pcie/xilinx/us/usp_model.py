@@ -680,6 +680,9 @@ class UltraScalePlusPcieDevice(Device):
             else:
                 self.functions[3].deregister_capability(self.functions[3].msi_cap)
 
+        for f in self.functions:
+            f.pcie_cap.extended_tag_supported = self.enable_extended_tag
+
         if self.cfg_config_space_enable is None:
             self.config_space_enable = True
 
