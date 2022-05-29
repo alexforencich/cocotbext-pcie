@@ -125,6 +125,11 @@ class Switch:
     def make_port(self, bridge=None, port=None):
         if bridge is None:
             bridge = self.default_downstream_bridge()
+
+            # transfer configuration from upstream bridge
+            bridge.pcie_cap.max_payload_size_supported = self.upstream_bridge.pcie_cap.max_payload_size_supported
+            bridge.pcie_cap.extended_tag_supported = self.upstream_bridge.pcie_cap.extended_tag_supported
+
         if port is not None:
             bridge.set_downstream_port(port)
         bridge.pri_bus_num = 0
