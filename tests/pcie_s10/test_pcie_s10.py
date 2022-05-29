@@ -60,6 +60,7 @@ class TB:
             # pld_clk_frequency=250e6,
             l_tile=False,
             pf_count=1,
+            enable_extended_tag=False,
 
             pf0_msi_enable=True,
             pf0_msi_count=32,
