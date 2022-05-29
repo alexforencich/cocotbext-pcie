@@ -864,6 +864,13 @@ class PciDevice:
 
         await self.msix_set_enable(False)
 
+    async def msix_vec_count(self):
+        if not self.get_capability_offset(PciCapId.MSIX):
+            return -1
+
+        ctrl = await self.capability_read_word(PciCapId.MSIX, 0x02)
+        return (ctrl & 0x7ff) + 1
+
     async def msix_set_enable(self, enable):
         old_ctrl = await self.capability_read_word(PciCapId.MSIX, 0x02)
         if enable:
@@ -874,7 +881,84 @@ class PciDevice:
             await self.capability_write_word(PciCapId.MSIX, 0x02, ctrl)
         self.msix_enabled = enable
 
+    async def msix_capability_init(self, nvec):
+        self.rc.log.info("pci %s: configuring MSI-X", self.pcie_id)
+
+        await self.msix_set_enable(False)
+        self.msix_enabled = True
+
+        msg_ctrl = await self.capability_read_dword(PciCapId.MSIX, 0)
+
+        table_size = ((msg_ctrl >> 16) & 0x7ff) + 1
+
+        table_offset = await self.capability_read_dword(PciCapId.MSIX, 4)
+
+        table_bir = table_offset & 0x7
+        table_offset &= ~0x7
+
+        pba_offset = await self.capability_read_dword(PciCapId.MSIX, 8)
+
+        pba_bir = pba_offset & 0x7
+        pba_offset &= ~0x7
+
+        self.rc.log.info("pci %s: MSI-X table size: %d", self.pcie_id, table_size)
+        self.rc.log.info("pci %s: MSI-X table BIR: %d", self.pcie_id, table_bir)
+        self.rc.log.info("pci %s: MSI-X table offset: 0x%08x", self.pcie_id, table_offset)
+        self.rc.log.info("pci %s: MSI-X PBA BIR: %d", self.pcie_id, pba_bir)
+        self.rc.log.info("pci %s: MSI-X PBA offset: 0x%08x", self.pcie_id, pba_offset)
+
+        if not self.msi_vectors:
+            self.msi_vectors = self.rc.msi_alloc_vectors(table_size)
+
+        # configure vectors
+        for k in range(table_size):
+            addr = self.msi_vectors[k].addr
+            data = self.msi_vectors[k].data
+            self.rc.log.info("pci %s: Configure vector %d", self.pcie_id, k)
+            await self.bar_window[table_bir].write_dword(table_offset + k*16 + 0, addr & 0xfffffffc)
+            await self.bar_window[table_bir].write_dword(table_offset + k*16 + 4, (addr >> 32) & 0xffffffff)
+            await self.bar_window[table_bir].write_dword(table_offset + k*16 + 8, data & 0xffffffff)
+            await self.bar_window[table_bir].write_dword(table_offset + k*16 + 12, 0x00000000)
+
+        # dummy read
+        await self.bar_window[table_bir].read_dword(table_offset)
+
+        # enable MSI-X
+        msg_ctrl |= 1 << 31
+        await self.capability_write_dword(PciCapId.MSIX, 0, msg_ctrl)
+
+        await self.msix_set_enable(True)
+        return 0
+
     async def enable_msix_range(self, min_vecs, max_vecs, flags):
+        if not self.get_capability_offset(PciCapId.MSIX):
+            return -1
+
+        if self.msi_enabled:
+            self.rc.log.info("pci %s: can't enable MSI-X (MSI already enabled)", self.pcie_id)
+            return -1
+
+        if min_vecs < max_vecs:
+            return -1
+
+        if self.msix_enabled:
+            return -1
+
+        nvec = await self.msix_vec_count()
+        if nvec < 0:
+            return nvec
+        if nvec < min_vecs:
+            return -1
+
+        if nvec > max_vecs:
+            nvec = max_vecs
+
+        rc = await self.msix_capability_init(nvec)
+        if rc == 0:
+            return nvec
+        if rc < 0:
+            return rc
+
         return -1
 
     async def disable_msix(self):
