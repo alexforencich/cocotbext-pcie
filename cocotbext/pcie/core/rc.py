@@ -88,8 +88,9 @@ class RootComplex(Switch):
         self.upstream_bridge.prefetchable_mem_base = self.prefetchable_mem_base
         self.upstream_bridge.prefetchable_mem_limit = self.prefetchable_mem_limit
 
-        self.max_payload_size = 0
-        self.max_read_request_size = 2
+        self._max_payload_size = 0
+        self._max_payload_size_supported = 5
+        self._max_read_request_size = 2
         self.read_completion_boundary = 128
         self.extended_tag_field_enable = True
         self.bus_master_enable = True
@@ -134,6 +135,33 @@ class RootComplex(Switch):
         self.register_rx_tlp_handler(TlpType.MEM_READ_64, self.handle_mem_read_tlp)
         self.register_rx_tlp_handler(TlpType.MEM_WRITE, self.handle_mem_write_tlp)
         self.register_rx_tlp_handler(TlpType.MEM_WRITE_64, self.handle_mem_write_tlp)
+
+    @property
+    def max_payload_size(self):
+        return self._max_payload_size
+
+    @max_payload_size.setter
+    def max_payload_size(self, val):
+        self._max_payload_size = val
+        self.upstream_bridge.pcie_cap.max_payload_size = val
+
+    @property
+    def max_payload_size_supported(self):
+        return self._max_payload_size_supported
+
+    @max_payload_size_supported.setter
+    def max_payload_size_supported(self, val):
+        self._max_payload_size_supported = val
+        self.upstream_bridge.pcie_cap.max_payload_size_supported = val
+
+    @property
+    def max_read_request_size(self):
+        return self._max_read_request_size
+
+    @max_read_request_size.setter
+    def max_read_request_size(self, val):
+        self._max_read_request_size = val
+        self.upstream_bridge.pcie_cap.max_read_request_size = val
 
     def alloc_region(self, size):
         region = self.mem_pool.alloc_region(size)
