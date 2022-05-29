@@ -107,6 +107,7 @@ class S10PcieDevice(Device):
             pld_clk_frequency=None,
             l_tile=False,
             pf_count=1,
+            max_payload_size=128,
             enable_extended_tag=False,
 
             pf0_msi_enable=False,
@@ -236,6 +237,7 @@ class S10PcieDevice(Device):
         self.pld_clk_frequency = pld_clk_frequency
         self.l_tile = l_tile
         self.pf_count = pf_count
+        self.max_payload_size = max_payload_size
         self.enable_extended_tag = enable_extended_tag
 
         self.pf0_msi_enable = pf0_msi_enable
@@ -397,6 +399,7 @@ class S10PcieDevice(Device):
         self.log.info("  PLD clock frequency: %d MHz", self.pld_clk_frequency/1e6)
         self.log.info("  Tile: %s", "L-Tile" if self.l_tile else "H-Tile")
         self.log.info("  PF count: %d", self.pf_count)
+        self.log.info("  Max payload size: %d", self.max_payload_size)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
         self.log.info("  Enable PF0 MSI: %s", self.pf0_msi_enable)
         self.log.info("  PF0 MSI vector count: %d", self.pf0_msi_count)
@@ -466,6 +469,7 @@ class S10PcieDevice(Device):
                 self.functions[3].deregister_capability(self.functions[3].msi_cap)
 
         for f in self.functions:
+            f.pcie_cap.max_payload_size_supported = (self.max_payload_size//128-1).bit_length()
             f.pcie_cap.extended_tag_supported = self.enable_extended_tag
 
         # fork coroutines

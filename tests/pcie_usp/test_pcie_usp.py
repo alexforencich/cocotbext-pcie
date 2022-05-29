@@ -64,6 +64,7 @@ class TB:
             rq_rc_straddle=False,
             rc_4tlp_straddle=False,
             pf_count=1,
+            max_payload_size=128,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,

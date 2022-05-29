@@ -131,6 +131,7 @@ class UltraScalePlusPcieDevice(Device):
             rq_rc_straddle=False,
             rc_4tlp_straddle=False,
             pf_count=1,
+            max_payload_size=128,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,
@@ -347,6 +348,7 @@ class UltraScalePlusPcieDevice(Device):
         self.rq_rc_straddle = rq_rc_straddle
         self.rc_4tlp_straddle = rc_4tlp_straddle
         self.pf_count = pf_count
+        self.max_payload_size = max_payload_size
         self.enable_client_tag = enable_client_tag
         self.enable_extended_tag = enable_extended_tag
         self.enable_parity = enable_parity
@@ -593,6 +595,7 @@ class UltraScalePlusPcieDevice(Device):
         self.log.info("  Enable RQ/RC straddling: %s", self.rq_rc_straddle)
         self.log.info("  Enable RC 4 TLP straddling: %s", self.rc_4tlp_straddle)
         self.log.info("  PF count: %d", self.pf_count)
+        self.log.info("  Max payload size: %d", self.max_payload_size)
         self.log.info("  Enable client tag: %s", self.enable_client_tag)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
         self.log.info("  Enable parity: %s", self.enable_parity)
@@ -681,6 +684,7 @@ class UltraScalePlusPcieDevice(Device):
                 self.functions[3].deregister_capability(self.functions[3].msi_cap)
 
         for f in self.functions:
+            f.pcie_cap.max_payload_size_supported = (self.max_payload_size//128-1).bit_length()
             f.pcie_cap.extended_tag_supported = self.enable_extended_tag
 
         if self.cfg_config_space_enable is None:

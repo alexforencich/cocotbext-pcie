@@ -62,6 +62,7 @@ class TB:
             alignment="dword",
             straddle=False,
             pf_count=1,
+            max_payload_size=128,
             enable_client_tag=True,
             enable_extended_tag=False,
             enable_parity=False,
