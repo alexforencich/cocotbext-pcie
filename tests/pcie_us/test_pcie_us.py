@@ -636,11 +636,14 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
     await FallingEdge(dut.user_reset)
     await Timer(100, 'ns')
 
-    await tb.rc.enumerate(enable_bus_mastering=True, configure_msi=True)
+    await tb.rc.enumerate()
 
-    dev_bar0 = tb.rc.tree[0][0].bar_window[0]
-    dev_bar1 = tb.rc.tree[0][0].bar_window[1]
-    dev_bar3 = tb.rc.tree[0][0].bar_window[3]
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+
+    dev_bar0 = dev.bar_window[0]
+    dev_bar1 = dev.bar_window[1]
+    dev_bar3 = dev.bar_window[3]
 
     for length in list(range(0, 8)):
         for offset in list(range(8)):
@@ -696,7 +699,11 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
     await FallingEdge(dut.user_reset)
     await Timer(100, 'ns')
 
-    await tb.rc.enumerate(enable_bus_mastering=True, configure_msi=True)
+    await tb.rc.enumerate()
+
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+    await dev.set_master()
 
     for length in list(range(0, 32))+[1024]:
         for offset in list(range(8))+list(range(4096-8, 4096)):
@@ -736,7 +743,12 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await FallingEdge(dut.user_reset)
     await Timer(100, 'ns')
 
-    await tb.rc.enumerate(enable_bus_mastering=True, configure_msi=True)
+    await tb.rc.enumerate()
+
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+    await dev.set_master()
+    await dev.alloc_irq_vectors(32, 32)
 
     for k in range(32):
         tb.log.info("Send MSI %d", k)
@@ -746,7 +758,7 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
         await RisingEdge(dut.user_clk)
         tb.dut.cfg_interrupt_msi_int.value = 0
 
-        event = tb.rc.msi_get_event(tb.dev.functions[0].pcie_id, k)
+        event = dev.msi_vectors[k].event
         event.clear()
         await event.wait()
 

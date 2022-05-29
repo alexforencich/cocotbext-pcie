@@ -23,7 +23,6 @@ THE SOFTWARE.
 """
 
 import logging
-import struct
 
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
@@ -32,12 +31,12 @@ from cocotbext.axi import AddressSpace
 
 from .version import __version__
 from .bridge import HostBridge, RootPort
-from .caps import PciCapId
 from .msi import MsiRegion
 from .region import MemoryTlpRegion, IoTlpRegion
 from .switch import Switch
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
-from .utils import PcieId, TreeItem, align
+from .utils import PcieId
+from .pci import PciDevice, PciHostBridge
 
 
 class RootComplex(Switch):
@@ -72,7 +71,7 @@ class RootComplex(Switch):
 
         self.upstream_bridge.upstream_tx_handler = self.downstream_recv
 
-        self.tree = TreeItem()
+        self.host_bridge = PciHostBridge(rc=self)
 
         self.io_base = 0x8000_0000
         self.io_limit = self.io_base
@@ -623,7 +622,7 @@ class RootComplex(Switch):
         await self.config_write_qwords(dev, addr, [data], byteorder, timeout, timeout_unit)
 
     async def capability_read(self, dev, cap_id, addr, length, timeout=0, timeout_unit='ns'):
-        ti = self.tree.find_child_dev(dev)
+        ti = self.host_bridge.find_child_dev(dev)
 
         if not ti:
             raise Exception("Device not found")
@@ -661,7 +660,7 @@ class RootComplex(Switch):
         return (await self.capability_read_qwords(dev, cap_id, addr, 1, byteorder, timeout, timeout_unit))[0]
 
     async def capability_write(self, dev, cap_id, addr, data, timeout=0, timeout_unit='ns'):
-        ti = self.tree.find_child_dev(dev)
+        ti = self.host_bridge.find_child_dev(dev)
 
         if not ti:
             raise Exception("Device not found")
@@ -810,402 +809,34 @@ class RootComplex(Switch):
     async def mem_write_qword(self, addr, data, byteorder='little', timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
         await self.mem_write_qwords(addr, [data], byteorder, timeout, timeout_unit, attr, tc)
 
-    async def configure_msi(self, dev):
-        await self.msi_region.configure_msi(dev)
+    def msi_alloc_vectors(self, num):
+        return self.msi_region.alloc_vectors(num)
 
-    def msi_get_event(self, dev, number=0):
-        return self.msi_region.get_event(dev, number)
+    def find_device(self, pcie_id):
+        return self.host_bridge.find_device(pcie_id)
 
-    def msi_register_callback(self, dev, callback, number=0):
-        self.msi_region.register_callback(dev, callback, number)
-
-    async def enumerate_segment(self, tree, bus, timeout=1000, timeout_unit='ns',
-            enable_bus_mastering=False, configure_msi=False):
-        sec_bus = bus+1
-        sub_bus = bus
-
-        tree.sec_bus_num = bus
-
-        # align limits against bridge registers
-        self.io_limit = align(self.io_limit, 0xfff)
-        self.mem_limit = align(self.mem_limit, 0xfffff)
-        self.prefetchable_mem_limit = align(self.prefetchable_mem_limit, 0xfffff)
-
-        tree.io_base = self.io_limit
-        tree.io_limit = self.io_limit
-        tree.mem_base = self.mem_limit
-        tree.mem_limit = self.mem_limit
-        tree.prefetchable_mem_base = self.prefetchable_mem_limit
-        tree.prefetchable_mem_limit = self.prefetchable_mem_limit
-
-        self.log.info("Enumerating bus %d", bus)
-
-        for d in range(32):
-            if bus == 0 and d == 0:
-                continue
-
-            self.log.info("Enumerating bus %d device %d", bus, d)
-
-            # read vendor ID and device ID
-            val = await self.config_read_dword(PcieId(bus, d, 0), 0x000, 'little', timeout, timeout_unit)
-
-            if val is None or val == 0xffffffff:
-                continue
-
-            # valid vendor ID
-            self.log.info("Found device at %02x:%02x.%x", bus, d, 0)
-
-            for f in range(8):
-                cur_func = PcieId(bus, d, f)
-
-                # read vendor ID and device ID
-                val = await self.config_read_dword(cur_func, 0x000, 'little', timeout, timeout_unit)
-
-                if val is None or val == 0xffffffff:
-                    continue
-
-                ti = TreeItem()
-                tree.children.append(ti)
-                ti.pcie_id = cur_func
-                ti.vendor_id = val & 0xffff
-                ti.device_id = (val >> 16) & 0xffff
-
-                # read header type
-                header_type = await self.config_read_byte(cur_func, 0x00e, timeout, timeout_unit)
-                ti.header_type = header_type
-
-                val = await self.config_read_dword(cur_func, 0x008, 'little', timeout, timeout_unit)
-
-                ti.revision_id = val & 0xff
-                ti.class_code = val >> 8
-
-                self.log.info("Found function at %s", cur_func)
-                self.log.info("Header type: 0x%02x", header_type)
-                self.log.info("Vendor ID: 0x%04x", ti.vendor_id)
-                self.log.info("Device ID: 0x%04x", ti.device_id)
-                self.log.info("Revision ID: 0x%02x", ti.revision_id)
-                self.log.info("Class code: 0x%06x", ti.class_code)
-
-                bridge = header_type & 0x7f == 0x01
-
-                bar_cnt = 6
-
-                if bridge:
-                    # bridge (type 1 header)
-                    self.log.info("Found bridge at %s", cur_func)
-
-                    bar_cnt = 2
-                else:
-                    # normal function (type 0 header)
-                    val = await self.config_read_dword(cur_func, 0x02c)
-                    ti.subsystem_vendor_id = val & 0xffff
-                    ti.subsystem_id = (val >> 16) & 0xffff
-
-                    self.log.info("Subsystem vendor ID: 0x%04x", ti.subsystem_vendor_id)
-                    self.log.info("Subsystem ID: 0x%04x", ti.subsystem_id)
-
-                # configure base address registers
-                bar = 0
-                while bar < bar_cnt:
-                    # read BAR
-                    await self.config_write_dword(cur_func, 0x010+bar*4, 0xffffffff)
-                    val = await self.config_read_dword(cur_func, 0x010+bar*4)
-
-                    if val == 0:
-                        # unimplemented BAR
-                        ti.bar_raw[bar] = 0
-                        bar += 1
-                        continue
-
-                    self.log.info("Configure function %s BAR%d", cur_func, bar)
-
-                    if val & 0x1:
-                        # IO BAR
-                        mask = (~val & 0xffffffff) | 0x3
-                        size = mask + 1
-                        self.log.info("Function %s IO BAR%d raw: 0x%08x, mask: 0x%08x, size: %d",
-                            cur_func, bar, val, mask, size)
-
-                        # align
-                        self.io_limit = align(self.io_limit, mask)
-
-                        addr = self.io_limit
-                        self.io_limit += size
-
-                        val = val & 0x3 | addr
-
-                        ti.bar[bar] = val
-                        ti.bar_raw[bar] = val
-                        ti.bar_addr[bar] = addr
-                        ti.bar_size[bar] = size
-                        ti.bar_window[bar] = self.io_address_space.create_window(addr, size)
-
-                        self.log.info("Function %s IO BAR%d allocation: 0x%08x, raw: 0x%08x, size: %d",
-                            cur_func, bar, addr, val, size)
-
-                        # write BAR
-                        await self.config_write_dword(cur_func, 0x010+bar*4, val)
-
-                        bar += 1
-
-                    elif val & 0x4:
-                        # 64 bit memory BAR
-                        if bar >= bar_cnt-1:
-                            raise Exception("Invalid BAR configuration")
-
-                        # read adjacent BAR
-                        await self.config_write_dword(cur_func, 0x010+(bar+1)*4, 0xffffffff)
-                        val2 = await self.config_read_dword(cur_func, 0x010+(bar+1)*4)
-                        val |= val2 << 32
-                        mask = (~val & 0xffffffffffffffff) | 0xf
-                        size = mask + 1
-                        self.log.info("Function %s Mem BAR%d (64-bit) raw: 0x%016x, mask: 0x%016x, size: %d",
-                            cur_func, bar, val, mask, size)
-
-                        if val & 0x8:
-                            # prefetchable
-                            # align and allocate
-                            self.prefetchable_mem_limit = align(self.prefetchable_mem_limit, mask)
-                            addr = self.prefetchable_mem_limit
-                            self.prefetchable_mem_limit += size
-
-                        else:
-                            # not-prefetchable
-                            self.log.info("Function %s Mem BAR%d (64-bit) marked non-prefetchable, "
-                                "allocating from 32-bit non-prefetchable address space", cur_func, bar)
-                            # align and allocate
-                            self.mem_limit = align(self.mem_limit, mask)
-                            addr = self.mem_limit
-                            self.mem_limit += size
-
-                        val = val & 0xf | addr
-
-                        ti.bar[bar] = val
-                        ti.bar_raw[bar] = val & 0xffffffff
-                        ti.bar_raw[bar+1] = (val >> 32) & 0xffffffff
-                        ti.bar_addr[bar] = addr
-                        ti.bar_size[bar] = size
-                        ti.bar_window[bar] = self.mem_address_space.create_window(addr, size)
-
-                        self.log.info("Function %s Mem BAR%d (64-bit) allocation: 0x%016x, raw: 0x%016x, size: %d",
-                            cur_func, bar, addr, val, size)
-
-                        # write BAR
-                        await self.config_write_dword(cur_func, 0x010+bar*4, val & 0xffffffff)
-                        await self.config_write_dword(cur_func, 0x010+(bar+1)*4, (val >> 32) & 0xffffffff)
-
-                        bar += 2
-
-                    else:
-                        # 32 bit memory BAR
-                        mask = (~val & 0xffffffff) | 0xf
-                        size = mask + 1
-                        self.log.info("Function %s Mem BAR%d (32-bit) raw: 0x%08x, mask: 0x%08x, size: %d",
-                            cur_func, bar, val, mask, size)
-
-                        if val & 0x8:
-                            # prefetchable
-                            self.log.info("Function %s Mem BAR%d (32-bit) marked prefetchable, "
-                                "but allocating as non-prefetchable", cur_func, bar)
-
-                        # align and allocate
-                        self.mem_limit = align(self.mem_limit, mask)
-                        addr = self.mem_limit
-                        self.mem_limit += size
-
-                        val = val & 0xf | addr
-
-                        ti.bar[bar] = val
-                        ti.bar_raw[bar] = val
-                        ti.bar_addr[bar] = addr
-                        ti.bar_size[bar] = size
-                        ti.bar_window[bar] = self.mem_address_space.create_window(addr, size)
-
-                        self.log.info("Function %s Mem BAR%d (32-bit) allocation: 0x%08x, raw: 0x%08x, size: %d",
-                            cur_func, bar, addr, val, size)
-
-                        # write BAR
-                        await self.config_write_dword(cur_func, 0x010+bar*4, val)
-
-                        bar += 1
-
-                # configure expansion ROM
-
-                # read register
-                await self.config_write_dword(cur_func, 0x038 if bridge else 0x30, 0xfffff800)
-                val = await self.config_read_dword(cur_func, 0x038 if bridge else 0x30)
-
-                if val:
-                    self.log.info("Configure function %s expansion ROM", cur_func)
-
-                    mask = (~val & 0xffffffff) | 0x7ff
-                    size = mask + 1
-                    self.log.info("Function %s expansion ROM raw: 0x%08x, mask: 0x%08x, size: %d",
-                        cur_func, val, mask, size)
-
-                    # align and allocate
-                    self.mem_limit = align(self.mem_limit, mask)
-                    addr = self.mem_limit
-                    self.mem_limit += size
-
-                    val = val & 15 | addr
-
-                    ti.expansion_rom_raw = val
-                    ti.expansion_rom_addr = addr
-                    ti.expansion_rom_size = size
-
-                    self.log.info("Function %s expansion ROM allocation: 0x%08x, raw: 0x%08x, size: %d",
-                        cur_func, addr, val, size)
-
-                    # write register
-                    await self.config_write_dword(cur_func, 0x038 if bridge else 0x30, val)
-                else:
-                    # not implemented
-                    ti.expansion_rom_raw = 0
-
-                self.log.info("Walk capabilities of function %s", cur_func)
-
-                # walk capabilities
-                ptr = await self.config_read_byte(cur_func, 0x34)
-                ptr = ptr & 0xfc
-
-                while ptr > 0:
-                    val = await self.config_read(cur_func, ptr, 2)
-
-                    cap_id = val[0]
-                    next_ptr = val[1] & 0xfc
-
-                    self.log.info("Found capability ID 0x%02x at offset 0x%02x, next ptr 0x%02x",
-                        cap_id, ptr, next_ptr)
-
-                    ti.capabilities.append((cap_id, ptr))
-                    ptr = next_ptr
-
-                # walk extended capabilities
-                ptr = 0x100
-
-                while True:
-                    val = await self.config_read_dword(cur_func, ptr)
-                    if not val:
-                        break
-
-                    cap_id = val & 0xffff
-                    cap_ver = (val >> 16) & 0xf
-                    next_ptr = (val >> 20) & 0xffc
-
-                    self.log.info("Found extended capability ID 0x%04x version %d at offset 0x%03x, next ptr 0x%03x",
-                        cap_id, cap_ver, ptr, next_ptr)
-
-                    ti.ext_capabilities.append((cap_id, ptr))
-                    ptr = next_ptr
-
-                # set max payload size, max read request size, and extended tag enable
-                dev_cap = await self.capability_read_dword(cur_func, PciCapId.EXP, 4)
-                dev_ctrl_sta = await self.capability_read_dword(cur_func, PciCapId.EXP, 8)
-
-                max_payload = min(0x5, min(self.max_payload_size, dev_cap & 7))
-                ext_tag = bool(self.extended_tag_field_enable and (dev_cap & (1 << 5)))
-                max_read_req = min(0x5, self.max_read_request_size)
-
-                new_dev_ctrl = (dev_ctrl_sta & 0x00008e1f) | (max_payload << 5) | (ext_tag << 8) | (max_read_req << 12)
-
-                await self.capability_write_dword(cur_func, PciCapId.EXP, 8, new_dev_ctrl)
-
-                # configure command register
-                val = await self.config_read_word(cur_func, 0x04)
-
-                # enable IO and memory space
-                val |= (1 << 0) | (1 << 1)
-
-                if enable_bus_mastering:
-                    # enable bus mastering
-                    val |= 1 << 2
-
-                await self.config_write_word(cur_func, 0x04, val | 4)
-
-                if configure_msi:
-                    # configure MSI
-                    try:
-                        await self.configure_msi(cur_func)
-                    except Exception:
-                        pass
-
-                if bridge:
-                    # set bridge registers for enumeration
-                    self.log.info("Configure bridge registers for enumeration")
-                    self.log.info("Set pri %d, sec %d, sub %d", bus, sec_bus, 255)
-
-                    ti.pri_bus_num = bus
-                    ti.sec_bus_num = sec_bus
-
-                    await self.config_write(cur_func, 0x018, bytearray([bus, sec_bus, 255]))
-
-                    # enumerate secondary bus
-                    self.log.info("Enumerate secondary bus")
-                    sub_bus = await self.enumerate_segment(tree=ti, bus=sec_bus, timeout=timeout,
-                        enable_bus_mastering=enable_bus_mastering, configure_msi=configure_msi)
-
-                    # finalize bridge configuration
-                    self.log.info("Finalize bridge configuration")
-                    self.log.info("Set pri %d, sec %d, sub %d", bus, sec_bus, sub_bus)
-
-                    ti.pri_bus_num = bus
-                    ti.sec_bus_num = sec_bus
-                    ti.sub_bus_num = sub_bus
-
-                    await self.config_write(cur_func, 0x018, bytearray([bus, sec_bus, sub_bus]))
-
-                    # set base/limit registers
-                    self.log.info("Set IO base: 0x%08x, limit: 0x%08x", ti.io_base, ti.io_limit)
-
-                    await self.config_write(cur_func, 0x01C, struct.pack('BB',
-                        (ti.io_base >> 8) & 0xf0, (ti.io_limit >> 8) & 0xf0))
-                    await self.config_write(cur_func, 0x030, struct.pack('<HH', ti.io_base >> 16, ti.io_limit >> 16))
-
-                    self.log.info("Set mem base: 0x%08x, limit: 0x%08x", ti.mem_base, ti.mem_limit)
-
-                    await self.config_write(cur_func, 0x020, struct.pack('<HH',
-                        (ti.mem_base >> 16) & 0xfff0, (ti.mem_limit >> 16) & 0xfff0))
-
-                    self.log.info("Set prefetchable mem base: 0x%016x, limit: 0x%016x",
-                        ti.prefetchable_mem_base, ti.prefetchable_mem_limit)
-
-                    await self.config_write(cur_func, 0x024, struct.pack('<HH',
-                        (ti.prefetchable_mem_base >> 16) & 0xfff0, (ti.prefetchable_mem_limit >> 16) & 0xfff0))
-                    await self.config_write(cur_func, 0x028, struct.pack('<L', ti.prefetchable_mem_base >> 32))
-                    await self.config_write(cur_func, 0x02c, struct.pack('<L', ti.prefetchable_mem_limit >> 32))
-
-                    sec_bus = sub_bus+1
-
-                if header_type & 0x80 == 0:
-                    # only one function
-                    break
-
-        tree.sub_bus_num = sub_bus
-
-        # align limits against bridge registers
-        self.io_limit = align(self.io_limit, 0xfff)
-        self.mem_limit = align(self.mem_limit, 0xfffff)
-        self.prefetchable_mem_limit = align(self.prefetchable_mem_limit, 0xfffff)
-
-        tree.io_limit = self.io_limit-1
-        tree.mem_limit = self.mem_limit-1
-        tree.prefetchable_mem_limit = self.prefetchable_mem_limit-1
-
-        self.log.info("Enumeration of bus %d complete", bus)
-
-        return sub_bus
-
-    async def enumerate(self, timeout=1000, timeout_unit='ns', enable_bus_mastering=False, configure_msi=False):
+    async def enumerate(self, timeout=1000, timeout_unit='ns'):
         self.log.info("Enumerating bus")
 
-        self.io_limit = self.io_base
-        self.mem_limit = self.mem_base
-        self.prefetchable_mem_limit = self.prefetchable_mem_base
+        self.host_bridge.max_payload_size = self.max_payload_size
+        self.host_bridge.max_payload_size_supported = self.max_payload_size_supported
+        self.host_bridge.max_read_request_size = self.max_read_request_size
 
-        self.tree = TreeItem()
-        await self.enumerate_segment(tree=self.tree, bus=0, timeout=timeout, timeout_unit=timeout_unit,
-            enable_bus_mastering=enable_bus_mastering, configure_msi=configure_msi)
+        self.host_bridge.io_base = self.io_base
+        self.host_bridge.io_limit = self.io_base
+        self.host_bridge.mem_base = self.mem_base
+        self.host_bridge.mem_limit = self.mem_base
+        self.host_bridge.prefetchable_mem_base = self.prefetchable_mem_base
+        self.host_bridge.prefetchable_mem_limit = self.prefetchable_mem_base
+
+        await self.host_bridge.probe(timeout=timeout, timeout_unit=timeout_unit)
+
+        self.io_base = self.host_bridge.io_base
+        self.io_limit = self.host_bridge.io_limit
+        self.mem_base = self.host_bridge.mem_base
+        self.mem_limit = self.host_bridge.mem_limit
+        self.prefetchable_mem_base = self.host_bridge.prefetchable_mem_base
+        self.prefetchable_mem_limit = self.host_bridge.prefetchable_mem_limit
 
         self.upstream_bridge.io_base = self.io_base
         self.upstream_bridge.io_limit = self.io_limit
@@ -1215,4 +846,4 @@ class RootComplex(Switch):
         self.upstream_bridge.prefetchable_mem_limit = self.prefetchable_mem_limit
 
         self.log.info("Enumeration complete")
-        self.log.info("Device tree: \n%s", self.tree.to_str().strip())
+        self.log.info("Device tree: \n%s", self.host_bridge.to_str().strip())
