@@ -118,6 +118,30 @@ class S10PcieDevice(Device):
             pf2_msi_count=1,
             pf3_msi_enable=False,
             pf3_msi_count=1,
+            pf0_msix_enable=False,
+            pf0_msix_table_size=0,
+            pf0_msix_table_bir=0,
+            pf0_msix_table_offset=0x00000000,
+            pf0_msix_pba_bir=0,
+            pf0_msix_pba_offset=0x00000000,
+            pf1_msix_enable=False,
+            pf1_msix_table_size=0,
+            pf1_msix_table_bir=0,
+            pf1_msix_table_offset=0x00000000,
+            pf1_msix_pba_bir=0,
+            pf1_msix_pba_offset=0x00000000,
+            pf2_msix_enable=False,
+            pf2_msix_table_size=0,
+            pf2_msix_table_bir=0,
+            pf2_msix_table_offset=0x00000000,
+            pf2_msix_pba_bir=0,
+            pf2_msix_pba_offset=0x00000000,
+            pf3_msix_enable=False,
+            pf3_msix_table_size=0,
+            pf3_msix_table_bir=0,
+            pf3_msix_table_offset=0x00000000,
+            pf3_msix_pba_bir=0,
+            pf3_msix_pba_offset=0x00000000,
 
             # signals
             # Clock and reset
@@ -248,6 +272,30 @@ class S10PcieDevice(Device):
         self.pf2_msi_count = pf2_msi_count
         self.pf3_msi_enable = pf3_msi_enable
         self.pf3_msi_count = pf3_msi_count
+        self.pf0_msix_enable = pf0_msix_enable
+        self.pf0_msix_table_size = pf0_msix_table_size
+        self.pf0_msix_table_bir = pf0_msix_table_bir
+        self.pf0_msix_table_offset = pf0_msix_table_offset
+        self.pf0_msix_pba_bir = pf0_msix_pba_bir
+        self.pf0_msix_pba_offset = pf0_msix_pba_offset
+        self.pf1_msix_enable = pf1_msix_enable
+        self.pf1_msix_table_size = pf1_msix_table_size
+        self.pf1_msix_table_bir = pf1_msix_table_bir
+        self.pf1_msix_table_offset = pf1_msix_table_offset
+        self.pf1_msix_pba_bir = pf1_msix_pba_bir
+        self.pf1_msix_pba_offset = pf1_msix_pba_offset
+        self.pf2_msix_enable = pf2_msix_enable
+        self.pf2_msix_table_size = pf2_msix_table_size
+        self.pf2_msix_table_bir = pf2_msix_table_bir
+        self.pf2_msix_table_offset = pf2_msix_table_offset
+        self.pf2_msix_pba_bir = pf2_msix_pba_bir
+        self.pf2_msix_pba_offset = pf2_msix_pba_offset
+        self.pf3_msix_enable = pf3_msix_enable
+        self.pf3_msix_table_size = pf3_msix_table_size
+        self.pf3_msix_table_bir = pf3_msix_table_bir
+        self.pf3_msix_table_offset = pf3_msix_table_offset
+        self.pf3_msix_pba_bir = pf3_msix_pba_bir
+        self.pf3_msix_pba_offset = pf3_msix_pba_offset
 
         # signals
 
@@ -409,6 +457,30 @@ class S10PcieDevice(Device):
         self.log.info("  PF2 MSI vector count: %d", self.pf2_msi_count)
         self.log.info("  Enable PF3 MSI: %s", self.pf3_msi_enable)
         self.log.info("  PF3 MSI vector count: %d", self.pf3_msi_count)
+        self.log.info("  Enable PF0 MSIX: %s", self.pf0_msix_enable)
+        self.log.info("  PF0 MSIX table size: %d", self.pf0_msix_table_size)
+        self.log.info("  PF0 MSIX table BIR: %d", self.pf0_msix_table_bir)
+        self.log.info("  PF0 MSIX table offset: 0x%08x", self.pf0_msix_table_offset)
+        self.log.info("  PF0 MSIX PBA BIR: %d", self.pf0_msix_pba_bir)
+        self.log.info("  PF0 MSIX PBA offset: 0x%08x", self.pf0_msix_pba_offset)
+        self.log.info("  Enable PF1 MSIX: %s", self.pf1_msix_enable)
+        self.log.info("  PF1 MSIX table size: %d", self.pf1_msix_table_size)
+        self.log.info("  PF1 MSIX table BIR: %d", self.pf1_msix_table_bir)
+        self.log.info("  PF1 MSIX table offset: 0x%08x", self.pf1_msix_table_offset)
+        self.log.info("  PF1 MSIX PBA BIR: %d", self.pf1_msix_pba_bir)
+        self.log.info("  PF1 MSIX PBA offset: 0x%08x", self.pf1_msix_pba_offset)
+        self.log.info("  Enable PF2 MSIX: %s", self.pf2_msix_enable)
+        self.log.info("  PF2 MSIX table size: %d", self.pf2_msix_table_size)
+        self.log.info("  PF2 MSIX table BIR: %d", self.pf2_msix_table_bir)
+        self.log.info("  PF2 MSIX table offset: 0x%08x", self.pf2_msix_table_offset)
+        self.log.info("  PF2 MSIX PBA BIR: %d", self.pf2_msix_pba_bir)
+        self.log.info("  PF2 MSIX PBA offset: 0x%08x", self.pf2_msix_pba_offset)
+        self.log.info("  Enable PF3 MSIX: %s", self.pf3_msix_enable)
+        self.log.info("  PF3 MSIX table size: %d", self.pf3_msix_table_size)
+        self.log.info("  PF3 MSIX table BIR: %d", self.pf3_msix_table_bir)
+        self.log.info("  PF3 MSIX table offset: 0x%08x", self.pf3_msix_table_offset)
+        self.log.info("  PF3 MSIX PBA BIR: %d", self.pf3_msix_pba_bir)
+        self.log.info("  PF3 MSIX PBA offset: 0x%08x", self.pf3_msix_pba_offset)
 
         assert self.pcie_generation in {1, 2, 3}
         assert self.pcie_link_width in {1, 2, 4, 8, 16}
@@ -444,6 +516,15 @@ class S10PcieDevice(Device):
         else:
             self.functions[0].deregister_capability(self.functions[0].msi_cap)
 
+        if self.pf0_msix_enable:
+            self.functions[0].msix_cap.msix_table_size = self.pf0_msix_table_size
+            self.functions[0].msix_cap.msix_table_bar_indicator_register = self.pf0_msix_table_bir
+            self.functions[0].msix_cap.msix_table_offset = self.pf0_msix_table_offset
+            self.functions[0].msix_cap.msix_pba_bar_indicator_register = self.pf0_msix_pba_bir
+            self.functions[0].msix_cap.msix_pba_offset = self.pf0_msix_pba_offset
+        else:
+            self.functions[0].deregister_capability(self.functions[0].msix_cap)
+
         if self.pf_count > 1:
             self.make_function()
 
@@ -451,6 +532,15 @@ class S10PcieDevice(Device):
                 self.functions[1].msi_cap.msi_multiple_message_capable = (self.pf1_msi_count-1).bit_length()
             else:
                 self.functions[1].deregister_capability(self.functions[1].msi_cap)
+
+            if self.pf1_msix_enable:
+                self.functions[1].msix_cap.msix_table_size = self.pf1_msix_table_size
+                self.functions[1].msix_cap.msix_table_bar_indicator_register = self.pf1_msix_table_bir
+                self.functions[1].msix_cap.msix_table_offset = self.pf1_msix_table_offset
+                self.functions[1].msix_cap.msix_pba_bar_indicator_register = self.pf1_msix_pba_bir
+                self.functions[1].msix_cap.msix_pba_offset = self.pf1_msix_pba_offset
+            else:
+                self.functions[1].deregister_capability(self.functions[1].msix_cap)
 
         if self.pf_count > 2:
             self.make_function()
@@ -460,6 +550,15 @@ class S10PcieDevice(Device):
             else:
                 self.functions[2].deregister_capability(self.functions[2].msi_cap)
 
+            if self.pf2_msix_enable:
+                self.functions[2].msix_cap.msix_table_size = self.pf2_msix_table_size
+                self.functions[2].msix_cap.msix_table_bar_indicator_register = self.pf2_msix_table_bir
+                self.functions[2].msix_cap.msix_table_offset = self.pf2_msix_table_offset
+                self.functions[2].msix_cap.msix_pba_bar_indicator_register = self.pf2_msix_pba_bir
+                self.functions[2].msix_cap.msix_pba_offset = self.pf2_msix_pba_offset
+            else:
+                self.functions[2].deregister_capability(self.functions[2].msix_cap)
+
         if self.pf_count > 3:
             self.make_function()
 
@@ -467,6 +566,15 @@ class S10PcieDevice(Device):
                 self.functions[3].msi_cap.msi_multiple_message_capable = (self.pf3_msi_count-3).bit_length()
             else:
                 self.functions[3].deregister_capability(self.functions[3].msi_cap)
+
+            if self.pf3_msix_enable:
+                self.functions[3].msix_cap.msix_table_size = self.pf3_msix_table_size
+                self.functions[3].msix_cap.msix_table_bar_indicator_register = self.pf3_msix_table_bir
+                self.functions[3].msix_cap.msix_table_offset = self.pf3_msix_table_offset
+                self.functions[3].msix_cap.msix_pba_bar_indicator_register = self.pf3_msix_pba_bir
+                self.functions[3].msix_cap.msix_pba_offset = self.pf3_msix_pba_offset
+            else:
+                self.functions[3].deregister_capability(self.functions[3].msix_cap)
 
         for f in self.functions:
             f.pcie_cap.max_payload_size_supported = (self.max_payload_size//128-1).bit_length()

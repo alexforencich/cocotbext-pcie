@@ -134,6 +134,18 @@ class UltraScalePcieDevice(Device):
             pf0_msi_count=1,
             pf1_msi_enable=False,
             pf1_msi_count=1,
+            pf0_msix_enable=False,
+            pf0_msix_table_size=0,
+            pf0_msix_table_bir=0,
+            pf0_msix_table_offset=0x00000000,
+            pf0_msix_pba_bir=0,
+            pf0_msix_pba_offset=0x00000000,
+            pf1_msix_enable=False,
+            pf1_msix_table_size=0,
+            pf1_msix_table_bir=0,
+            pf1_msix_table_offset=0x00000000,
+            pf1_msix_pba_bir=0,
+            pf1_msix_pba_offset=0x00000000,
 
             # signals
             # Clock and Reset Interface
@@ -282,6 +294,8 @@ class UltraScalePcieDevice(Device):
             cfg_interrupt_msix_int=None,
             cfg_interrupt_msix_vec_pending=None,
             cfg_interrupt_msix_vec_pending_status=None,
+            cfg_interrupt_msix_sent=None,
+            cfg_interrupt_msix_fail=None,
             cfg_interrupt_msi_attr=None,
             cfg_interrupt_msi_tph_present=None,
             cfg_interrupt_msi_tph_type=None,
@@ -348,6 +362,18 @@ class UltraScalePcieDevice(Device):
         self.pf0_msi_count = pf0_msi_count
         self.pf1_msi_enable = pf1_msi_enable
         self.pf1_msi_count = pf1_msi_count
+        self.pf0_msix_enable = pf0_msix_enable
+        self.pf0_msix_table_size = pf0_msix_table_size
+        self.pf0_msix_table_bir = pf0_msix_table_bir
+        self.pf0_msix_table_offset = pf0_msix_table_offset
+        self.pf0_msix_pba_bir = pf0_msix_pba_bir
+        self.pf0_msix_pba_offset = pf0_msix_pba_offset
+        self.pf1_msix_enable = pf1_msix_enable
+        self.pf1_msix_table_size = pf1_msix_table_size
+        self.pf1_msix_table_bir = pf1_msix_table_bir
+        self.pf1_msix_table_offset = pf1_msix_table_offset
+        self.pf1_msix_pba_bir = pf1_msix_pba_bir
+        self.pf1_msix_pba_offset = pf1_msix_pba_offset
 
         # signals
 
@@ -511,15 +537,17 @@ class UltraScalePcieDevice(Device):
         self.cfg_interrupt_msi_pending_status_function_num = init_signal(cfg_interrupt_msi_pending_status_function_num, 4)
         self.cfg_interrupt_msi_sent = init_signal(cfg_interrupt_msi_sent, 1, 0)
         self.cfg_interrupt_msi_fail = init_signal(cfg_interrupt_msi_fail, 1, 0)
-        self.cfg_interrupt_msix_enable = init_signal(cfg_interrupt_msix_enable, 4, 0)
-        self.cfg_interrupt_msix_mask = init_signal(cfg_interrupt_msix_mask, 4, 0)
-        self.cfg_interrupt_msix_vf_enable = init_signal(cfg_interrupt_msix_vf_enable, 252, 0)
-        self.cfg_interrupt_msix_vf_mask = init_signal(cfg_interrupt_msix_vf_mask, 252)
+        self.cfg_interrupt_msix_enable = init_signal(cfg_interrupt_msix_enable, 2, 0)
+        self.cfg_interrupt_msix_mask = init_signal(cfg_interrupt_msix_mask, 2, 0)
+        self.cfg_interrupt_msix_vf_enable = init_signal(cfg_interrupt_msix_vf_enable, 8, 0)
+        self.cfg_interrupt_msix_vf_mask = init_signal(cfg_interrupt_msix_vf_mask, 8)
         self.cfg_interrupt_msix_address = init_signal(cfg_interrupt_msix_address, 64)
         self.cfg_interrupt_msix_data = init_signal(cfg_interrupt_msix_data, 32)
+        self.cfg_interrupt_msix_int = init_signal(cfg_interrupt_msix_int, 1)
         self.cfg_interrupt_msix_vec_pending = init_signal(cfg_interrupt_msix_vec_pending, 2)
         self.cfg_interrupt_msix_vec_pending_status = init_signal(cfg_interrupt_msix_vec_pending_status, 1)
-        self.cfg_interrupt_msix_int = init_signal(cfg_interrupt_msix_int, 1)
+        self.cfg_interrupt_msix_sent = init_signal(cfg_interrupt_msix_sent, 1, 0)
+        self.cfg_interrupt_msix_fail = init_signal(cfg_interrupt_msix_fail, 1, 0)
         self.cfg_interrupt_msi_attr = init_signal(cfg_interrupt_msi_attr, 3)
         self.cfg_interrupt_msi_tph_present = init_signal(cfg_interrupt_msi_tph_present, 1)
         self.cfg_interrupt_msi_tph_type = init_signal(cfg_interrupt_msi_tph_type, 2)
@@ -587,6 +615,18 @@ class UltraScalePcieDevice(Device):
         self.log.info("  PF0 MSI vector count: %d", self.pf0_msi_count)
         self.log.info("  Enable PF1 MSI: %s", self.pf1_msi_enable)
         self.log.info("  PF1 MSI vector count: %d", self.pf1_msi_count)
+        self.log.info("  Enable PF0 MSIX: %s", self.pf0_msix_enable)
+        self.log.info("  PF0 MSIX table size: %d", self.pf0_msix_table_size)
+        self.log.info("  PF0 MSIX table BIR: %d", self.pf0_msix_table_bir)
+        self.log.info("  PF0 MSIX table offset: 0x%08x", self.pf0_msix_table_offset)
+        self.log.info("  PF0 MSIX PBA BIR: %d", self.pf0_msix_pba_bir)
+        self.log.info("  PF0 MSIX PBA offset: 0x%08x", self.pf0_msix_pba_offset)
+        self.log.info("  Enable PF1 MSIX: %s", self.pf1_msix_enable)
+        self.log.info("  PF1 MSIX table size: %d", self.pf1_msix_table_size)
+        self.log.info("  PF1 MSIX table BIR: %d", self.pf1_msix_table_bir)
+        self.log.info("  PF1 MSIX table offset: 0x%08x", self.pf1_msix_table_offset)
+        self.log.info("  PF1 MSIX PBA BIR: %d", self.pf1_msix_pba_bir)
+        self.log.info("  PF1 MSIX PBA offset: 0x%08x", self.pf1_msix_pba_offset)
 
         assert self.pcie_generation in {1, 2, 3}
         assert self.pcie_link_width in {1, 2, 4, 8, 16}
@@ -631,6 +671,15 @@ class UltraScalePcieDevice(Device):
         else:
             self.functions[0].deregister_capability(self.functions[0].msi_cap)
 
+        if self.pf0_msix_enable:
+            self.functions[0].msix_cap.msix_table_size = self.pf0_msix_table_size
+            self.functions[0].msix_cap.msix_table_bar_indicator_register = self.pf0_msix_table_bir
+            self.functions[0].msix_cap.msix_table_offset = self.pf0_msix_table_offset
+            self.functions[0].msix_cap.msix_pba_bar_indicator_register = self.pf0_msix_pba_bir
+            self.functions[0].msix_cap.msix_pba_offset = self.pf0_msix_pba_offset
+        else:
+            self.functions[0].deregister_capability(self.functions[0].msix_cap)
+
         if self.pf_count > 1:
             self.make_function()
 
@@ -638,6 +687,15 @@ class UltraScalePcieDevice(Device):
                 self.functions[1].msi_cap.msi_multiple_message_capable = (self.pf1_msi_count-1).bit_length()
             else:
                 self.functions[1].deregister_capability(self.functions[1].msi_cap)
+
+            if self.pf1_msix_enable:
+                self.functions[1].msix_cap.msix_table_size = self.pf1_msix_table_size
+                self.functions[1].msix_cap.msix_table_bar_indicator_register = self.pf1_msix_table_bir
+                self.functions[1].msix_cap.msix_table_offset = self.pf1_msix_table_offset
+                self.functions[1].msix_cap.msix_pba_bar_indicator_register = self.pf1_msix_pba_bir
+                self.functions[1].msix_cap.msix_pba_offset = self.pf1_msix_pba_offset
+            else:
+                self.functions[1].deregister_capability(self.functions[1].msix_cap)
 
         for f in self.functions:
             f.pcie_cap.max_payload_size_supported = (self.max_payload_size//128-1).bit_length()
@@ -1367,12 +1425,16 @@ class UltraScalePcieDevice(Device):
             # cfg_interrupt_msix_vf_enable
             # cfg_interrupt_msix_vf_mask
 
+            if self.cfg_interrupt_msix_sent is not None:
+                self.cfg_interrupt_msix_sent.value = 0
+            if self.cfg_interrupt_msix_fail is not None:
+                self.cfg_interrupt_msix_fail.value = 0
             if msix_int:
                 if msi_function_number < len(self.functions):
                     self.log.info("Issue MSI-X interrupt (addr 0x%08x, data 0x%08x)", msix_address, msix_data)
                     await self.functions[msi_function_number].msix_cap.issue_msix_interrupt(msix_address, msix_data, attr=msi_attr)
-                    if self.cfg_interrupt_msi_sent is not None:
-                        self.cfg_interrupt_msi_sent.value = 1
+                    if self.cfg_interrupt_msix_sent is not None:
+                        self.cfg_interrupt_msix_sent.value = 1
 
             # MSI/MSI-X
             # cfg_interrupt_msi_tph_present

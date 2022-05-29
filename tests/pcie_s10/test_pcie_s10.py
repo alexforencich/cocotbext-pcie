@@ -44,7 +44,7 @@ from cocotbext.pcie.core.utils import PcieId
 
 
 class TB:
-    def __init__(self, dut):
+    def __init__(self, dut, msix=False):
         self.dut = dut
 
         self.log = logging.getLogger("cocotb.tb")
@@ -71,6 +71,30 @@ class TB:
             pf2_msi_count=1,
             pf3_msi_enable=False,
             pf3_msi_count=1,
+            pf0_msix_enable=msix,
+            pf0_msix_table_size=63,
+            pf0_msix_table_bir=4,
+            pf0_msix_table_offset=0x00000000,
+            pf0_msix_pba_bir=4,
+            pf0_msix_pba_offset=0x00008000,
+            pf1_msix_enable=False,
+            pf1_msix_table_size=0,
+            pf1_msix_table_bir=0,
+            pf1_msix_table_offset=0x00000000,
+            pf1_msix_pba_bir=0,
+            pf1_msix_pba_offset=0x00000000,
+            pf2_msix_enable=False,
+            pf2_msix_table_size=0,
+            pf2_msix_table_bir=0,
+            pf2_msix_table_offset=0x00000000,
+            pf2_msix_pba_bir=0,
+            pf2_msix_pba_offset=0x00000000,
+            pf3_msix_enable=False,
+            pf3_msix_table_size=0,
+            pf3_msix_table_bir=0,
+            pf3_msix_table_offset=0x00000000,
+            pf3_msix_pba_bir=0,
+            pf3_msix_pba_offset=0x00000000,
 
             # signals
             # Clock and reset
@@ -212,6 +236,7 @@ class TB:
         self.regions[0] = mmap.mmap(-1, 1024*1024)
         self.regions[1] = mmap.mmap(-1, 1024*1024)
         self.regions[3] = mmap.mmap(-1, 1024)
+        self.regions[4] = mmap.mmap(-1, 1024*64)
 
         self.current_tag = 0
         self.tag_count = 32
@@ -230,10 +255,13 @@ class TB:
         self.dev_msi_address = 0
         self.dev_msi_data = 0
         self.dev_msi_mask = 0
+        self.dev.msix_enable = 0
+        self.dev.msix_function_mask = 0
 
         self.dev.functions[0].configure_bar(0, len(self.regions[0]))
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)
         self.dev.functions[0].configure_bar(3, len(self.regions[3]), False, False, True)
+        self.dev.functions[0].configure_bar(4, len(self.regions[4]))
 
         cocotb.start_soon(self._run_rx_tlp())
         cocotb.start_soon(self._run_cfg())
@@ -634,6 +662,8 @@ class TB:
                     self.dev_msi_enable = ctl & 1
                     self.dev_msi_multi_msg_enable = (ctl >> 2) & 0x7
                     self.dev_msi_data = ctl >> 16
+                    self.dev_msix_enable = (ctl >> 5) & 1
+                    self.dev_msix_function_mask = (ctl >> 6) & 1
 
 
 async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
@@ -786,6 +816,42 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.coreclkout_hip)
 
 
+async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
+
+    tb = TB(dut, msix=True)
+
+    tb.set_idle_generator(idle_inserter)
+    tb.set_backpressure_generator(backpressure_inserter)
+
+    await FallingEdge(dut.reset_status)
+    await Timer(100, 'ns')
+
+    await tb.rc.enumerate()
+
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+    await dev.set_master()
+    await dev.alloc_irq_vectors(64, 64)
+
+    await Timer(100, 'ns')
+    assert tb.dev_msix_enable
+
+    for k in range(64):
+        tb.log.info("Send MSI %d", k)
+
+        addr = int.from_bytes(tb.regions[4][16*k+0:16*k+8], 'little')
+        data = int.from_bytes(tb.regions[4][16*k+8:16*k+12], 'little')
+
+        await tb.dma_mem_write(addr, data.to_bytes(4, 'little'), 5000, 'ns')
+
+        event = dev.msi_vectors[k].event
+        event.clear()
+        await event.wait()
+
+    await RisingEdge(dut.coreclkout_hip)
+    await RisingEdge(dut.coreclkout_hip)
+
+
 def cycle_pause():
     return itertools.cycle([1, 1, 1, 0])
 
@@ -796,6 +862,7 @@ if cocotb.SIM_NAME:
                 run_test_mem,
                 run_test_dma,
                 run_test_msi,
+                run_test_msix,
             ]:
 
         factory = TestFactory(test)

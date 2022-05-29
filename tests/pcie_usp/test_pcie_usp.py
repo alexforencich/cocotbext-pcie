@@ -45,7 +45,7 @@ from cocotbext.pcie.core.utils import PcieId
 
 
 class TB:
-    def __init__(self, dut):
+    def __init__(self, dut, msix=False):
         self.dut = dut
 
         self.log = logging.getLogger("cocotb.tb")
@@ -80,6 +80,30 @@ class TB:
             pf2_msi_count=1,
             pf3_msi_enable=False,
             pf3_msi_count=1,
+            pf0_msix_enable=msix,
+            pf0_msix_table_size=63,
+            pf0_msix_table_bir=4,
+            pf0_msix_table_offset=0x00000000,
+            pf0_msix_pba_bir=4,
+            pf0_msix_pba_offset=0x00008000,
+            pf1_msix_enable=False,
+            pf1_msix_table_size=0,
+            pf1_msix_table_bir=0,
+            pf1_msix_table_offset=0x00000000,
+            pf1_msix_pba_bir=0,
+            pf1_msix_pba_offset=0x00000000,
+            pf2_msix_enable=False,
+            pf2_msix_table_size=0,
+            pf2_msix_table_bir=0,
+            pf2_msix_table_offset=0x00000000,
+            pf2_msix_pba_bir=0,
+            pf2_msix_pba_offset=0x00000000,
+            pf3_msix_enable=False,
+            pf3_msix_table_size=0,
+            pf3_msix_table_bir=0,
+            pf3_msix_table_offset=0x00000000,
+            pf3_msix_pba_bir=0,
+            pf3_msix_pba_offset=0x00000000,
 
             # signals
             user_clk=dut.user_clk,
@@ -186,6 +210,17 @@ class TB:
             cfg_interrupt_msi_pending_status_function_num=dut.cfg_interrupt_msi_pending_status_function_num,
             cfg_interrupt_msi_sent=dut.cfg_interrupt_msi_sent,
             cfg_interrupt_msi_fail=dut.cfg_interrupt_msi_fail,
+            cfg_interrupt_msix_enable=dut.cfg_interrupt_msix_enable,
+            cfg_interrupt_msix_mask=dut.cfg_interrupt_msix_mask,
+            cfg_interrupt_msix_vf_enable=dut.cfg_interrupt_msix_vf_enable,
+            cfg_interrupt_msix_vf_mask=dut.cfg_interrupt_msix_vf_mask,
+            cfg_interrupt_msix_address=dut.cfg_interrupt_msix_address,
+            cfg_interrupt_msix_data=dut.cfg_interrupt_msix_data,
+            cfg_interrupt_msix_int=dut.cfg_interrupt_msix_int,
+            cfg_interrupt_msix_vec_pending=dut.cfg_interrupt_msix_vec_pending,
+            cfg_interrupt_msix_vec_pending_status=dut.cfg_interrupt_msix_vec_pending_status,
+            cfg_interrupt_msix_sent=dut.cfg_interrupt_msix_sent,
+            cfg_interrupt_msix_fail=dut.cfg_interrupt_msix_fail,
             cfg_interrupt_msi_attr=dut.cfg_interrupt_msi_attr,
             cfg_interrupt_msi_tph_present=dut.cfg_interrupt_msi_tph_present,
             cfg_interrupt_msi_tph_type=dut.cfg_interrupt_msi_tph_type,
@@ -231,6 +266,10 @@ class TB:
         dut.cfg_interrupt_msi_pending_status.setimmediatevalue(0)
         dut.cfg_interrupt_msi_pending_status_data_enable.setimmediatevalue(0)
         dut.cfg_interrupt_msi_pending_status_function_num.setimmediatevalue(0)
+        dut.cfg_interrupt_msix_address.setimmediatevalue(0)
+        dut.cfg_interrupt_msix_data.setimmediatevalue(0)
+        dut.cfg_interrupt_msix_int.setimmediatevalue(0)
+        dut.cfg_interrupt_msix_vec_pending.setimmediatevalue(0)
         dut.cfg_interrupt_msi_attr.setimmediatevalue(0)
         dut.cfg_interrupt_msi_tph_present.setimmediatevalue(0)
         dut.cfg_interrupt_msi_tph_type.setimmediatevalue(0)
@@ -260,6 +299,7 @@ class TB:
         self.regions[0] = mmap.mmap(-1, 1024*1024)
         self.regions[1] = mmap.mmap(-1, 1024*1024)
         self.regions[3] = mmap.mmap(-1, 1024)
+        self.regions[4] = mmap.mmap(-1, 1024*64)
 
         self.current_tag = 0
         self.tag_count = 32
@@ -269,6 +309,7 @@ class TB:
         self.dev.functions[0].configure_bar(0, len(self.regions[0]))
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)
         self.dev.functions[0].configure_bar(3, len(self.regions[3]), False, False, True)
+        self.dev.functions[0].configure_bar(4, len(self.regions[4]))
 
         cocotb.start_soon(self._run_cq())
 
@@ -753,6 +794,8 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await dev.set_master()
     await dev.alloc_irq_vectors(32, 32)
 
+    assert dut.cfg_interrupt_msi_enable.value.integer & 1
+
     for k in range(32):
         tb.log.info("Send MSI %d", k)
 
@@ -760,6 +803,50 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
         tb.dut.cfg_interrupt_msi_int.value = 1 << k
         await RisingEdge(dut.user_clk)
         tb.dut.cfg_interrupt_msi_int.value = 0
+
+        while not tb.dut.cfg_interrupt_msi_sent.value.integer and not tb.dut.cfg_interrupt_msi_fail.value.integer:
+            await RisingEdge(dut.user_clk)
+
+        event = dev.msi_vectors[k].event
+        event.clear()
+        await event.wait()
+
+    await RisingEdge(dut.user_clk)
+    await RisingEdge(dut.user_clk)
+
+
+async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
+
+    tb = TB(dut, msix=True)
+
+    tb.set_idle_generator(idle_inserter)
+    tb.set_backpressure_generator(backpressure_inserter)
+
+    await FallingEdge(dut.user_reset)
+    await Timer(100, 'ns')
+
+    await tb.rc.enumerate()
+
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+    await dev.set_master()
+    await dev.alloc_irq_vectors(64, 64)
+
+    for k in range(64):
+        tb.log.info("Send MSI %d", k)
+
+        addr = int.from_bytes(tb.regions[4][16*k+0:16*k+8], 'little')
+        data = int.from_bytes(tb.regions[4][16*k+8:16*k+12], 'little')
+
+        await RisingEdge(dut.user_clk)
+        tb.dut.cfg_interrupt_msix_address.value = addr
+        tb.dut.cfg_interrupt_msix_data.value = data
+        tb.dut.cfg_interrupt_msix_int.value = 1
+        await RisingEdge(dut.user_clk)
+        tb.dut.cfg_interrupt_msix_int.value = 0
+
+        while not tb.dut.cfg_interrupt_msix_sent.value.integer and not tb.dut.cfg_interrupt_msix_fail.value.integer:
+            await RisingEdge(dut.user_clk)
 
         event = dev.msi_vectors[k].event
         event.clear()
@@ -779,6 +866,7 @@ if cocotb.SIM_NAME:
                 run_test_mem,
                 run_test_dma,
                 run_test_msi,
+                run_test_msix,
             ]:
 
         factory = TestFactory(test)
