@@ -829,7 +829,7 @@ class PciDevice:
             self.rc.log.info("pci %s: can't enable MSI (MSI-X already enabled)", self.pcie_id)
             return -1
 
-        if min_vecs < max_vecs:
+        if max_vecs < min_vecs:
             return -1
 
         if self.msi_enabled:
@@ -938,7 +938,7 @@ class PciDevice:
             self.rc.log.info("pci %s: can't enable MSI-X (MSI already enabled)", self.pcie_id)
             return -1
 
-        if min_vecs < max_vecs:
+        if max_vecs < min_vecs:
             return -1
 
         if self.msix_enabled:
