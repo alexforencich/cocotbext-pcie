@@ -421,7 +421,7 @@ class S10PcieSource(S10PcieBase):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info(f"TX frame: {frame}")
+            self.log.info("TX frame: %r", frame)
             first = True
 
             while frame is not None:
@@ -432,7 +432,7 @@ class S10PcieSource(S10PcieBase):
                         if not self.empty():
                             frame = self._get_frame_nowait()
                             frame_offset = 0
-                            self.log.info(f"TX frame: {frame}")
+                            self.log.info("TX frame: %r", frame)
                             first = True
                         else:
                             break
@@ -626,7 +626,7 @@ class S10PcieSink(S10PcieBase):
 
                 if sample.eop & (1 << seg):
                     assert dword_count == 0, "framing error: incorrect length or early eop"
-                    self.log.info(f"RX frame: {frame}")
+                    self.log.info("RX frame: %r", frame)
                     self._sink_frame(frame)
                     self.active = False
                     frame = None

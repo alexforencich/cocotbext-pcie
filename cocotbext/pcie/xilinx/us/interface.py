@@ -419,7 +419,7 @@ class RqSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info(f"TX RQ frame: {frame}")
+            self.log.info("TX RQ frame: %r", frame)
             first = True
 
             while frame_offset < len(frame.data):
@@ -534,7 +534,7 @@ class RqSink(UsPcieSink):
 
             first = False
             if sample.tlast:
-                self.log.info(f"RX RQ frame: {frame}")
+                self.log.info("RX RQ frame: %r", frame)
 
                 self._sink_frame(frame)
 
@@ -555,7 +555,7 @@ class RcSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info(f"TX RC frame: {frame}")
+            self.log.info("TX RC frame: %r", frame)
             first = True
 
             while frame_offset < len(frame.data):
@@ -660,7 +660,7 @@ class RcSink(UsPcieSink):
 
             first = False
             if sample.tlast:
-                self.log.info(f"RX RC frame: {frame}")
+                self.log.info("RX RC frame: %r", frame)
 
                 self._sink_frame(frame)
 
@@ -681,7 +681,7 @@ class CqSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info(f"TX CQ frame: {frame}")
+            self.log.info("TX CQ frame: %r", frame)
             first = True
 
             while frame_offset < len(frame.data):
@@ -789,7 +789,7 @@ class CqSink(UsPcieSink):
 
             first = False
             if sample.tlast:
-                self.log.info(f"RX CQ frame: {frame}")
+                self.log.info("RX CQ frame: %r", frame)
 
                 self._sink_frame(frame)
 
@@ -810,7 +810,7 @@ class CcSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info(f"TX CC frame: {frame}")
+            self.log.info("TX CC frame: %r", frame)
             first = True
 
             while frame_offset < len(frame.data):
@@ -899,7 +899,7 @@ class CcSink(UsPcieSink):
 
             first = False
             if sample.tlast:
-                self.log.info(f"RX CC frame: {frame}")
+                self.log.info("RX CC frame: %r", frame)
 
                 self._sink_frame(frame)
 
