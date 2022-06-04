@@ -315,6 +315,10 @@ class TB:
     async def dma_io_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
 
+        zero_len = len(data) == 0
+        if zero_len:
+            data = b'\x00'
+
         while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_WRITE
@@ -323,6 +327,9 @@ class TB:
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.alloc_tag()
 
@@ -347,6 +354,10 @@ class TB:
         data = b''
         n = 0
 
+        zero_len = length <= 0
+        if zero_len:
+            length = 1
+
         while True:
             tlp = Tlp()
             tlp.fmt_type = TlpType.IO_READ
@@ -355,6 +366,9 @@ class TB:
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
             tlp.set_addr_be(addr, byte_length)
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.alloc_tag()
 
@@ -379,10 +393,17 @@ class TB:
             if n >= length:
                 break
 
+        if zero_len:
+            return b''
+
         return data[:length]
 
     async def dma_mem_write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
+
+        zero_len = len(data) == 0
+        if zero_len:
+            data = b'\x00'
 
         while True:
             tlp = Tlp()
@@ -400,6 +421,9 @@ class TB:
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
 
+            if zero_len:
+                tlp.first_be = 0
+
             await self.tx_source.send(S10PcieFrame.from_tlp(tlp))
 
             n += byte_length
@@ -411,6 +435,10 @@ class TB:
     async def dma_mem_read(self, addr, length, timeout=0, timeout_unit='ns'):
         data = b''
         n = 0
+
+        zero_len = length <= 0
+        if zero_len:
+            length = 1
 
         while True:
             tlp = Tlp()
@@ -427,6 +455,9 @@ class TB:
             # 4k address align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be(addr, byte_length)
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.alloc_tag()
 
@@ -463,6 +494,9 @@ class TB:
 
             if n >= length:
                 break
+
+        if zero_len:
+            return b''
 
         return data[:length]
 
@@ -702,7 +736,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
             await dev_bar0.write(offset, test_data, timeout=100)
             # wait for write to complete
-            await dev_bar0.read(offset, 1, timeout=5000)
+            await dev_bar0.read(offset, 0, timeout=5000)
             assert tb.regions[0][offset:offset+length] == test_data
 
             assert await dev_bar0.read(offset, length, timeout=5000) == test_data
@@ -714,7 +748,7 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
             await dev_bar1.write(offset, test_data, timeout=100)
             # wait for write to complete
-            await dev_bar1.read(offset, 1, timeout=5000)
+            await dev_bar1.read(offset, 0, timeout=5000)
             assert tb.regions[1][offset:offset+length] == test_data
 
             assert await dev_bar1.read(offset, length, timeout=5000) == test_data
@@ -753,7 +787,7 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
             await tb.dma_mem_write(addr, test_data, 5000, 'ns')
             # wait for write to complete
-            await tb.dma_mem_read(addr, 1, 5000, 'ns')
+            await tb.dma_mem_read(addr, 0, 5000, 'ns')
             assert mem[offset:offset+length] == test_data
 
             assert await tb.dma_mem_read(addr, length, 5000, 'ns') == test_data

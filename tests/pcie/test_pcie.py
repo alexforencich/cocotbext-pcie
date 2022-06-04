@@ -397,7 +397,7 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             await dev_bar0.write(offset, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await dev_bar0.read(offset, 1, timeout=1000, timeout_unit='ns')
+            await dev_bar0.read(offset, 0, timeout=1000, timeout_unit='ns')
             assert await ep.read_region(0, offset, length) == test_data
 
             assert await dev_bar0.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
@@ -409,7 +409,7 @@ async def run_test_ep_mem(dut, ep_index=0):
 
             await dev_bar1.write(offset, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await dev_bar1.read(offset, 1, timeout=1000, timeout_unit='ns')
+            await dev_bar1.read(offset, 0, timeout=1000, timeout_unit='ns')
             assert await ep.read_region(1, offset, length) == test_data
 
             assert await dev_bar1.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
@@ -450,7 +450,7 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             await ep1.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep1.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
+            await ep1.mem_read(addr, 0, timeout=1000, timeout_unit='ns')
             assert await ep2.read_region(0, offset, length) == test_data
 
             assert await ep1.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
@@ -463,7 +463,7 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
             await ep1.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep1.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
+            await ep1.mem_read(addr, 0, timeout=1000, timeout_unit='ns')
             assert await ep2.read_region(1, offset, length) == test_data
 
             assert await ep1.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
@@ -507,7 +507,7 @@ async def run_test_dma(dut, ep_index=0):
 
             await ep.mem_write(addr, test_data, timeout=1000, timeout_unit='ns')
             # wait for write to complete
-            await ep.mem_read(addr, 1, timeout=1000, timeout_unit='ns')
+            await ep.mem_read(addr, 0, timeout=1000, timeout_unit='ns')
             assert mem[offset:offset+length] == test_data
 
             assert await ep.mem_read(addr, length, timeout=1000, timeout_unit='ns') == test_data

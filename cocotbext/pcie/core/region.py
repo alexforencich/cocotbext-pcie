@@ -41,6 +41,10 @@ class MemoryTlpRegion(Region):
         n = 0
         data = bytearray()
 
+        zero_len = length <= 0
+        if zero_len:
+            length = 1
+
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
 
@@ -64,6 +68,9 @@ class MemoryTlpRegion(Region):
             # 4k align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             tlp.set_addr_be(addr, byte_length)
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.func.alloc_tag()
 
@@ -96,10 +103,17 @@ class MemoryTlpRegion(Region):
             n += byte_length
             addr += byte_length
 
+        if zero_len:
+            return b''
+
         return bytes(data[:length])
 
     async def write(self, addr, data, timeout=0, timeout_unit='ns', attr=TlpAttr(0), tc=TlpTc.TC0):
         n = 0
+
+        zero_len = len(data) == 0
+        if zero_len:
+            data = b'\x00'
 
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
@@ -120,6 +134,9 @@ class MemoryTlpRegion(Region):
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
 
+            if zero_len:
+                tlp.first_be = 0
+
             await self.func.send(tlp)
 
             n += byte_length
@@ -135,6 +152,10 @@ class IoTlpRegion(Region):
         n = 0
         data = b''
 
+        zero_len = length <= 0
+        if zero_len:
+            length = 1
+
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
 
@@ -146,6 +167,9 @@ class IoTlpRegion(Region):
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
             tlp.set_addr_be(addr, byte_length)
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.func.alloc_tag()
 
@@ -167,10 +191,17 @@ class IoTlpRegion(Region):
             n += byte_length
             addr += byte_length
 
+        if zero_len:
+            return b''
+
         return data[:length]
 
     async def write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
+
+        zero_len = len(data) == 0
+        if zero_len:
+            data = b'\x00'
 
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
@@ -183,6 +214,9 @@ class IoTlpRegion(Region):
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
             tlp.set_addr_be_data(addr, data[n:n+byte_length])
+
+            if zero_len:
+                tlp.first_be = 0
 
             tlp.tag = await self.func.alloc_tag()
 
