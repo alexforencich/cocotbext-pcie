@@ -120,7 +120,7 @@ class UltraScalePcieDevice(Device):
             pcie_link_width=None,
             user_clk_frequency=None,
             alignment="dword",
-            straddle=False,
+            rc_straddle=False,
             pf_count=1,
             max_payload_size=128,
             enable_client_tag=True,
@@ -348,7 +348,7 @@ class UltraScalePcieDevice(Device):
         self.pcie_link_width = pcie_link_width
         self.user_clk_frequency = user_clk_frequency
         self.alignment = alignment
-        self.straddle = straddle
+        self.rc_straddle = rc_straddle
         self.pf_count = pf_count
         self.max_payload_size = max_payload_size
         self.enable_client_tag = enable_client_tag
@@ -406,7 +406,10 @@ class UltraScalePcieDevice(Device):
         self.rc_source = None
 
         if rc_bus is not None:
-            self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset)
+            rc_segments = 1
+            if len(rc_bus.tdata) >= 256 and self.rc_straddle:
+                rc_segments = 2
+            self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset, segments=rc_segments)
             self.rc_source.queue_occupancy_limit_frames = 2
             self.dw = self.rc_source.width
 
@@ -602,7 +605,7 @@ class UltraScalePcieDevice(Device):
         self.log.info("  PCIe link width: x%d", self.pcie_link_width)
         self.log.info("  User clock frequency: %d MHz", self.user_clk_frequency/1e6)
         self.log.info("  Alignment: %s", self.alignment)
-        self.log.info("  Enable RC straddling: %s", self.straddle)
+        self.log.info("  Enable RC straddling: %s", self.rc_straddle)
         self.log.info("  PF count: %d", self.pf_count)
         self.log.info("  Max payload size: %d", self.max_payload_size)
         self.log.info("  Enable client tag: %s", self.enable_client_tag)
@@ -634,12 +637,10 @@ class UltraScalePcieDevice(Device):
         assert self.alignment in {"address", "dword"}
 
         if self.dw < 256 or self.alignment != "dword":
-            # straddle only supported with 256-bit or wider, DWORD-aligned interface
-            assert not self.straddle
+            assert not self.rc_straddle, "RC straddling only supported with 256-bit, DWORD-aligned interface"
 
         # TODO change this when support added
         assert self.alignment == 'dword', "only dword alignment currently supported"
-        assert not self.straddle, "TLP straddling not currently supported"
 
         # check for valid configuration
         config_valid = False

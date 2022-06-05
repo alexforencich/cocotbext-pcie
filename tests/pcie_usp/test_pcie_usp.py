@@ -54,15 +54,32 @@ class TB:
         # PCIe
         self.rc = RootComplex()
 
+        cq_straddle = False
+        cc_straddle = False
+        rq_straddle = False
+        rc_straddle = False
+        rc_4tlp_straddle = False
+        if int(os.getenv("STRADDLE", "0")):
+            if len(dut.s_axis_rq_tdata) == 256:
+                rc_straddle = True
+            if len(dut.s_axis_rq_tdata) == 512:
+                cq_straddle = True
+                cc_straddle = True
+                rq_straddle = True
+                rc_straddle = True
+                rc_4tlp_straddle = True
+
         self.dev = UltraScalePlusPcieDevice(
             # configuration options
             pcie_generation=3,
             # pcie_link_width=2,
             # user_clk_frequency=250e6,
             alignment="dword",
-            cq_cc_straddle=False,
-            rq_rc_straddle=False,
-            rc_4tlp_straddle=False,
+            cq_straddle=cq_straddle,
+            cc_straddle=cc_straddle,
+            rq_straddle=rq_straddle,
+            rc_straddle=rc_straddle,
+            rc_4tlp_straddle=rc_4tlp_straddle,
             pf_count=1,
             max_payload_size=128,
             enable_client_tag=True,
@@ -290,10 +307,15 @@ class TB:
         self.rc.make_port().connect(self.dev)
 
         # user logic
-        self.rq_source = RqSource(AxiStreamBus.from_prefix(dut, "s_axis_rq"), dut.user_clk, dut.user_reset)
-        self.rc_sink = RcSink(AxiStreamBus.from_prefix(dut, "m_axis_rc"), dut.user_clk, dut.user_reset)
-        self.cq_sink = CqSink(AxiStreamBus.from_prefix(dut, "m_axis_cq"), dut.user_clk, dut.user_reset)
-        self.cc_source = CcSource(AxiStreamBus.from_prefix(dut, "s_axis_cc"), dut.user_clk, dut.user_reset)
+        cq_segments = 2 if cq_straddle else 1
+        cc_segments = 2 if cc_straddle else 1
+        rq_segments = 2 if rq_straddle else 1
+        rc_segments = 4 if rc_4tlp_straddle else (2 if rc_straddle else 1)
+
+        self.rq_source = RqSource(AxiStreamBus.from_prefix(dut, "s_axis_rq"), dut.user_clk, dut.user_reset, segments=rq_segments)
+        self.rc_sink = RcSink(AxiStreamBus.from_prefix(dut, "m_axis_rc"), dut.user_clk, dut.user_reset, segments=rc_segments)
+        self.cq_sink = CqSink(AxiStreamBus.from_prefix(dut, "m_axis_cq"), dut.user_clk, dut.user_reset, segments=cq_segments)
+        self.cc_source = CcSource(AxiStreamBus.from_prefix(dut, "s_axis_cc"), dut.user_clk, dut.user_reset, segments=cc_segments)
 
         self.regions = [None]*6
         self.regions[0] = mmap.mmap(-1, 1024*1024)
@@ -913,8 +935,9 @@ if cocotb.SIM_NAME:
 tests_dir = os.path.dirname(__file__)
 
 
-@pytest.mark.parametrize("data_width", [64, 128, 256, 512])
-def test_pcie_usp(request, data_width):
+@pytest.mark.parametrize(("data_width", "straddle"),
+    [(64, False), (128, False), (256, False), (256, True), (512, False), (512, True)])
+def test_pcie_usp(request, data_width, straddle):
     dut = "test_pcie_usp"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -933,6 +956,8 @@ def test_pcie_usp(request, data_width):
     parameters['CC_USER_WIDTH'] = 33 if parameters['DATA_WIDTH'] < 512 else 81
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+
+    extra_env['STRADDLE'] = str(int(straddle))
 
     sim_build = os.path.join(tests_dir, "sim_build",
         request.node.name.replace('[', '-').replace(']', ''))

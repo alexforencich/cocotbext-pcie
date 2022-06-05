@@ -54,13 +54,18 @@ class TB:
         # PCIe
         self.rc = RootComplex()
 
+        rc_straddle = False
+        if int(os.getenv("STRADDLE", "0")):
+            if len(dut.s_axis_rq_tdata) == 256:
+                rc_straddle = True
+
         self.dev = UltraScalePcieDevice(
             # configuration options
             # pcie_generation=3,
             # pcie_link_width=2,
             # user_clk_frequency=250e6,
             alignment="dword",
-            straddle=False,
+            rc_straddle=rc_straddle,
             pf_count=1,
             max_payload_size=128,
             enable_client_tag=True,
@@ -272,8 +277,10 @@ class TB:
         self.rc.make_port().connect(self.dev)
 
         # user logic
+        rc_segments = 2 if rc_straddle else 1
+
         self.rq_source = RqSource(AxiStreamBus.from_prefix(dut, "s_axis_rq"), dut.user_clk, dut.user_reset)
-        self.rc_sink = RcSink(AxiStreamBus.from_prefix(dut, "m_axis_rc"), dut.user_clk, dut.user_reset)
+        self.rc_sink = RcSink(AxiStreamBus.from_prefix(dut, "m_axis_rc"), dut.user_clk, dut.user_reset, segments=rc_segments)
         self.cq_sink = CqSink(AxiStreamBus.from_prefix(dut, "m_axis_cq"), dut.user_clk, dut.user_reset)
         self.cc_source = CcSource(AxiStreamBus.from_prefix(dut, "s_axis_cc"), dut.user_clk, dut.user_reset)
 
@@ -895,8 +902,9 @@ if cocotb.SIM_NAME:
 tests_dir = os.path.dirname(__file__)
 
 
-@pytest.mark.parametrize("data_width", [64, 128, 256])
-def test_pcie_us(request, data_width):
+@pytest.mark.parametrize(("data_width", "straddle"),
+    [(64, False), (128, False), (256, False), (256, True)])
+def test_pcie_us(request, data_width, straddle):
     dut = "test_pcie_us"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -915,6 +923,8 @@ def test_pcie_us(request, data_width):
     parameters['CC_USER_WIDTH'] = 33
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+
+    extra_env['STRADDLE'] = str(int(straddle))
 
     sim_build = os.path.join(tests_dir, "sim_build",
         request.node.name.replace('[', '-').replace(']', ''))

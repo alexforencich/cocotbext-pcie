@@ -38,7 +38,8 @@ module test_pcie_us #
     parameter RQ_USER_WIDTH = 60,
     parameter RC_USER_WIDTH = 75,
     parameter CQ_USER_WIDTH = 85,
-    parameter CC_USER_WIDTH = 33
+    parameter CC_USER_WIDTH = 33,
+    parameter RC_STRADDLE = 0
 )
 (
     output                      user_clk,

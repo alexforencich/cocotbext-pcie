@@ -127,8 +127,10 @@ class UltraScalePlusPcieDevice(Device):
             pcie_link_width=None,
             user_clk_frequency=None,
             alignment="dword",
-            cq_cc_straddle=False,
-            rq_rc_straddle=False,
+            cq_straddle=False,
+            cc_straddle=False,
+            rq_straddle=False,
+            rc_straddle=False,
             rc_4tlp_straddle=False,
             pf_count=1,
             max_payload_size=128,
@@ -370,8 +372,10 @@ class UltraScalePlusPcieDevice(Device):
         self.pcie_link_width = pcie_link_width
         self.user_clk_frequency = user_clk_frequency
         self.alignment = alignment
-        self.cq_cc_straddle = cq_cc_straddle
-        self.rq_rc_straddle = rq_rc_straddle
+        self.cq_straddle = cq_straddle
+        self.cc_straddle = cc_straddle
+        self.rq_straddle = rq_straddle
+        self.rc_straddle = rc_straddle
         self.rc_4tlp_straddle = rc_4tlp_straddle
         self.pf_count = pf_count
         self.max_payload_size = max_payload_size
@@ -439,7 +443,10 @@ class UltraScalePlusPcieDevice(Device):
         self.pcie_rq_tag_vld1 = init_signal(pcie_rq_tag_vld1, 1, 0)
 
         if rq_bus is not None:
-            self.rq_sink = RqSink(rq_bus, self.user_clk, self.user_reset)
+            rq_segments = 1
+            if len(rq_bus.tdata) == 512 and self.rq_straddle:
+                rq_segments = 2
+            self.rq_sink = RqSink(rq_bus, self.user_clk, self.user_reset, segments=rq_segments)
             self.rq_sink.queue_occupancy_limit_frames = 2
             self.dw = self.rq_sink.width
 
@@ -447,7 +454,12 @@ class UltraScalePlusPcieDevice(Device):
         self.rc_source = None
 
         if rc_bus is not None:
-            self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset)
+            rc_segments = 1
+            if len(rc_bus.tdata) == 512 and self.rc_4tlp_straddle:
+                rc_segments = 4
+            elif len(rc_bus.tdata) >= 256 and self.rc_straddle:
+                rc_segments = 2
+            self.rc_source = RcSource(rc_bus, self.user_clk, self.user_reset, segments=rc_segments)
             self.rc_source.queue_occupancy_limit_frames = 2
             self.dw = self.rc_source.width
 
@@ -457,7 +469,10 @@ class UltraScalePlusPcieDevice(Device):
         self.pcie_cq_np_req_count = init_signal(pcie_cq_np_req_count, 6, 0)
 
         if cq_bus is not None:
-            self.cq_source = CqSource(cq_bus, self.user_clk, self.user_reset)
+            cq_segments = 1
+            if len(cq_bus.tdata) == 512 and self.cq_straddle:
+                cq_segments = 2
+            self.cq_source = CqSource(cq_bus, self.user_clk, self.user_reset, segments=cq_segments)
             self.cq_source.queue_occupancy_limit_frames = 2
             self.dw = self.cq_source.width
 
@@ -465,7 +480,10 @@ class UltraScalePlusPcieDevice(Device):
         self.cc_sink = None
 
         if cc_bus is not None:
-            self.cc_sink = CcSink(cc_bus, self.user_clk, self.user_reset)
+            cc_segments = 1
+            if len(cc_bus.tdata) == 512 and self.cc_straddle:
+                cc_segments = 2
+            self.cc_sink = CcSink(cc_bus, self.user_clk, self.user_reset, segments=cc_segments)
             self.cc_sink.queue_occupancy_limit_frames = 2
             self.dw = self.cc_sink.width
 
@@ -643,8 +661,10 @@ class UltraScalePlusPcieDevice(Device):
         self.log.info("  PCIe link width: x%d", self.pcie_link_width)
         self.log.info("  User clock frequency: %d MHz", self.user_clk_frequency/1e6)
         self.log.info("  Alignment: %s", self.alignment)
-        self.log.info("  Enable CQ/CC straddling: %s", self.cq_cc_straddle)
-        self.log.info("  Enable RQ/RC straddling: %s", self.rq_rc_straddle)
+        self.log.info("  Enable CQ straddling: %s", self.cq_straddle)
+        self.log.info("  Enable CC straddling: %s", self.cc_straddle)
+        self.log.info("  Enable RQ straddling: %s", self.rq_straddle)
+        self.log.info("  Enable RC straddling: %s", self.rc_straddle)
         self.log.info("  Enable RC 4 TLP straddling: %s", self.rc_4tlp_straddle)
         self.log.info("  PF count: %d", self.pf_count)
         self.log.info("  Max payload size: %d", self.max_payload_size)
@@ -693,17 +713,15 @@ class UltraScalePlusPcieDevice(Device):
         assert self.alignment in {"address", "dword"}
 
         if self.dw < 256 or self.alignment != "dword":
-            # straddle only supported with 256-bit or wider, DWORD-aligned interface
-            assert not self.rq_rc_straddle
+            assert not self.rc_straddle, "RC straddling only supported with 256- or 512-bit, DWORD-aligned interface"
             if self.dw != 512:
-                assert not self.cq_cc_straddle
-                assert not self.rc_4tlp_straddle
+                assert not self.rq_straddle, "RQ straddling only supported with 512-bit, DWORD-aligned interface"
+                assert not self.cq_straddle, "CQ straddling only supported with 512-bit, DWORD-aligned interface"
+                assert not self.cc_straddle, "CC straddling only supported with 512-bit, DWORD-aligned interface"
+                assert not self.rc_4tlp_straddle, "RC 4 TLP straddling only supported with 512-bit, DWORD-aligned interface"
 
         # TODO change this when support added
         assert self.alignment == 'dword', "only dword alignment currently supported"
-        assert not self.rq_rc_straddle, "TLP straddling not currently supported"
-        assert not self.cq_cc_straddle, "TLP straddling not currently supported"
-        assert not self.rc_4tlp_straddle, "TLP straddling not currently supported"
 
         # check for valid configuration
         config_valid = False
