@@ -454,10 +454,10 @@ class RqSource(UsPcieSource):
                         first = False
 
                         if self.width == 512:
-                            transaction.tuser |= (frame.first_be & 0xf) << (seg*4)
-                            transaction.tuser |= (frame.last_be & 0xf) << (seg*4+8)
+                            transaction.tuser |= (frame.first_be & 0xf) << (sop_cnt*4)
+                            transaction.tuser |= (frame.last_be & 0xf) << (sop_cnt*4+8)
                             # addr_offset
-                            transaction.tuser |= (frame.seq_num & 0x3f) << (seg*6+61)
+                            transaction.tuser |= (frame.seq_num & 0x3f) << (sop_cnt*6+61)
 
                             # is_sop
                             transaction.tuser |= 1 << 20+sop_cnt
@@ -538,6 +538,7 @@ class RqSink(UsPcieSink):
             seg_valid = 2**self.seg_count-1
             seg_sop = 0
             seg_eop = 0
+            sop_cnt = 0
 
             if self.seg_count == 1:
                 lane_valid = sample.tkeep
@@ -582,10 +583,10 @@ class RqSink(UsPcieSink):
                     frame = UsPcieFrame()
 
                     if self.width == 512:
-                        frame.first_be = (sample.tuser >> (seg*4)) & 0xf
-                        frame.last_be = (sample.tuser >> (seg*4+8)) & 0xf
+                        frame.first_be = (sample.tuser >> (sop_cnt*4)) & 0xf
+                        frame.last_be = (sample.tuser >> (sop_cnt*4+8)) & 0xf
                         # addr_offset
-                        frame.seq_num = (sample.tuser >> (seg*6+61)) & 0x3f
+                        frame.seq_num = (sample.tuser >> (sop_cnt*6+61)) & 0x3f
                     else:
                         frame.first_be = sample.tuser & 0xf
                         frame.last_be = (sample.tuser >> 4) & 0xf
@@ -594,6 +595,8 @@ class RqSink(UsPcieSink):
 
                         if len(self.bus.tuser) == 62:
                             frame.seq_num |= ((sample.tuser >> 60) & 0x3) << 4
+
+                    sop_cnt += 1
 
                 if sample.tuser & (1 << self.discontinue_offset):
                     frame.discontinue = True
