@@ -660,7 +660,7 @@ class RcSource(UsPcieSource):
                             transaction.tuser |= (seg*self.seg_byte_lanes//4) << 68+sop_cnt*2
                         else:
                             # is_sop
-                            transaction.tuser |= 1 << 32+seg
+                            transaction.tuser |= 1 << 32+sop_cnt
 
                         sop_cnt += 1
 
@@ -746,10 +746,15 @@ class RcSink(UsPcieSink):
                 sop_byte_lane = 0
                 eop_byte_lane = 0
                 if self.width == 256:
+                    if self.seg_count == 1:
+                        if sample.tuser & (1 << 32):
+                            sop_byte_lane |= 1 << 0
+                    else:
+                        if sample.tuser & (1 << 32):
+                            sop_byte_lane |= 1 << (4 if frame is not None else 0)
+                        if sample.tuser & (2 << 32):
+                            sop_byte_lane |= 1 << 4
                     for k in range(self.seg_count):
-                        if sample.tuser & (1 << (32+k)):
-                            offset = k
-                            sop_byte_lane |= 1 << (offset * 4)
                         if sample.tuser & (1 << (34+k*4)):
                             offset = ((sample.tuser >> (35+k*4)) & 0x7)
                             eop_byte_lane |= 1 << offset
