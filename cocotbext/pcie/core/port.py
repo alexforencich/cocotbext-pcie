@@ -52,7 +52,7 @@ PCIE_GEN_SYMB_TIME = {
 
 class FcStateData:
     def __init__(self, init=0, *args, **kwargs):
-        self.__dict__.setdefault('_base_field_size', 12)
+        self.__dict__.setdefault('_base_field_size', 16)
 
         self.tx_field_size = self._base_field_size
         self.tx_field_range = 2**self.tx_field_size
@@ -126,7 +126,7 @@ class FcStateData:
 
 class FcStateHeader(FcStateData):
     def __init__(self, *args, **kwargs):
-        self._base_field_size = 8
+        self._base_field_size = 12
         super().__init__(*args, **kwargs)
 
 

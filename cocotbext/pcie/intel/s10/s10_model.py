@@ -752,18 +752,18 @@ class S10PcieDevice(Device):
 
         while True:
             if self.tx_ph_cdts is not None:
-                self.tx_ph_cdts.value = self.upstream_port.fc_state[0].ph.tx_credits_available
+                self.tx_ph_cdts.value = self.upstream_port.fc_state[0].ph.tx_credits_available & 0xff
             if self.tx_pd_cdts is not None:
-                self.tx_pd_cdts.value = self.upstream_port.fc_state[0].pd.tx_credits_available
+                self.tx_pd_cdts.value = self.upstream_port.fc_state[0].pd.tx_credits_available & 0xfff
             if self.tx_nph_cdts is not None:
-                self.tx_nph_cdts.value = self.upstream_port.fc_state[0].nph.tx_credits_available
+                self.tx_nph_cdts.value = self.upstream_port.fc_state[0].nph.tx_credits_available & 0xff
             if self.tx_cplh_cdts is not None:
-                self.tx_cplh_cdts.value = self.upstream_port.fc_state[0].cplh.tx_credits_available
+                self.tx_cplh_cdts.value = self.upstream_port.fc_state[0].cplh.tx_credits_available & 0xff
             if self.l_tile:
                 if self.tx_npd_cdts is not None:
-                    self.tx_npd_cdts.value = self.upstream_port.fc_state[0].npd.tx_credits_available
+                    self.tx_npd_cdts.value = self.upstream_port.fc_state[0].npd.tx_credits_available & 0xfff
                 if self.tx_cpld_cdts is not None:
-                    self.tx_cpld_cdts.value = self.upstream_port.fc_state[0].cpld.tx_credits_available
+                    self.tx_cpld_cdts.value = self.upstream_port.fc_state[0].cpld.tx_credits_available & 0xfff
             # self.tx_hdr_cdts_consumed
             # self.tx_data_cdts_consumed
             # self.tx_cdts_type

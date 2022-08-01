@@ -874,27 +874,27 @@ class PTilePcieDevice(Device):
         clock_edge_event = RisingEdge(self.coreclkout_hip)
 
         while True:
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].ph.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].ph.tx_credit_limit & 0xfff
             self.tx_cdts_limit_tdm_idx.value = 0
             await clock_edge_event
 
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].nph.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].nph.tx_credit_limit & 0xfff
             self.tx_cdts_limit_tdm_idx.value = 1
             await clock_edge_event
 
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].cplh.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].cplh.tx_credit_limit & 0xfff
             self.tx_cdts_limit_tdm_idx.value = 2
             await clock_edge_event
 
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].pd.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].pd.tx_credit_limit & 0xffff
             self.tx_cdts_limit_tdm_idx.value = 4
             await clock_edge_event
 
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].npd.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].npd.tx_credit_limit & 0xffff
             self.tx_cdts_limit_tdm_idx.value = 5
             await clock_edge_event
 
-            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].cpld.tx_credit_limit
+            self.tx_cdts_limit.value = self.upstream_port.fc_state[0].cpld.tx_credit_limit & 0xffff
             self.tx_cdts_limit_tdm_idx.value = 6
             await clock_edge_event
 

@@ -1280,17 +1280,17 @@ class UltraScalePcieDevice(Device):
                 cfg_fc_cpld = 0
 
             if self.cfg_fc_ph is not None:
-                self.cfg_fc_ph.value = cfg_fc_ph
+                self.cfg_fc_ph.value = cfg_fc_ph & 0xff
             if self.cfg_fc_pd is not None:
-                self.cfg_fc_pd.value = cfg_fc_pd
+                self.cfg_fc_pd.value = cfg_fc_pd & 0xfff
             if self.cfg_fc_nph is not None:
-                self.cfg_fc_nph.value = cfg_fc_nph
+                self.cfg_fc_nph.value = cfg_fc_nph & 0xff
             if self.cfg_fc_npd is not None:
-                self.cfg_fc_npd.value = cfg_fc_npd
+                self.cfg_fc_npd.value = cfg_fc_npd & 0xfff
             if self.cfg_fc_cplh is not None:
-                self.cfg_fc_cplh.value = cfg_fc_cplh
+                self.cfg_fc_cplh.value = cfg_fc_cplh & 0xff
             if self.cfg_fc_cpld is not None:
-                self.cfg_fc_cpld.value = cfg_fc_cpld
+                self.cfg_fc_cpld.value = cfg_fc_cpld & 0xfff
 
     async def _run_cfg_ctrl_logic(self):
         clock_edge_event = RisingEdge(self.user_clk)
