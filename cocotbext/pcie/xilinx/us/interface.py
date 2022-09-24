@@ -620,13 +620,13 @@ class RcSource(UsPcieSource):
         if self.width == 512:
             assert len(self.bus.tuser) == 161
             assert self.seg_count in {1, 2, 4}
-            self.parity_offset = 97
             self.discontinue_offset = 96
+            self.parity_offset = 97
         else:
             assert len(self.bus.tuser) == 75
             assert self.seg_count in {1, 2}
-            self.parity_offset = 43
             self.discontinue_offset = 42
+            self.parity_offset = 43
 
     async def _run(self):
         while True:
@@ -707,13 +707,13 @@ class RcSink(UsPcieSink):
         if self.width == 512:
             assert len(self.bus.tuser) == 161
             assert self.seg_count in {1, 2, 4}
-            self.parity_offset = 97
             self.discontinue_offset = 96
+            self.parity_offset = 97
         else:
             assert len(self.bus.tuser) == 75
             assert self.seg_count in {1, 2}
+            self.discontinue_offset = 42
             self.parity_offset = 43
-            self.discontinue_offset = 43
 
     async def _run(self):
         self.active = False
