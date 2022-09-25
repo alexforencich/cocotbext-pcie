@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 """
 
+import cocotb
 from cocotbext.axi import Region
 
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
@@ -48,15 +49,17 @@ class MemoryTlpRegion(Region):
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
 
+        op_list = []
+
         while n < length:
-            tlp = Tlp()
+            req = Tlp()
             if addr > 0xffffffff:
-                tlp.fmt_type = TlpType.MEM_READ_64
+                req.fmt_type = TlpType.MEM_READ_64
             else:
-                tlp.fmt_type = TlpType.MEM_READ
-            tlp.requester_id = self.func.pcie_id
-            tlp.attr = attr
-            tlp.tc = tc
+                req.fmt_type = TlpType.MEM_READ
+            req.requester_id = self.func.pcie_id
+            req.attr = attr
+            req.tc = tc
 
             first_pad = addr % 4
             # remaining length
@@ -67,12 +70,18 @@ class MemoryTlpRegion(Region):
                 byte_length = min(byte_length, (128 << self.cfg.max_read_request_size) - (addr & 0x7f))
             # 4k align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
-            tlp.set_addr_be(addr, byte_length)
+            req.set_addr_be(addr, byte_length)
 
             if zero_len:
-                tlp.first_be = 0
+                req.first_be = 0
 
-            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
+            op_list.append((byte_length, cocotb.start_soon(self.func.perform_nonposted_operation(req, timeout, timeout_unit))))
+
+            n += byte_length
+            addr += byte_length
+
+        for byte_length, op in op_list:
+            cpl_list = await op.join()
 
             m = 0
 
@@ -95,9 +104,6 @@ class MemoryTlpRegion(Region):
 
                 m += len(d)-offset
 
-            n += byte_length
-            addr += byte_length
-
         if zero_len:
             return b''
 
@@ -114,25 +120,25 @@ class MemoryTlpRegion(Region):
             raise Exception("Bus mastering not enabled")
 
         while n < len(data):
-            tlp = Tlp()
+            req = Tlp()
             if addr > 0xffffffff:
-                tlp.fmt_type = TlpType.MEM_WRITE_64
+                req.fmt_type = TlpType.MEM_WRITE_64
             else:
-                tlp.fmt_type = TlpType.MEM_WRITE
-            tlp.requester_id = self.func.pcie_id
-            tlp.attr = attr
-            tlp.tc = tc
+                req.fmt_type = TlpType.MEM_WRITE
+            req.requester_id = self.func.pcie_id
+            req.attr = attr
+            req.tc = tc
 
             first_pad = addr % 4
             byte_length = len(data)-n
             byte_length = min(byte_length, (128 << self.cfg.max_payload_size)-first_pad)  # max payload size
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))  # 4k align
-            tlp.set_addr_be_data(addr, data[n:n+byte_length])
+            req.set_addr_be_data(addr, data[n:n+byte_length])
 
             if zero_len:
-                tlp.first_be = 0
+                req.first_be = 0
 
-            await self.func.perform_posted_operation(tlp)
+            await self.func.perform_posted_operation(req)
 
             n += byte_length
             addr += byte_length
@@ -154,19 +160,27 @@ class IoTlpRegion(Region):
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
 
+        op_list = []
+
         while n < length:
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.IO_READ
-            tlp.requester_id = self.func.pcie_id
+            req = Tlp()
+            req.fmt_type = TlpType.IO_READ
+            req.requester_id = self.func.pcie_id
 
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
-            tlp.set_addr_be(addr, byte_length)
+            req.set_addr_be(addr, byte_length)
 
             if zero_len:
-                tlp.first_be = 0
+                req.first_be = 0
 
-            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
+            op_list.append((first_pad, cocotb.start_soon(self.func.perform_nonposted_operation(req, timeout, timeout_unit))))
+
+            n += byte_length
+            addr += byte_length
+
+        for first_pad, op in op_list:
+            cpl_list = await op.join()
 
             if not cpl_list:
                 raise Exception("Timeout")
@@ -178,9 +192,6 @@ class IoTlpRegion(Region):
             d = cpl.get_data()
 
             data += d[first_pad:]
-
-            n += byte_length
-            addr += byte_length
 
         if zero_len:
             return b''
@@ -197,24 +208,29 @@ class IoTlpRegion(Region):
         if not self.func.bus_master_enable:
             raise Exception("Bus mastering not enabled")
 
+        op_list = []
+
         while n < len(data):
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.IO_WRITE
-            tlp.requester_id = self.func.pcie_id
+            req = Tlp()
+            req.fmt_type = TlpType.IO_WRITE
+            req.requester_id = self.func.pcie_id
 
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
-            tlp.set_addr_be_data(addr, data[n:n+byte_length])
+            req.set_addr_be_data(addr, data[n:n+byte_length])
 
             if zero_len:
-                tlp.first_be = 0
+                req.first_be = 0
 
-            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
+            op_list.append(cocotb.start_soon(self.func.perform_nonposted_operation(req, timeout, timeout_unit)))
+
+            n += byte_length
+            addr += byte_length
+
+        for op in op_list:
+            cpl_list = await op.join()
 
             if not cpl_list:
                 raise Exception("Timeout")
             if cpl_list[0].status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
-
-            n += byte_length
-            addr += byte_length
