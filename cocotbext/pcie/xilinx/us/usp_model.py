@@ -1103,10 +1103,16 @@ class UltraScalePlusPcieDevice(Device):
                     # queue empty and have data credits; skip queue and send immediately to preserve ordering
 
                     if self.functions[tlp.requester_id.function].bus_master_enable:
-                        self.cpld_credit_count += tlp.get_data_credits()
+
+                        if self.functions[0].pcie_cap.extended_tag_field_enable:
+                            assert tlp.tag < 256, "tag out of range (extended tags enabled)"
+                        else:
+                            assert tlp.tag < 32, "tag out of range (extended tags disabled)"
 
                         assert not self.active_request[tlp.tag], "active tag reused"
                         self.active_request[tlp.tag] = tlp
+
+                        self.cpld_credit_count += tlp.get_data_credits()
 
                         await self.send(Tlp(tlp))
                         self.rq_seq_num.put_nowait(tlp.seq_num)
