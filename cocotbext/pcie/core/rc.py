@@ -251,6 +251,46 @@ class RootComplex(Switch):
         self.tag_active[tag] = False
         self.tag_release.set()
 
+    async def perform_posted_operation(self, req):
+        await self.send(req)
+
+    async def perform_nonposted_operation(self, req, timeout=0, timeout_unit='ns'):
+        completions = []
+
+        req.tag = await self.alloc_tag()
+
+        await self.send(req)
+
+        while True:
+            cpl = await self.recv_cpl(req.tag, timeout, timeout_unit)
+
+            if not cpl:
+                break
+
+            completions.append(cpl)
+
+            if cpl.status != CplStatus.SC:
+                # bad status
+                break
+            elif req.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
+                # completion for memory read request
+
+                # request completed
+                if cpl.byte_count <= cpl.length*4 - (cpl.lower_address & 0x3):
+                    break
+
+                # completion for read request has SC status but no data
+                if cpl.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED}:
+                    break
+
+            else:
+                # completion for other request
+                break
+
+        self.release_tag(req.tag)
+
+        return completions
+
     async def handle_io_read_tlp(self, tlp):
         self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
                 tlp.address, tlp.first_be, tlp.tag)
@@ -520,18 +560,13 @@ class RootComplex(Switch):
 
             tlp.register_number = addr >> 2
 
-            tlp.tag = await self.alloc_tag()
+            cpl_list = await self.perform_nonposted_operation(tlp, timeout, timeout_unit)
 
-            await self.send(tlp)
-            cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.release_tag(tlp.tag)
-
-            if not cpl or cpl.status != CplStatus.SC:
+            if not cpl_list or cpl_list[0].status != CplStatus.SC:
                 d = b'\xff\xff\xff\xff'
             else:
-                assert cpl.length == 1
-                d = cpl.get_data()
+                assert cpl_list[0].length == 1
+                d = cpl_list[0].get_data()
 
             data += d[first_pad:]
 
@@ -583,12 +618,7 @@ class RootComplex(Switch):
 
             tlp.register_number = addr >> 2
 
-            tlp.tag = await self.alloc_tag()
-
-            await self.send(tlp)
-            await self.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.release_tag(tlp.tag)
+            cpl_list = await self.perform_nonposted_operation(tlp, timeout, timeout_unit)
 
             n += byte_length
             addr += byte_length

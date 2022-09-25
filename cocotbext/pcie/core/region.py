@@ -72,20 +72,17 @@ class MemoryTlpRegion(Region):
             if zero_len:
                 tlp.first_be = 0
 
-            tlp.tag = await self.func.alloc_tag()
-
-            await self.func.send(tlp)
+            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
 
             m = 0
 
             while m < byte_length:
-                cpl = await self.func.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-                if not cpl:
-                    self.func.release_tag(tlp.tag)
+                if not cpl_list:
                     raise Exception("Timeout")
+
+                cpl = cpl_list.pop(0)
+
                 if cpl.status != CplStatus.SC:
-                    self.func.release_tag(tlp.tag)
                     raise Exception("Unsuccessful completion")
 
                 assert cpl.byte_count+3+(cpl.lower_address & 3) >= cpl.length*4
@@ -97,8 +94,6 @@ class MemoryTlpRegion(Region):
                 data.extend(d[offset:offset+cpl.byte_count])
 
                 m += len(d)-offset
-
-            self.func.release_tag(tlp.tag)
 
             n += byte_length
             addr += byte_length
@@ -137,7 +132,7 @@ class MemoryTlpRegion(Region):
             if zero_len:
                 tlp.first_be = 0
 
-            await self.func.send(tlp)
+            await self.func.perform_posted_operation(tlp)
 
             n += byte_length
             addr += byte_length
@@ -171,15 +166,11 @@ class IoTlpRegion(Region):
             if zero_len:
                 tlp.first_be = 0
 
-            tlp.tag = await self.func.alloc_tag()
+            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
 
-            await self.func.send(tlp)
-            cpl = await self.func.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.func.release_tag(tlp.tag)
-
-            if not cpl:
+            if not cpl_list:
                 raise Exception("Timeout")
+            cpl = cpl_list[0]
             if cpl.status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
 
@@ -218,16 +209,11 @@ class IoTlpRegion(Region):
             if zero_len:
                 tlp.first_be = 0
 
-            tlp.tag = await self.func.alloc_tag()
+            cpl_list = await self.func.perform_nonposted_operation(tlp, timeout, timeout_unit)
 
-            await self.func.send(tlp)
-            cpl = await self.func.recv_cpl(tlp.tag, timeout, timeout_unit)
-
-            self.func.release_tag(tlp.tag)
-
-            if not cpl:
+            if not cpl_list:
                 raise Exception("Timeout")
-            if cpl.status != CplStatus.SC:
+            if cpl_list[0].status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
 
             n += byte_length

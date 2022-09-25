@@ -506,6 +506,46 @@ class Function:
         self.tag_active[tag] = False
         self.tag_release.set()
 
+    async def perform_posted_operation(self, req):
+        await self.send(req)
+
+    async def perform_nonposted_operation(self, req, timeout=0, timeout_unit='ns'):
+        completions = []
+
+        req.tag = await self.alloc_tag()
+
+        await self.send(req)
+
+        while True:
+            cpl = await self.recv_cpl(req.tag, timeout, timeout_unit)
+
+            if not cpl:
+                break
+
+            completions.append(cpl)
+
+            if cpl.status != CplStatus.SC:
+                # bad status
+                break
+            elif req.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64}:
+                # completion for memory read request
+
+                # request completed
+                if cpl.byte_count <= cpl.length*4 - (cpl.lower_address & 0x3):
+                    break
+
+                # completion for read request has SC status but no data
+                if cpl.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED}:
+                    break
+
+            else:
+                # completion for other request
+                break
+
+        self.release_tag(req.tag)
+
+        return completions
+
     async def handle_config_0_read_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
             self.log.info("Config type 0 read, reg 0x%03x", tlp.register_number)
