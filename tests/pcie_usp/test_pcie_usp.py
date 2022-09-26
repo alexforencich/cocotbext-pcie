@@ -32,7 +32,8 @@ import cocotb_test.simulator
 import pytest
 
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event
+from cocotb.queue import Queue
+from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event, First
 from cocotb.regression import TestFactory
 
 from cocotbext.axi import AxiStreamBus
@@ -328,11 +329,15 @@ class TB:
         self.tag_active = [False]*256
         self.tag_release = Event()
 
+        self.rx_cpl_queues = [Queue() for k in range(256)]
+        self.rx_cpl_sync = [Event() for k in range(256)]
+
         self.dev.functions[0].configure_bar(0, len(self.regions[0]))
         self.dev.functions[0].configure_bar(1, len(self.regions[1]), True, True)
         self.dev.functions[0].configure_bar(3, len(self.regions[3]), False, False, True)
         self.dev.functions[0].configure_bar(4, len(self.regions[4]))
 
+        cocotb.start_soon(self._run_rc())
         cocotb.start_soon(self._run_cq())
 
     def set_idle_generator(self, generator=None):
@@ -344,6 +349,24 @@ class TB:
         if generator:
             self.dev.rq_sink.set_pause_generator(generator())
             self.dev.cc_sink.set_pause_generator(generator())
+
+    async def recv_cpl(self, tag, timeout=0, timeout_unit='ns'):
+        queue = self.rx_cpl_queues[tag]
+        sync = self.rx_cpl_sync[tag]
+
+        if not queue.empty():
+            return queue.get_nowait()
+
+        sync.clear()
+        if timeout:
+            await First(sync.wait(), Timer(timeout, timeout_unit))
+        else:
+            await sync.wait()
+
+        if not queue.empty():
+            return queue.get_nowait()
+
+        return None
 
     async def alloc_tag(self):
         tag_count = min(256 if self.dev.functions[0].pcie_cap.extended_tag_field_enable else 32, self.tag_count)
@@ -387,15 +410,12 @@ class TB:
             tlp.tag = await self.alloc_tag()
 
             await self.rq_source.send(tlp.pack_us_rq())
-            pkt = await self.rc_sink.recv()
+            cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
 
             self.release_tag(tlp.tag)
 
-            if not pkt:
+            if not cpl:
                 raise Exception("Timeout")
-
-            cpl = Tlp_us.unpack_us_rc(pkt)
-
             if cpl.status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
 
@@ -428,15 +448,12 @@ class TB:
             tlp.tag = await self.alloc_tag()
 
             await self.rq_source.send(tlp.pack_us_rq())
-            pkt = await self.rc_sink.recv()
+            cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
 
             self.release_tag(tlp.tag)
 
-            if not pkt:
+            if not cpl:
                 raise Exception("Timeout")
-
-            cpl = Tlp_us.unpack_us_rc(pkt)
-
             if cpl.status != CplStatus.SC:
                 raise Exception("Unsuccessful completion")
             else:
@@ -523,13 +540,10 @@ class TB:
             m = 0
 
             while True:
-                pkt = await self.rc_sink.recv()
+                cpl = await self.recv_cpl(tlp.tag, timeout, timeout_unit)
 
-                if not pkt:
+                if not cpl:
                     raise Exception("Timeout")
-
-                cpl = Tlp_us.unpack_us_rc(pkt)
-
                 if cpl.status != CplStatus.SC:
                     raise Exception("Unsuccessful completion")
                 else:
@@ -558,6 +572,17 @@ class TB:
             return b''
 
         return data[:length]
+
+    async def _run_rc(self):
+        while True:
+            pkt = await self.rc_sink.recv()
+
+            tlp = Tlp_us.unpack_us_rc(pkt)
+
+            self.log.debug("RC TLP: %s", repr(tlp))
+
+            self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
+            self.rx_cpl_sync[tlp.tag].set()
 
     async def _run_cq(self):
         while True:
