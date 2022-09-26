@@ -239,7 +239,7 @@ class TB:
         self.regions[4] = mmap.mmap(-1, 1024*64)
 
         self.current_tag = 0
-        self.tag_count = 32
+        self.tag_count = 256
         self.tag_active = [False]*256
         self.tag_release = Event()
 
@@ -293,7 +293,7 @@ class TB:
         return None
 
     async def alloc_tag(self):
-        tag_count = min(256, self.tag_count)
+        tag_count = min(256 if self.dev.functions[0].pcie_cap.extended_tag_field_enable else 32, self.tag_count)
 
         while True:
             tag = self.current_tag
