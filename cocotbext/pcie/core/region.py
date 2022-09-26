@@ -151,7 +151,7 @@ class IoTlpRegion(Region):
 
     async def read(self, addr, length, timeout=0, timeout_unit='ns'):
         n = 0
-        data = b''
+        data = bytearray()
 
         zero_len = length <= 0
         if zero_len:
@@ -191,12 +191,12 @@ class IoTlpRegion(Region):
             assert cpl.length == 1
             d = cpl.get_data()
 
-            data += d[first_pad:]
+            data.extend(d[first_pad:])
 
         if zero_len:
             return b''
 
-        return data[:length]
+        return bytes(data[:length])
 
     async def write(self, addr, data, timeout=0, timeout_unit='ns'):
         n = 0

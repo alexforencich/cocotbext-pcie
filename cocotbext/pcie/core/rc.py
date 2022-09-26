@@ -546,21 +546,21 @@ class RootComplex(Switch):
 
     async def config_read(self, dev, addr, length, timeout=0, timeout_unit='ns'):
         n = 0
-        data = b''
+        data = bytearray()
 
-        while True:
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.CFG_READ_1
-            tlp.requester_id = PcieId(0, 0, 0)
-            tlp.dest_id = dev
+        while n < length:
+            req = Tlp()
+            req.fmt_type = TlpType.CFG_READ_1
+            req.requester_id = PcieId(0, 0, 0)
+            req.dest_id = dev
 
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
-            tlp.set_addr_be(addr, byte_length)
+            req.set_addr_be(addr, byte_length)
 
-            tlp.register_number = addr >> 2
+            req.register_number = addr >> 2
 
-            cpl_list = await self.perform_nonposted_operation(tlp, timeout, timeout_unit)
+            cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
             if not cpl_list or cpl_list[0].status != CplStatus.SC:
                 d = b'\xff\xff\xff\xff'
@@ -568,13 +568,10 @@ class RootComplex(Switch):
                 assert cpl_list[0].length == 1
                 d = cpl_list[0].get_data()
 
-            data += d[first_pad:]
+            data.extend(d[first_pad:])
 
             n += byte_length
             addr += byte_length
-
-            if n >= length:
-                break
 
         return data[:length]
 
@@ -606,25 +603,22 @@ class RootComplex(Switch):
     async def config_write(self, dev, addr, data, timeout=0, timeout_unit='ns'):
         n = 0
 
-        while True:
-            tlp = Tlp()
-            tlp.fmt_type = TlpType.CFG_WRITE_1
-            tlp.requester_id = PcieId(0, 0, 0)
-            tlp.dest_id = dev
+        while n < len(data):
+            req = Tlp()
+            req.fmt_type = TlpType.CFG_WRITE_1
+            req.requester_id = PcieId(0, 0, 0)
+            req.dest_id = dev
 
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
-            tlp.set_addr_be_data(addr, data[n:n+byte_length])
+            req.set_addr_be_data(addr, data[n:n+byte_length])
 
-            tlp.register_number = addr >> 2
+            req.register_number = addr >> 2
 
-            cpl_list = await self.perform_nonposted_operation(tlp, timeout, timeout_unit)
+            cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
             n += byte_length
             addr += byte_length
-
-            if n >= len(data):
-                break
 
     async def config_write_words(self, dev, addr, data, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):
         words = data
