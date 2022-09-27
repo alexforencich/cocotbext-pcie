@@ -350,6 +350,7 @@ class UltraScalePlusPcieDevice(Device):
         self.dw = None
 
         self.rq_seq_num = Queue()
+        self.rq_tag = Queue()
         self.rc_queue = Queue()
         self.cq_queue = Queue()
         self.cq_np_queue = Queue()
@@ -364,6 +365,10 @@ class UltraScalePlusPcieDevice(Device):
         self.cpld_credit_released = Event()
 
         self.active_request = [None for x in range(256)]
+        self.tag_release = Event()
+        self.tag_available_count = 32
+        self.tag_count = 256
+        self.current_tag = 0
 
         self.config_space_enable = False
 
@@ -829,6 +834,8 @@ class UltraScalePlusPcieDevice(Device):
             cocotb.start_soon(self._run_rq_logic())
             cocotb.start_soon(self._run_rq_np_queue_logic())
             cocotb.start_soon(self._run_rq_seq_num_logic())
+            if not self.enable_client_tag:
+                cocotb.start_soon(self._run_rq_tag_logic())
         if self.rc_source:
             cocotb.start_soon(self._run_rc_logic())
         if self.cq_source:
@@ -844,6 +851,24 @@ class UltraScalePlusPcieDevice(Device):
         cocotb.start_soon(self._run_cfg_int_logic())
 
         cocotb.start_soon(self._run_reset())
+
+    def get_free_tag(self):
+        tag_count = min(256 if self.functions[0].pcie_cap.extended_tag_field_enable else 32, self.tag_count)
+
+        tag = self.current_tag
+        for k in range(tag_count):
+            tag = (tag + 1) % tag_count
+            if self.active_request[tag] is None:
+                self.current_tag = tag
+                return tag
+
+        return None
+
+    def get_available_tag_count(self):
+        if self.functions[0].pcie_cap.extended_tag_field_enable:
+            return self.active_request.count(None)
+        else:
+            return self.active_request[0:32].count(None)
 
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %r", tlp)
@@ -930,7 +955,7 @@ class UltraScalePlusPcieDevice(Device):
                             tlp.request_completed = True
                             self.active_request[tlp.tag] = None
 
-                        # completion for read response has SC status but no data
+                        # completion for read request has SC status but no data
                         if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_LOCKED}:
                             tlp.error_code = ErrorCode.INVALID_LENGTH
                             tlp.request_completed = True
@@ -946,6 +971,8 @@ class UltraScalePlusPcieDevice(Device):
                     self.cpld_credit_released.set()
 
                     self.rc_queue.put_nowait(tlp)
+
+                    self.tag_available_count = self.get_available_tag_count()
 
                     return
 
@@ -1100,7 +1127,7 @@ class UltraScalePlusPcieDevice(Device):
             if tlp.is_nonposted():
                 # non-posted request
 
-                if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
+                if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit and (self.enable_client_tag or self.tag_available_count > 0):
                     # queue empty and have data credits; skip queue and send immediately to preserve ordering
 
                     if not self.functions[tlp.requester_id.function].bus_master_enable:
@@ -1113,8 +1140,13 @@ class UltraScalePlusPcieDevice(Device):
                     else:
                         assert tlp.tag < 32, "tag out of range (extended tags disabled)"
 
+                    if not self.enable_client_tag:
+                        tlp.tag = self.get_free_tag()
+                        self.rq_tag.put_nowait(tlp.tag)
+
                     assert not self.active_request[tlp.tag], "active tag reused"
                     self.active_request[tlp.tag] = tlp
+                    self.tag_available_count = self.get_available_tag_count()
 
                     self.cpld_credit_count += tlp.get_data_credits()
 
@@ -1146,10 +1178,20 @@ class UltraScalePlusPcieDevice(Device):
             tlp = await self.rq_np_queue.get()
             self.rq_np_queue_dequeue.set()
 
-            # wait for data credits
-            while self.cpld_credit_count+tlp.get_data_credits() > self.cpld_credit_limit:
-                self.cpld_credit_released.clear()
-                await self.cpld_credit_released.wait()
+            while True:
+                # wait for data credits
+                if self.cpld_credit_count+tlp.get_data_credits() > self.cpld_credit_limit:
+                    self.cpld_credit_released.clear()
+                    await self.cpld_credit_released.wait()
+                    continue
+
+                # wait for tags
+                if not self.enable_client_tag and self.tag_available_count <= 0:
+                    self.tag_release.clear()
+                    await self.tag_release.wait()
+                    continue
+
+                break
 
             if not self.functions[tlp.requester_id.function].bus_master_enable:
                 self.log.warning("Bus mastering disabled, dropping TLP: %r", tlp)
@@ -1158,8 +1200,13 @@ class UltraScalePlusPcieDevice(Device):
 
             self.cpld_credit_count += tlp.get_data_credits()
 
+            if not self.enable_client_tag:
+                tlp.tag = self.get_free_tag()
+                self.rq_tag.put_nowait(tlp.tag)
+
             assert not self.active_request[tlp.tag], "active tag reused"
             self.active_request[tlp.tag] = tlp
+            self.tag_available_count = self.get_available_tag_count()
 
             await self.send(Tlp(tlp))
             self.rq_seq_num.put_nowait(tlp.seq_num)
@@ -1188,7 +1235,32 @@ class UltraScalePlusPcieDevice(Device):
                 elif not self.rq_seq_num.empty():
                     self.rq_seq_num.get_nowait()
 
-            # TODO pcie_rq_tag
+    async def _run_rq_tag_logic(self):
+        clock_edge_event = RisingEdge(self.user_clk)
+
+        while True:
+            await clock_edge_event
+
+            if self.pcie_rq_tag_av is not None:
+                self.pcie_rq_tag_av.value = min(0xf, self.tag_available_count)
+
+            if self.pcie_rq_tag0 is not None:
+                self.pcie_rq_tag_vld0.value = 0
+                if not self.rq_tag.empty():
+                    self.pcie_rq_tag0.value = self.rq_tag.get_nowait()
+                    self.pcie_rq_tag_vld0.value = 1
+            elif not self.rq_tag.empty():
+                self.rq_tag.get_nowait()
+
+            if self.dw == 512:
+
+                if self.pcie_rq_tag1 is not None:
+                    self.pcie_rq_tag_vld1.value = 0
+                    if not self.rq_tag.empty():
+                        self.pcie_rq_tag1.value = self.rq_tag.get_nowait()
+                        self.pcie_rq_tag_vld1.value = 1
+                elif not self.rq_tag.empty():
+                    self.rq_tag.get_nowait()
 
     async def _run_rc_logic(self):
         while True:

@@ -70,6 +70,8 @@ class TB:
                 rc_straddle = True
                 rc_4tlp_straddle = True
 
+        self.client_tag = bool(int(os.getenv("CLIENT_TAG", "1")))
+
         self.dev = UltraScalePlusPcieDevice(
             # configuration options
             pcie_generation=3,
@@ -83,7 +85,7 @@ class TB:
             rc_4tlp_straddle=rc_4tlp_straddle,
             pf_count=1,
             max_payload_size=128,
-            enable_client_tag=True,
+            enable_client_tag=self.client_tag,
             enable_extended_tag=False,
             enable_parity=False,
             enable_rx_msg_interface=False,
@@ -329,6 +331,8 @@ class TB:
         self.tag_active = [False]*256
         self.tag_release = Event()
 
+        self.rq_tag = Queue()
+
         self.rx_cpl_queues = [Queue() for k in range(256)]
         self.rx_cpl_sync = [Event() for k in range(256)]
 
@@ -337,6 +341,8 @@ class TB:
         self.dev.functions[0].configure_bar(3, len(self.regions[3]), False, False, True)
         self.dev.functions[0].configure_bar(4, len(self.regions[4]))
 
+        if not self.client_tag:
+            cocotb.start_soon(self._run_rq_tags())
         cocotb.start_soon(self._run_rc())
         cocotb.start_soon(self._run_cq())
 
@@ -394,9 +400,12 @@ class TB:
     async def perform_nonposted_operation(self, req, timeout=0, timeout_unit='ns'):
         completions = []
 
-        req.tag = await self.alloc_tag()
-
-        await self.rq_source.send(req.pack_us_rq())
+        if self.client_tag:
+            req.tag = await self.alloc_tag()
+            await self.rq_source.send(req.pack_us_rq())
+        else:
+            await self.rq_source.send(req.pack_us_rq())
+            req.tag = await self.rq_tag.get()
 
         while True:
             cpl = await self.recv_cpl(req.tag, timeout, timeout_unit)
@@ -424,7 +433,8 @@ class TB:
                 # completion for other request
                 break
 
-        self.release_tag(req.tag)
+        if self.client_tag:
+            self.release_tag(req.tag)
 
         return completions
 
@@ -604,6 +614,17 @@ class TB:
             return b''
 
         return bytes(data[:length])
+
+    async def _run_rq_tags(self):
+        clock_edge_event = RisingEdge(self.dut.user_clk)
+
+        while True:
+            await clock_edge_event
+
+            if self.dut.pcie_rq_tag_vld0.value:
+                self.rq_tag.put_nowait(self.dut.pcie_rq_tag0.value.integer)
+            if self.dut.pcie_rq_tag_vld1.value:
+                self.rq_tag.put_nowait(self.dut.pcie_rq_tag1.value.integer)
 
     async def _run_rc(self):
         while True:
@@ -992,9 +1013,10 @@ if cocotb.SIM_NAME:
 tests_dir = os.path.dirname(__file__)
 
 
+@pytest.mark.parametrize("client_tag", [True, False])
 @pytest.mark.parametrize(("data_width", "straddle"),
     [(64, False), (128, False), (256, False), (256, True), (512, False), (512, True)])
-def test_pcie_usp(request, data_width, straddle):
+def test_pcie_usp(request, data_width, straddle, client_tag):
     dut = "test_pcie_usp"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -1015,6 +1037,7 @@ def test_pcie_usp(request, data_width, straddle):
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
     extra_env['STRADDLE'] = str(int(straddle))
+    extra_env['CLIENT_TAG'] = str(int(client_tag))
 
     sim_build = os.path.join(tests_dir, "sim_build",
         request.node.name.replace('[', '-').replace(']', ''))
