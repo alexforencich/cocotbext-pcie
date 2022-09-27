@@ -1091,6 +1091,7 @@ class UltraScalePlusPcieDevice(Device):
             tlp = Tlp_us.unpack_us_rq(await self.rq_sink.recv(), self.enable_parity)
 
             if tlp.discontinue:
+                self.log.warning("Discontinue bit set, discarding TLP: %r", tlp)
                 continue
 
             if not tlp.requester_id_enable:
@@ -1102,23 +1103,24 @@ class UltraScalePlusPcieDevice(Device):
                 if self.rq_np_queue.empty() and self.cpld_credit_count+tlp.get_data_credits() <= self.cpld_credit_limit:
                     # queue empty and have data credits; skip queue and send immediately to preserve ordering
 
-                    if self.functions[tlp.requester_id.function].bus_master_enable:
-
-                        if self.functions[0].pcie_cap.extended_tag_field_enable:
-                            assert tlp.tag < 256, "tag out of range (extended tags enabled)"
-                        else:
-                            assert tlp.tag < 32, "tag out of range (extended tags disabled)"
-
-                        assert not self.active_request[tlp.tag], "active tag reused"
-                        self.active_request[tlp.tag] = tlp
-
-                        self.cpld_credit_count += tlp.get_data_credits()
-
-                        await self.send(Tlp(tlp))
-                        self.rq_seq_num.put_nowait(tlp.seq_num)
-                    else:
-                        self.log.warning("Bus mastering disabled")
+                    if not self.functions[tlp.requester_id.function].bus_master_enable:
+                        self.log.warning("Bus mastering disabled, dropping TLP: %r", tlp)
                         # TODO: internal response
+                        continue
+
+                    if self.functions[0].pcie_cap.extended_tag_field_enable:
+                        assert tlp.tag < 256, "tag out of range (extended tags enabled)"
+                    else:
+                        assert tlp.tag < 32, "tag out of range (extended tags disabled)"
+
+                    assert not self.active_request[tlp.tag], "active tag reused"
+                    self.active_request[tlp.tag] = tlp
+
+                    self.cpld_credit_count += tlp.get_data_credits()
+
+                    await self.send(Tlp(tlp))
+                    self.rq_seq_num.put_nowait(tlp.seq_num)
+
                 else:
                     # queue not empty or insufficient data credits; enqueue
 
@@ -1131,12 +1133,13 @@ class UltraScalePlusPcieDevice(Device):
             else:
                 # posted request; send immediately
 
-                if self.functions[tlp.requester_id.function].bus_master_enable:
-                    await self.send(Tlp(tlp))
-                    self.rq_seq_num.put_nowait(tlp.seq_num)
-                else:
-                    self.log.warning("Bus mastering disabled")
+                if not self.functions[tlp.requester_id.function].bus_master_enable:
+                    self.log.warning("Bus mastering disabled, dropping TLP: %r", tlp)
                     # TODO: internal response
+                    continue
+
+                await self.send(Tlp(tlp))
+                self.rq_seq_num.put_nowait(tlp.seq_num)
 
     async def _run_rq_np_queue_logic(self):
         while True:
@@ -1148,17 +1151,18 @@ class UltraScalePlusPcieDevice(Device):
                 self.cpld_credit_released.clear()
                 await self.cpld_credit_released.wait()
 
-            if self.functions[tlp.requester_id.function].bus_master_enable:
-                self.cpld_credit_count += tlp.get_data_credits()
-
-                assert not self.active_request[tlp.tag], "active tag reused"
-                self.active_request[tlp.tag] = tlp
-
-                await self.send(Tlp(tlp))
-                self.rq_seq_num.put_nowait(tlp.seq_num)
-            else:
-                self.log.warning("Bus mastering disabled")
+            if not self.functions[tlp.requester_id.function].bus_master_enable:
+                self.log.warning("Bus mastering disabled, dropping TLP: %r", tlp)
                 # TODO: internal response
+                continue
+
+            self.cpld_credit_count += tlp.get_data_credits()
+
+            assert not self.active_request[tlp.tag], "active tag reused"
+            self.active_request[tlp.tag] = tlp
+
+            await self.send(Tlp(tlp))
+            self.rq_seq_num.put_nowait(tlp.seq_num)
 
     async def _run_rq_seq_num_logic(self):
         clock_edge_event = RisingEdge(self.user_clk)
