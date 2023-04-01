@@ -142,14 +142,14 @@ class PciBus:
                     continue
 
                 dev = PciDevice(self)
-                dev.pcie_id = PcieId(self.bus_num, d, 0)
+                dev.pcie_id = cur_func
                 dev.vendor_id = val & 0xffff
                 dev.device_id = (val >> 16) & 0xffff
                 self.devices.append(dev)
 
                 await dev.setup()
 
-                if dev.header_type & 0x80 == 0:
+                if not dev.multifunction:
                     # only one function
                     break
 

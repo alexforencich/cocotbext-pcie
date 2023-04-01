@@ -90,7 +90,7 @@ class Device:
         self.functions.sort(key=lambda x: x.function_num)
         if len(self.functions) > 1:
             for f in self.functions:
-                f.multifunction_devlce = True
+                f.multifunction_device = True
         return function
 
     def append_function(self, function):
