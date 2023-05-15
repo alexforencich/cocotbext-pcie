@@ -42,12 +42,39 @@ PCIE_GEN_RATE = {
 }
 
 PCIE_GEN_SYMB_TIME = {
-    1: 10/PCIE_GEN_RATE[1],
-    2: 10/PCIE_GEN_RATE[2],
+    1: 8/PCIE_GEN_RATE[1],
+    2: 8/PCIE_GEN_RATE[2],
     3: 8/PCIE_GEN_RATE[3],
     4: 8/PCIE_GEN_RATE[4],
     5: 8/PCIE_GEN_RATE[5],
 }
+
+
+def get_update_factor(max_payload_size, link_width):
+    if max_payload_size <= 256:
+        if link_width <= 4:
+            return 1.4
+        elif link_width == 8:
+            return 2.5
+        else:
+            return 3.0
+    else:
+        if link_width <= 8:
+            return 1.0
+        else:
+            return 2.0
+
+
+def get_max_update_latency(max_payload_size, link_width, link_speed):
+    uf = get_update_factor(max_payload_size, link_width)
+    if link_speed == 1:
+        delay = 19
+    elif link_speed == 2:
+        delay = 70
+    else:
+        delay = 115
+    return (((max_payload_size+28)*uf) / link_width) + delay
+
 
 
 class FcStateData:
@@ -668,7 +695,7 @@ class SimPort(Port):
 
         if self.cur_link_width is not None and self.cur_link_speed is not None:
             self.symbol_period = 8 / (PCIE_GEN_RATE[self.cur_link_speed] * self.cur_link_width)
-            self.max_latency_timer_steps = int((self.max_payload_size / self.cur_link_width) * PCIE_GEN_SYMB_TIME[self.cur_link_speed] * self.time_scale)
+            self.max_latency_timer_steps = int(get_max_update_latency(self.max_payload_size, self.cur_link_width, self.cur_link_speed) * 8 / PCIE_GEN_RATE[self.cur_link_speed] * self.time_scale)
             self.link_delay_steps = int((self.port_delay + port.port_delay) * self.time_scale)
         else:
             self.symbol_period = 0
