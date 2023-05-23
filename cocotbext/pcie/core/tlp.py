@@ -575,7 +575,7 @@ class Tlp:
 
             if tlp.fmt_type in {TlpType.CFG_READ_0,  TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,  TlpType.CFG_WRITE_1}:
                 dw, = struct.unpack_from('>L', pkt, 8)
-                tlp.register_number = (dw >> 2) >> 0x3ff
+                tlp.register_number = (dw >> 2) & 0x3ff
                 tlp.dest_id = PcieId.from_int(dw >> 16)
             elif tlp.fmt in {TlpFmt.FOUR_DW, TlpFmt.FOUR_DW_DATA}:
                 val, = struct.unpack_from('>Q', pkt, 8)
