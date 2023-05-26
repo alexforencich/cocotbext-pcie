@@ -32,10 +32,10 @@ MODULE   = $(DUT)
 VERILOG_SOURCES  = $(DUT).v
 
 # module parameters
-export PARAM_SEG_COUNT ?= 1
-export PARAM_SEG_DATA_WIDTH ?= 256
-export PARAM_SEG_PARITY_WIDTH ?= $(shell expr $(PARAM_SEG_DATA_WIDTH) / 8 )
-export PARAM_SEG_EMPTY_WIDTH ?= $(shell python -c "print((($(PARAM_SEG_DATA_WIDTH)//32)-1).bit_length())" )
+export PARAM_SEG_COUNT := 1
+export PARAM_SEG_DATA_WIDTH := 256
+export PARAM_SEG_PARITY_WIDTH := $(shell expr $(PARAM_SEG_DATA_WIDTH) / 8 )
+export PARAM_SEG_EMPTY_WIDTH := $(shell python -c "print((($(PARAM_SEG_DATA_WIDTH)//32)-1).bit_length())" )
 
 ifeq ($(SIM), icarus)
 	PLUSARGS += -fst

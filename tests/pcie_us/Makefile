@@ -32,14 +32,14 @@ MODULE   = $(DUT)
 VERILOG_SOURCES  = $(DUT).v
 
 # module parameters
-export PARAM_DATA_WIDTH ?= 64
-export PARAM_KEEP_WIDTH ?= $(shell expr $(PARAM_DATA_WIDTH) / 32 )
-export PARAM_RQ_USER_WIDTH ?= 60
-export PARAM_RC_USER_WIDTH ?= 75
-export PARAM_CQ_USER_WIDTH ?= 85
-export PARAM_CC_USER_WIDTH ?= 33
-export STRADDLE ?= $(if $(filter-out 256,$(PARAM_DATA_WIDTH)),0,1)
-export CLIENT_TAG ?= 1
+export PARAM_DATA_WIDTH := 64
+export PARAM_KEEP_WIDTH := $(shell expr $(PARAM_DATA_WIDTH) / 32 )
+export PARAM_RQ_USER_WIDTH := 60
+export PARAM_RC_USER_WIDTH := 75
+export PARAM_CQ_USER_WIDTH := 85
+export PARAM_CC_USER_WIDTH := 33
+export STRADDLE := $(if $(filter-out 256,$(PARAM_DATA_WIDTH)),0,1)
+export CLIENT_TAG := 1
 
 ifeq ($(SIM), icarus)
 	PLUSARGS += -fst
