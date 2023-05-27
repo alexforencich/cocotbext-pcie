@@ -217,7 +217,7 @@ class FcChannelState:
             return self.cplh.tx_credits_available > 0 and self.cpld.tx_credits_available >= dc
 
     def tx_tlp_has_credit(self, tlp):
-        return self.tx_tlp_has_credit(tlp.get_fc_type(), tlp.get_data_credits())
+        return self.tx_has_credit(tlp.get_fc_type(), tlp.get_data_credits())
 
     def tx_consume_fc(self, credit_type, dc=0):
         if credit_type == FcType.P:
