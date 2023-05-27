@@ -123,6 +123,7 @@ def init_signal(sig, width=None, initval=None):
 class PTilePcieDevice(Device):
     def __init__(self,
             # configuration options
+            port_num=0,
             pcie_generation=None,
             pcie_link_width=None,
             pld_clk_frequency=None,
@@ -330,6 +331,7 @@ class PTilePcieDevice(Device):
         self.rx_queue = Queue()
 
         # configuration options
+        self.port_num = port_num
         self.pcie_generation = pcie_generation
         self.pcie_link_width = pcie_link_width
         self.pld_clk_frequency = pld_clk_frequency
@@ -555,6 +557,14 @@ class PTilePcieDevice(Device):
                 if self.pld_clk_frequency is not None and self.pld_clk_frequency != config[3]:
                     continue
 
+                if self.pcie_link_width is not None:
+                    if self.port_num == 1 and config[1] > 8:
+                        # port 1 only supports x4 and x8
+                        continue
+                    if self.port_num >= 2 and config[1] > 4:
+                        # ports 2 and 3 only supports x4
+                        continue
+
                 # set the unspecified parameters
                 if self.pcie_generation is None:
                     self.log.info("Setting PCIe speed to gen %d", config[0])
@@ -574,6 +584,7 @@ class PTilePcieDevice(Device):
         self.log.info("  PF count: %d", self.pf_count)
         self.log.info("  Max payload size: %d", self.max_payload_size)
         self.log.info("  Enable extended tag: %s", self.enable_extended_tag)
+        self.log.info("  P-tile port number: %d", self.port_num)
         self.log.info("  Enable PF0 MSI: %s", self.pf0_msi_enable)
         self.log.info("  PF0 MSI vector count: %d", self.pf0_msi_count)
         self.log.info("  Enable PF1 MSI: %s", self.pf1_msi_enable)
@@ -621,6 +632,13 @@ class PTilePcieDevice(Device):
             if self.dw != config[2]:
                 continue
             if self.pld_clk_frequency != config[3]:
+                continue
+
+            if self.port_num == 1 and config[1] > 8:
+                # port 1 only supports x4 and x8
+                continue
+            if self.port_num >= 2 and config[1] > 4:
+                # ports 2 and 3 only supports x4
                 continue
 
             config_valid = True
