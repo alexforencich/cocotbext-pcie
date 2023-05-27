@@ -128,7 +128,10 @@ class UsPcieBase:
         self.bus = bus
         self.clock = clock
         self.reset = reset
-        self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}")
+        if bus._name:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}")
+        else:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}")
 
         super().__init__(*args, **kwargs)
 
