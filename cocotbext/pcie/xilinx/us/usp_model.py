@@ -360,7 +360,13 @@ class UltraScalePlusPcieDevice(Device):
         self.rq_np_queue = Queue()
         self.rq_np_queue_dequeue = Event()
         self.rq_np_limit = 16
-        self.cpld_credit_limit = 1024
+
+        self.rx_buf_cplh_fc_limit = 128
+        self.rx_buf_cpld_fc_limit = 32768 // 16
+        self.rx_buf_cplh_fc_count = 0
+        self.rx_buf_cpld_fc_count = 0
+
+        self.cpld_credit_limit = self.rx_buf_cpld_fc_limit
         self.cpld_credit_count = 0
         self.cpld_credit_released = Event()
 
@@ -970,7 +976,16 @@ class UltraScalePlusPcieDevice(Device):
                     self.cpld_credit_count = max(self.cpld_credit_count-tlp.get_data_credits(), 0)
                     self.cpld_credit_released.set()
 
-                    self.rc_queue.put_nowait(tlp)
+                    # check and track buffer occupancy
+                    data_fc = tlp.get_data_credits()
+
+                    if self.rx_buf_cplh_fc_count+1 <= self.rx_buf_cplh_fc_limit and self.rx_buf_cpld_fc_count+data_fc <= self.rx_buf_cpld_fc_limit:
+                        self.rx_buf_cplh_fc_count += 1
+                        self.rx_buf_cpld_fc_count += data_fc
+                        self.rc_queue.put_nowait(tlp)
+                    else:
+                        self.log.warning("No space in RX completion buffer, dropping TLP: CPLH %d (limit %d), CPLD %d (limit %d)",
+                            self.rx_buf_cplh_fc_count, self.rx_buf_cplh_fc_limit, self.rx_buf_cpld_fc_count, self.rx_buf_cpld_fc_limit)
 
                     self.tag_available_count = self.get_available_tag_count()
 
@@ -1266,6 +1281,9 @@ class UltraScalePlusPcieDevice(Device):
         while True:
             tlp = await self.rc_queue.get()
             await self.rc_source.send(tlp.pack_us_rc())
+
+            self.rx_buf_cplh_fc_count = max(self.rx_buf_cplh_fc_count-1, 0)
+            self.rx_buf_cpld_fc_count = max(self.rx_buf_cpld_fc_count-tlp.get_data_credits(), 0)
 
     async def _run_tx_fc_logic(self):
         clock_edge_event = RisingEdge(self.user_clk)
