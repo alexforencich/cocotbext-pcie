@@ -489,7 +489,8 @@ class PcieCapability(PciCap):
             # Link control
             if mask & 0x1:
                 self.aspm_control = data & 3
-                self.read_completion_boundary = bool(data & 1 << 4)
+                self.read_completion_boundary = bool(data & 1 << 3)
+                self.link_disable = bool(data & 1 << 4)
                 if data & 1 << 5:
                     await self.initiate_retrain_link()
                 self.common_clock_configuration = bool(data & 1 << 6)
