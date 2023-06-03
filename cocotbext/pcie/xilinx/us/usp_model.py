@@ -1377,7 +1377,7 @@ class UltraScalePlusPcieDevice(Device):
             if self.cfg_rcb_status is not None:
                 status = 0
                 for k in range(len(self.functions)):
-                    if self.functions[k].read_completion_boundary:
+                    if self.functions[k].pcie_cap.read_completion_boundary:
                         status |= 1 << k
                 self.cfg_rcb_status.value = status
 
