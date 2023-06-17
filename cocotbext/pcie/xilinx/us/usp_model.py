@@ -361,7 +361,9 @@ class UltraScalePlusPcieDevice(Device):
         self.rq_np_queue_dequeue = Event()
         self.rq_np_limit = 16
 
-        self.rx_buf_cplh_fc_limit = 128
+        # PG213 lists 128 CPLH and "32768B CPLD"
+        # Tests confirm 256 CPLH and ~32KB combined header + data
+        self.rx_buf_cplh_fc_limit = 256
         self.rx_buf_cpld_fc_limit = 32768 // 16
         self.rx_buf_cplh_fc_count = 0
         self.rx_buf_cpld_fc_count = 0
@@ -979,9 +981,9 @@ class UltraScalePlusPcieDevice(Device):
                     # check and track buffer occupancy
                     data_fc = tlp.get_data_credits()
 
-                    if self.rx_buf_cplh_fc_count+1 <= self.rx_buf_cplh_fc_limit and self.rx_buf_cpld_fc_count+data_fc <= self.rx_buf_cpld_fc_limit:
+                    if self.rx_buf_cplh_fc_count+1 <= self.rx_buf_cplh_fc_limit and self.rx_buf_cpld_fc_count+data_fc+1 <= self.rx_buf_cpld_fc_limit:
                         self.rx_buf_cplh_fc_count += 1
-                        self.rx_buf_cpld_fc_count += data_fc
+                        self.rx_buf_cpld_fc_count += data_fc+1
                         self.rc_queue.put_nowait(tlp)
                     else:
                         self.log.warning("No space in RX completion buffer, dropping TLP: CPLH %d (limit %d), CPLD %d (limit %d)",
@@ -1283,7 +1285,7 @@ class UltraScalePlusPcieDevice(Device):
             await self.rc_source.send(tlp.pack_us_rc())
 
             self.rx_buf_cplh_fc_count = max(self.rx_buf_cplh_fc_count-1, 0)
-            self.rx_buf_cpld_fc_count = max(self.rx_buf_cpld_fc_count-tlp.get_data_credits(), 0)
+            self.rx_buf_cpld_fc_count = max(self.rx_buf_cpld_fc_count-(tlp.get_data_credits()+1), 0)
 
     async def _run_tx_fc_logic(self):
         clock_edge_event = RisingEdge(self.user_clk)
