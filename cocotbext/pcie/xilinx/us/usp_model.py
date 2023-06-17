@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 """
 
+import enum
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
@@ -75,6 +77,33 @@ valid_configs = [
     (4,  4, 256, 250.0e6),
     (4,  8, 512, 250.0e6),
 ]
+
+
+class LocalError(enum.IntEnum):
+    PHY_LAYER_ERROR_DETECTED    = 0b00001
+    LINK_REPLAY_TIMEOUT         = 0b00010
+    LINK_REPLAY_ROLLOVER        = 0b00011
+    LINK_RX_BAD_TLP             = 0b00100
+    LINK_RX_BAD_DLLP            = 0b00101
+    LINK_PROTOCOL_ERR           = 0b00110
+    REPLAY_BUF_COR_ECC_ERR      = 0b00111
+    REPLAY_BUF_UNCOR_ECC_ERR    = 0b01000
+    RX_P_REQ_BUF_COR_ECC_ERR    = 0b01001
+    RX_P_REQ_BUF_UNCOR_ECC_ERR  = 0b01010
+    RX_CPL_BUF_COR_ECC_ERR      = 0b01011
+    RX_CPL_BUF_UNCOR_ECC_ERR    = 0b01100
+    RX_P_REQ_BUF_OVF_ERR        = 0b01101
+    RX_NP_REQ_BUF_OVF_ERR       = 0b01110
+    RX_CPL_BUF_OVF_ERR          = 0b01111
+    FC_PROTOCOL_ERR             = 0b10000
+    TX_PAR_ERR                  = 0b10001
+    RX_UNEXPECTED_CPL           = 0b10010
+    CPL_TIMEOUT                 = 0b10011
+    AXI4ST_RQ_INTFC_PKT_DROP    = 0b10100
+    AXI4ST_CC_INTFC_PKT_DROP    = 0b10101
+    AXI4ST_CQ_EP_DROP           = 0b10110
+    USER_SIG_INT_COR_ERR        = 0b10111
+    USER_SIG_INT_UNCOR_ERR      = 0b11000
 
 
 class UltraScalePlusPcieFunction(Endpoint):
@@ -377,6 +406,8 @@ class UltraScalePlusPcieDevice(Device):
         self.tag_available_count = 32
         self.tag_count = 256
         self.current_tag = 0
+
+        self.local_error = Queue()
 
         self.config_space_enable = False
 
@@ -988,6 +1019,7 @@ class UltraScalePlusPcieDevice(Device):
                     else:
                         self.log.warning("No space in RX completion buffer, dropping TLP: CPLH %d (limit %d), CPLD %d (limit %d)",
                             self.rx_buf_cplh_fc_count, self.rx_buf_cplh_fc_limit, self.rx_buf_cpld_fc_count, self.rx_buf_cpld_fc_limit)
+                        self.local_error.put_nowait(LocalError.RX_CPL_BUF_OVF_ERR)
 
                     self.tag_available_count = self.get_available_tag_count()
 
@@ -1370,8 +1402,15 @@ class UltraScalePlusPcieDevice(Device):
             # cfg_err_cor_out
             # cfg_err_nonfatal_out
             # cfg_err_fatal_out
-            # cfg_local_error_out
-            # cfg_local_error_valid
+
+            if self.cfg_local_error_out is not None:
+                if not self.local_error.empty():
+                    self.cfg_local_error_out.value = self.local_error.get_nowait()
+                    self.cfg_local_error_valid.value = 1
+                else:
+                    self.cfg_local_error_out.value = 0
+                    self.cfg_local_error_valid.value = 0
+
             # cfg_rx_pm_state
             # cfg_tx_pm_state
             # cfg_ltssm_state

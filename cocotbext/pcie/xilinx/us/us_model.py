@@ -354,6 +354,8 @@ class UltraScalePcieDevice(Device):
         self.tag_count = 64
         self.current_tag = 0
 
+        self.local_error = False
+
         self.config_space_enable = False
 
         # configuration options
@@ -873,6 +875,7 @@ class UltraScalePcieDevice(Device):
                     else:
                         self.log.warning("No space in RX completion buffer, dropping TLP: CPLH %d (limit %d), CPLD %d (limit %d)",
                             self.rx_buf_cplh_fc_count, self.rx_buf_cplh_fc_limit, self.rx_buf_cpld_fc_count, self.rx_buf_cpld_fc_limit)
+                        self.local_error = True
 
                     self.tag_available_count = self.get_available_tag_count()
 
@@ -1248,7 +1251,11 @@ class UltraScalePcieDevice(Device):
             # cfg_err_cor_out
             # cfg_err_nonfatal_out
             # cfg_err_fatal_out
-            # cfg_local_error
+
+            if self.cfg_local_error is not None:
+                self.cfg_local_error.value = self.local_error
+                self.local_error = False
+
             # cfg_ltr_enable
             # cfg_ltssm_state
 
