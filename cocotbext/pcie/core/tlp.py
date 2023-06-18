@@ -105,7 +105,7 @@ class MsgType(enum.IntEnum):
     DEASSERT_INTD  = 0x27
     ERR_COR        = 0x30
     ERR_NONFATAL   = 0x31
-    ERR_FATAL      = 0x32
+    ERR_FATAL      = 0x33
     SET_SPL        = 0x50
     VENDOR_0       = 0x7e
     VENDOR_1       = 0x7f
