@@ -107,6 +107,8 @@ class MsgType(enum.IntEnum):
     ERR_NONFATAL   = 0x31
     ERR_FATAL      = 0x33
     SET_SPL        = 0x50
+    PTM_REQ        = 0x52
+    PTM_RESP       = 0x53
     VENDOR_0       = 0x7e
     VENDOR_1       = 0x7f
 
