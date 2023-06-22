@@ -331,6 +331,8 @@ class PTilePcieDevice(Device):
         self.rx_queue = Queue()
 
         if port_num == 0:
+            # UG lists 1144 CPLH and 1444 "256 bit" CPLD
+            # Tests confirm >=1024 CPLH and >=2888 CPLD
             self.rx_buf_cplh_fc_limit = 1144
             self.rx_buf_cpld_fc_limit = 1444 * 2
         elif port_num == 1:

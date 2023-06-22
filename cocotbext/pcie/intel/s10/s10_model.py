@@ -255,8 +255,10 @@ class S10PcieDevice(Device):
 
         self.rx_queue = Queue()
 
+        # UG lists 770 CPLH and 2500 CPLD
+        # Tests confirm ~770 CPLH and ~2432 CPLD
         self.rx_buf_cplh_fc_limit = 770
-        self.rx_buf_cpld_fc_limit = 2500
+        self.rx_buf_cpld_fc_limit = 2432
         self.rx_buf_cplh_fc_count = 0
         self.rx_buf_cpld_fc_count = 0
 
