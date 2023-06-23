@@ -90,7 +90,10 @@ class RootComplex(Switch):
         self._max_payload_size = 0
         self._max_payload_size_supported = 5
         self._max_read_request_size = 2
+        self._read_completion_boundary = False
         self.bus_master_enable = True
+
+        self.split_on_all_rcb = False
 
         self.mem_address_space = mem_address_space or AddressSpace(2**64)
         self.io_address_space = io_address_space or AddressSpace(2**32)
@@ -159,6 +162,15 @@ class RootComplex(Switch):
     def max_read_request_size(self, val):
         self._max_read_request_size = val
         self.upstream_bridge.pcie_cap.max_read_request_size = val
+
+    @property
+    def read_completion_boundary(self):
+        return self._read_completion_boundary
+
+    @read_completion_boundary.setter
+    def read_completion_boundary(self, val):
+        self._read_completion_boundary = val
+        self.upstream_bridge.pcie_cap.read_completion_boundary = val
 
     def alloc_region(self, size):
         region = self.mem_pool.alloc_region(size)
@@ -450,16 +462,24 @@ class RootComplex(Switch):
         addr = tlp.address+tlp.get_first_be_offset()
         dw_length = tlp.length
         byte_length = tlp.get_be_byte_count()
+        max_payload_dw = 32 << self.max_payload_size
+        rcb = 64
+        if self.read_completion_boundary:
+            rcb = 128
+        rcb_mask = (rcb-1) & 0xfc
 
         while m < dw_length:
             cpl = Tlp.create_completion_data_for_tlp(tlp, PcieId(0, 0, 0))
 
             cpl_dw_length = dw_length - m
-            cpl_byte_length = byte_length - n
-            cpl.byte_count = cpl_byte_length
-            if cpl_dw_length > 32 << self.max_payload_size:
-                cpl_dw_length = 32 << self.max_payload_size  # max payload size
-                cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
+            cpl.byte_count = byte_length - n
+            if self.split_on_all_rcb:
+                # split on every RCB
+                cpl_dw_length = min(cpl_dw_length, (rcb - (addr & rcb_mask)) >> 2);
+            else:
+                # produce largest possible TLPs
+                if cpl_dw_length > max_payload_dw:
+                    cpl_dw_length = max_payload_dw - ((addr & rcb_mask) >> 2)
 
             cpl.lower_address = addr & 0x7f
 

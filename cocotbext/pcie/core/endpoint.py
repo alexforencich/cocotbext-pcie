@@ -351,16 +351,18 @@ class MemoryEndpoint(Endpoint):
         addr = tlp.address+tlp.get_first_be_offset()
         dw_length = tlp.length
         byte_length = tlp.get_be_byte_count()
+        max_payload_dw = 32 << self.pcie_cap.max_payload_size
+        rcb = 128
+        rcb_mask = (rcb-1) & 0xfc
 
         while m < dw_length:
             cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
 
             cpl_dw_length = dw_length - m
-            cpl_byte_length = byte_length - n
-            cpl.byte_count = cpl_byte_length
-            if cpl_dw_length > 32 << self.pcie_cap.max_payload_size:
-                cpl_dw_length = 32 << self.pcie_cap.max_payload_size  # max payload size
-                cpl_dw_length -= (addr & 0x7c) >> 2  # RCB align
+            cpl.byte_count = byte_length - n
+            if cpl_dw_length > max_payload_dw:
+                # cut on RCB for largest possible TLP
+                cpl_dw_length = max_payload_dw - ((addr & rcb_mask) >> 2)
 
             cpl.lower_address = addr & 0x7f
 
