@@ -110,8 +110,6 @@ class Function:
         # Interrupt pin
         self.interrupt_pin = 0
 
-        self.read_completion_boundary = 128
-
         self.register_rx_tlp_handler(TlpType.CFG_READ_0, self.handle_config_0_read_tlp)
         self.register_rx_tlp_handler(TlpType.CFG_WRITE_0, self.handle_config_0_write_tlp)
 

@@ -90,8 +90,6 @@ class RootComplex(Switch):
         self._max_payload_size = 0
         self._max_payload_size_supported = 5
         self._max_read_request_size = 2
-        self.read_completion_boundary = 128
-        self.extended_tag_field_enable = True
         self.bus_master_enable = True
 
         self.mem_address_space = mem_address_space or AddressSpace(2**64)
