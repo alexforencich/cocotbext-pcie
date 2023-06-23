@@ -165,6 +165,8 @@ class Switch:
         while True:
             tlp = await port.ingress_queue.get()
 
+            tlp.ingress_port = port.bridge
+
             ok = False
 
             for other, tx_queue in port.tx_queues:

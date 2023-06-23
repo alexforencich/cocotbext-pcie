@@ -532,6 +532,7 @@ class RootPort(SwitchDownstreamPort):
         super().__init__(*args, **kwargs)
 
         self.pcie_cap.pcie_device_type = 0x4
+        self.pcie_cap.crs_software_visibility = True
 
         self.vendor_id = 0x1234
         self.device_id = 0x0002

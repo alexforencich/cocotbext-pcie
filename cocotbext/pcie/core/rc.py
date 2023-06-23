@@ -580,9 +580,20 @@ class RootComplex(Switch):
 
             cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
-            if not cpl_list or cpl_list[0].status != CplStatus.SC:
+            if not cpl_list:
+                # timed out
+                d = b'\xff\xff\xff\xff'
+            elif cpl_list[0].status == CplStatus.CRS and req.register_number == 0 and cpl_list[0].ingress_port:
+                # completion retry status
+                if cpl_list[0].ingress_port.pcie_cap.crs_software_visibility_enable:
+                    d = b'\x01\x00\xff\xff'
+                else:
+                    d = b'\xff\xff\xff\xff'
+            elif cpl_list[0].status != CplStatus.SC:
+                # unsupported request or completer abort status
                 d = b'\xff\xff\xff\xff'
             else:
+                # success
                 assert cpl_list[0].length == 1
                 d = cpl_list[0].get_data()
 

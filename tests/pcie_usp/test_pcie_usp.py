@@ -990,6 +990,39 @@ async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.user_clk)
 
 
+async def run_test_crs(dut, idle_inserter=None, backpressure_inserter=None):
+
+    tb = TB(dut)
+
+    tb.set_idle_generator(idle_inserter)
+    tb.set_backpressure_generator(backpressure_inserter)
+
+    await FallingEdge(dut.user_reset)
+    await Timer(100, 'ns')
+
+    await tb.rc.enumerate()
+
+    dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)
+    await dev.enable_device()
+
+    dut.cfg_config_space_enable.setimmediatevalue(0)
+
+    val = await dev.config_read_dword(0x00)
+    tb.log.info("ID register values: 0x%08x", val)
+
+    assert val == 0xffff0001
+
+    dut.cfg_config_space_enable.setimmediatevalue(1)
+
+    val = await dev.config_read_dword(0x00)
+    tb.log.info("ID register values: 0x%08x", val)
+
+    assert val != 0xffff0001 and val != 0xffffffff
+
+    await RisingEdge(dut.user_clk)
+    await RisingEdge(dut.user_clk)
+
+
 def cycle_pause():
     return itertools.cycle([1, 1, 1, 0])
 
@@ -1001,6 +1034,7 @@ if cocotb.SIM_NAME:
                 run_test_dma,
                 run_test_msi,
                 run_test_msix,
+                run_test_crs,
             ]:
 
         factory = TestFactory(test)

@@ -167,6 +167,8 @@ class PciBus:
 
         self.rc.log.info("Scanning bridge %s", dev.pcie_id)
 
+        await dev.enable_crs()
+
         next_bus = last_bus + 1
 
         child = PciBus(self, dev, next_bus)
@@ -552,6 +554,20 @@ class PciDevice:
 
     async def clear_master(self):
         await self.set_master(False)
+
+    async def enable_crs(self):
+        if not self.is_pcie():
+            return
+
+        root_cap = await self.capability_read_dword(PciCapId.EXP, 0x1E)
+
+        if root_cap & 0x00000001:
+            old_ctrl = await self.capability_read_word(PciCapId.EXP, 0x1C)
+
+            ctrl = old_ctrl | 0x0010
+
+            if ctrl != old_ctrl:
+                await self.capability_write_word(PciCapId.EXP, 0x1C, ctrl)
 
     async def configure_msi(self):
         await self.rc.configure_msi(self)

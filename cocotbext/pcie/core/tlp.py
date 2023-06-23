@@ -214,6 +214,7 @@ class Tlp:
         self.seq = 0
 
         self.release_fc_cb = None
+        self.ingress_port = None
 
         if isinstance(tlp, Tlp):
             self.fmt = tlp.fmt
