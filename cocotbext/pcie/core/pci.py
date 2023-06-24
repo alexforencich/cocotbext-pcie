@@ -128,28 +128,30 @@ class PciBus:
             if self.bus_num == 0 and d == 0:
                 continue
 
+            dev_id = PcieId(self.bus_num, d, 0)
+
             self.rc.log.info("Enumerating bus %d device %d", self.bus_num, d)
 
             # read vendor ID and device ID
-            val = await self.rc.config_read_dword(PcieId(self.bus_num, d, 0), 0x000, 'little', timeout, timeout_unit)
+            val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
 
             if val is None or val == 0xffffffff:
                 continue
 
             # valid vendor ID
-            self.rc.log.info("Found device at %02x:%02x.%x", self.bus_num, d, 0)
+            self.rc.log.info("Found device at %s", dev_id)
 
             for f in range(8):
-                cur_func = PcieId(self.bus_num, d, f)
+                dev_id = PcieId(self.bus_num, d, f)
 
                 # read vendor ID and device ID
-                val = await self.rc.config_read_dword(cur_func, 0x000, 'little', timeout, timeout_unit)
+                val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
 
                 if val is None or val == 0xffffffff:
                     continue
 
                 dev = PciDevice(self)
-                dev.pcie_id = cur_func
+                dev.pcie_id = dev_id
                 dev.vendor_id = val & 0xffff
                 dev.device_id = (val >> 16) & 0xffff
                 self.devices.append(dev)
