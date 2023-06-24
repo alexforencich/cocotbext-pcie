@@ -965,6 +965,13 @@ async def run_test_crs(dut, idle_inserter=None, backpressure_inserter=None):
     await FallingEdge(dut.user_reset)
     await Timer(100, 'ns')
 
+    async def toggle_config_space_enable(dut):
+        dut.cfg_config_space_enable.setimmediatevalue(0)
+        await Timer(100, 'us')
+        dut.cfg_config_space_enable.setimmediatevalue(1)
+
+    cocotb.start_soon(toggle_config_space_enable(dut))
+
     await tb.rc.enumerate()
 
     dev = tb.rc.find_device(tb.dev.functions[0].pcie_id)

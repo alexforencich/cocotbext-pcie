@@ -24,6 +24,8 @@ THE SOFTWARE.
 
 import struct
 
+from cocotb.triggers import Timer
+
 from .caps import PciCapId, PciExtCapId
 from .utils import PcieId, align
 
@@ -119,6 +121,27 @@ class PciBus:
             return True
         return False
 
+    async def wait_crs(self, dev_id, timeout=1000, timeout_unit='ns'):
+        delay = 10
+        val = 0xffff0001
+        while val == 0xffff0001:
+            if delay > 10000:
+                self.rc.log.warning("pci %s: not ready after %d us; giving up", dev_id, delay)
+                return False
+
+            if delay > 1000:
+                self.rc.log.info("pci %s: not ready after %d us; waiting", dev_id, delay)
+
+            await Timer(delay, 'us')
+            delay *= 2
+
+            val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
+
+        if delay > 1000:
+            self.rc.log.info("pci %s: ready after %d us", dev_id, delay)
+
+        return True
+
     async def scan(self, available_buses=0, timeout=1000, timeout_unit='ns'):
         first_bus = self.bus_num
         last_bus = first_bus
@@ -137,6 +160,10 @@ class PciBus:
 
             if val in {0, 0xffffffff, 0xffff0000, 0x0000ffff}:
                 continue
+
+            if val == 0xffff0001:
+                if not await self.wait_crs(dev_id, timeout, timeout_unit):
+                    continue
 
             # valid vendor ID
             self.rc.log.info("Found device at %s", dev_id)
