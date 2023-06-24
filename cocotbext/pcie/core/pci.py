@@ -112,6 +112,13 @@ class PciBus:
                 return dev
         return None
 
+    def only_one_child(self):
+        if isinstance(self.bridge, PciHostBridge):
+            return False
+        if self.bridge.is_pcie() and self.bridge.is_downstream_port():
+            return True
+        return False
+
     async def scan(self, available_buses=0, timeout=1000, timeout_unit='ns'):
         first_bus = self.bus_num
         last_bus = first_bus
@@ -152,6 +159,9 @@ class PciBus:
                 if not dev.multifunction:
                     # only one function
                     break
+
+            if self.only_one_child():
+                break
 
         # recurse into bridges
         for dev in self.devices:
@@ -355,6 +365,9 @@ class PciDevice:
 
     def pcie_type(self):
         return (self.pcie_capabilities_reg >> 4) & 0xf
+
+    def is_downstream_port(self):
+        return self.pcie_type() in {0x4, 0x6, 0x8}
 
     def upstream_bridge(self):
         if self.bus.is_root():
