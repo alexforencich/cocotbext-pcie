@@ -62,9 +62,9 @@ class Function:
 
         # configuration registers
         # Vendor ID
-        self.vendor_id = 0
+        self.vendor_id = 0x1234
         # Device ID
-        self.device_id = 0
+        self.device_id = 0x00FF
         # Command
         self.io_space_enable = False
         self.memory_space_enable = False
