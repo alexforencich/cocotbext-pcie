@@ -610,7 +610,7 @@ class Port:
 
     def start_ack_latency_timer(self):
         if self._ack_latency_timer_cr is not None:
-            if not self._ack_latency_timer_cr._finished:
+            if not self._ack_latency_timer_cr.done():
                 # already running
                 return
         self._ack_latency_timer_cr = cocotb.start_soon(self._run_ack_latency_timer())
@@ -627,7 +627,7 @@ class Port:
 
     def start_fc_update_timer(self):
         if self._fc_update_timer_cr is not None:
-            if not self._fc_update_timer_cr._finished:
+            if not self._fc_update_timer_cr.done():
                 # already running
                 return
         self._fc_update_timer_cr = cocotb.start_soon(self._run_fc_update_timer())
