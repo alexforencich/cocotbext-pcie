@@ -135,7 +135,7 @@ class PciBus:
             # read vendor ID and device ID
             val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
 
-            if val is None or val == 0xffffffff:
+            if val in {0, 0xffffffff, 0xffff0000, 0x0000ffff}:
                 continue
 
             # valid vendor ID
