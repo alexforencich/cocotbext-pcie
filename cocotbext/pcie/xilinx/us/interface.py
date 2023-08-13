@@ -436,7 +436,7 @@ class UsPcieSink(UsPcieBase):
         wake_event = self.wake_event.wait()
 
         while True:
-            pause_sample = self.pause
+            pause_sample = bool(self.pause)
 
             await clock_edge_event
 
@@ -453,9 +453,11 @@ class UsPcieSink(UsPcieBase):
                 self.bus.sample(self.sample_obj)
                 self.sample_sync.set()
 
-            self.bus.tready.value = (not self.full() and not pause_sample)
+            paused = self.full() or pause_sample
 
-            if not tvalid_sample or (self.pause and pause_sample) or self.full():
+            self.bus.tready.value = not paused
+
+            if (not tvalid_sample or paused) and (pause_sample == bool(self.pause)):
                 self.wake_event.clear()
                 await wake_event
 
