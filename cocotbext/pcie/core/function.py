@@ -546,7 +546,7 @@ class Function:
 
     async def handle_config_0_read_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
-            self.log.info("Config type 0 read, reg 0x%03x", tlp.register_number)
+            self.log.info("Config type 0 read, reg 0x%03x", tlp.address >> 2)
 
             # capture address information
             if self.bus_num != tlp.dest_id.bus:
@@ -554,7 +554,7 @@ class Function:
                 self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
 
             # perform operation
-            data = await self.read_config_register(tlp.register_number)
+            data = await self.read_config_register(tlp.address >> 2)
 
             # prepare completion TLP
             cpl = Tlp.create_completion_data_for_tlp(tlp, self.pcie_id)
@@ -574,7 +574,7 @@ class Function:
     async def handle_config_0_write_tlp(self, tlp):
         if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
             self.log.info("Config type 0 write, reg 0x%03x data 0x%08x",
-                tlp.register_number, struct.unpack('<L', tlp.get_data())[0])
+                tlp.address >> 2, struct.unpack('<L', tlp.get_data())[0])
 
             # capture address information
             if self.bus_num != tlp.dest_id.bus:
@@ -584,7 +584,7 @@ class Function:
             data, = struct.unpack('<L', tlp.get_data())
 
             # perform operation
-            await self.write_config_register(tlp.register_number, data, tlp.first_be)
+            await self.write_config_register(tlp.address >> 2, data, tlp.first_be)
 
             # prepare completion TLP
             cpl = Tlp.create_completion_for_tlp(tlp, self.pcie_id)

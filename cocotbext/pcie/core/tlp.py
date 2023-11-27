@@ -209,7 +209,6 @@ class Tlp:
         self.lower_address = 0
         self.address = 0
         self.ph = 0
-        self.register_number = 0
         self.data = bytearray()
         self.seq = 0
 
@@ -238,7 +237,6 @@ class Tlp:
             self.lower_address = tlp.lower_address
             self.address = tlp.address
             self.ph = tlp.ph
-            self.register_number = tlp.register_number
             self.data = bytearray(tlp.data)
             self.seq = tlp.seq
 
@@ -506,7 +504,7 @@ class Tlp:
             pkt.extend(struct.pack('>L', dw))
 
             if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
-                dw = (self.register_number & 0x3ff) << 2
+                dw = self.address & 0xffc
                 dw |= int(self.dest_id) << 16
                 pkt.extend(struct.pack('>L', dw))
             else:
@@ -578,7 +576,7 @@ class Tlp:
 
             if tlp.fmt_type in {TlpType.CFG_READ_0,  TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,  TlpType.CFG_WRITE_1}:
                 dw, = struct.unpack_from('>L', pkt, 8)
-                tlp.register_number = (dw >> 2) & 0x3ff
+                tlp.address = dw & 0xffc
                 tlp.dest_id = PcieId.from_int(dw >> 16)
             elif tlp.fmt in {TlpFmt.FOUR_DW, TlpFmt.FOUR_DW_DATA}:
                 val, = struct.unpack_from('>Q', pkt, 8)
@@ -640,7 +638,6 @@ class Tlp:
                 self.lower_address == other.lower_address and
                 self.address == other.address and
                 self.ph == other.ph and
-                self.register_number == other.register_number and
                 self.seq == other.seq
             )
         return False
@@ -669,7 +666,6 @@ class Tlp:
             f"lower_address={self.lower_address:#x}, "
             f"address={self.address:#x}, "
             f"ph={self.ph}, "
-            f"register_number={self.register_number:#x}, "
             f"seq={self.seq})"
         )
 

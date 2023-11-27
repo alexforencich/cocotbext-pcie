@@ -309,7 +309,7 @@ class Tlp_us(Tlp):
             # Completer Request descriptor
             if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
                 # configuration
-                dw = (self.register_number & 0x3ff) << 2
+                dw = self.address & 0xffc
                 pkt.data.append(dw)
                 pkt.data.append(0)
             else:
@@ -377,7 +377,7 @@ class Tlp_us(Tlp):
                         tlp.fmt = TlpFmt.FOUR_DW_DATA
             else:
                 # configuration
-                tlp.register_number = (pkt.data[0] >> 2) & 0x3ff
+                tlp.address = pkt.data[0] & 0xffc
             tlp.completer_id = PcieId.from_int(pkt.data[3] >> 8)
             tlp.requester_id_enable = bool(pkt.data[3] & (1 << 24))
 
@@ -538,8 +538,7 @@ class Tlp_us(Tlp):
                 self.last_be == other.last_be and
                 self.lower_address == other.lower_address and
                 self.address == other.address and
-                self.ph == other.ph and
-                self.register_number == other.register_number
+                self.ph == other.ph
             )
         return False
 
@@ -566,6 +565,5 @@ class Tlp_us(Tlp):
             f"last_be={self.last_be:#x}, "
             f"lower_address={self.lower_address:#x}, "
             f"address={self.address:#x}, "
-            f"ph={self.ph}, "
-            f"register_number={self.register_number:#x})"
+            f"ph={self.ph})"
         )

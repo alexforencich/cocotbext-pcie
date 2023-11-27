@@ -576,14 +576,12 @@ class RootComplex(Switch):
             byte_length = min(length-n, 4-first_pad)
             req.set_addr_be(addr, byte_length)
 
-            req.register_number = addr >> 2
-
             cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
             if not cpl_list:
                 # timed out
                 d = b'\xff\xff\xff\xff'
-            elif cpl_list[0].status == CplStatus.CRS and req.register_number == 0 and cpl_list[0].ingress_port:
+            elif cpl_list[0].status == CplStatus.CRS and req.address == 0 and cpl_list[0].ingress_port:
                 # completion retry status
                 if cpl_list[0].ingress_port.pcie_cap.crs_software_visibility_enable:
                     d = b'\x01\x00\xff\xff'
@@ -641,8 +639,6 @@ class RootComplex(Switch):
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)
             req.set_addr_be_data(addr, data[n:n+byte_length])
-
-            req.register_number = addr >> 2
 
             cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
