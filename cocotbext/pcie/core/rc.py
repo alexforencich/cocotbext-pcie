@@ -570,7 +570,7 @@ class RootComplex(Switch):
             req = Tlp()
             req.fmt_type = TlpType.CFG_READ_1
             req.requester_id = PcieId(0, 0, 0)
-            req.dest_id = dev
+            req.completer_id = dev
 
             first_pad = addr % 4
             byte_length = min(length-n, 4-first_pad)
@@ -634,7 +634,7 @@ class RootComplex(Switch):
             req = Tlp()
             req.fmt_type = TlpType.CFG_WRITE_1
             req.requester_id = PcieId(0, 0, 0)
-            req.dest_id = dev
+            req.completer_id = dev
 
             first_pad = addr % 4
             byte_length = min(len(data)-n, 4-first_pad)

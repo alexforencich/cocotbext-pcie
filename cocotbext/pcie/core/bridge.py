@@ -282,13 +282,13 @@ class Bridge(Function):
             return False
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
-            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num and tlp.dest_id != PcieId(0, 0, 0)
+            return self.sec_bus_num <= tlp.completer_id.bus <= self.sub_bus_num and tlp.completer_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
             return self.sec_bus_num <= tlp.requester_id.bus <= self.sub_bus_num and tlp.requester_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.MSG_ID, TlpType.MSG_DATA_ID}:
             # ID routed message
-            return self.sec_bus_num <= tlp.dest_id.bus <= self.sub_bus_num and tlp.dest_id != PcieId(0, 0, 0)
+            return self.sec_bus_num <= tlp.completer_id.bus <= self.sub_bus_num and tlp.completer_id != PcieId(0, 0, 0)
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
             return self.io_base <= tlp.address <= self.io_limit
@@ -342,7 +342,7 @@ class Bridge(Function):
         # Route TLPs from primary side to secondary side
         if self.match_tlp_secondary(tlp):
 
-            if tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1} and tlp.dest_id.bus == self.sec_bus_num:
+            if tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1} and tlp.completer_id.bus == self.sec_bus_num:
                 # config type 1 targeted to directly connected device; change to type 0
                 if tlp.fmt_type == TlpType.CFG_READ_1:
                     tlp.fmt_type = TlpType.CFG_READ_0

@@ -532,7 +532,6 @@ class Tlp_us(Tlp):
                 self.bcm == other.bcm and
                 self.byte_count == other.byte_count and
                 self.requester_id == other.requester_id and
-                self.dest_id == other.dest_id and
                 self.tag == other.tag and
                 self.first_be == other.first_be and
                 self.last_be == other.last_be and
@@ -559,7 +558,6 @@ class Tlp_us(Tlp):
             f"bcm={self.bcm}, "
             f"byte_count={self.byte_count}, "
             f"requester_id={self.requester_id!r}, "
-            f"dest_id={self.dest_id!r}, "
             f"tag={self.tag}, "
             f"first_be={self.first_be:#x}, "
             f"last_be={self.last_be:#x}, "

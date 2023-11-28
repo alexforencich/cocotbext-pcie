@@ -397,7 +397,7 @@ class Function:
     def match_tlp(self, tlp):
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
-            return self.device_num == tlp.dest_id.device and self.function_num == tlp.dest_id.function
+            return self.device_num == tlp.completer_id.device and self.function_num == tlp.completer_id.function
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
             return False
@@ -545,13 +545,13 @@ class Function:
         return completions
 
     async def handle_config_0_read_tlp(self, tlp):
-        if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
+        if tlp.completer_id.device == self.device_num and tlp.completer_id.function == self.function_num:
             self.log.info("Config type 0 read, reg 0x%03x", tlp.address >> 2)
 
             # capture address information
-            if self.bus_num != tlp.dest_id.bus:
-                self.log.info("Capture bus number %d", tlp.dest_id.bus)
-                self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
+            if self.bus_num != tlp.completer_id.bus:
+                self.log.info("Capture bus number %d", tlp.completer_id.bus)
+                self.pcie_id = self.pcie_id._replace(bus=tlp.completer_id.bus)
 
             # perform operation
             data = await self.read_config_register(tlp.address >> 2)
@@ -572,14 +572,14 @@ class Function:
             await self.upstream_send(cpl)
 
     async def handle_config_0_write_tlp(self, tlp):
-        if tlp.dest_id.device == self.device_num and tlp.dest_id.function == self.function_num:
+        if tlp.completer_id.device == self.device_num and tlp.completer_id.function == self.function_num:
             self.log.info("Config type 0 write, reg 0x%03x data 0x%08x",
                 tlp.address >> 2, struct.unpack('<L', tlp.get_data())[0])
 
             # capture address information
-            if self.bus_num != tlp.dest_id.bus:
-                self.log.info("Capture bus number %d", tlp.dest_id.bus)
-                self.pcie_id = self.pcie_id._replace(bus=tlp.dest_id.bus)
+            if self.bus_num != tlp.completer_id.bus:
+                self.log.info("Capture bus number %d", tlp.completer_id.bus)
+                self.pcie_id = self.pcie_id._replace(bus=tlp.completer_id.bus)
 
             data, = struct.unpack('<L', tlp.get_data())
 

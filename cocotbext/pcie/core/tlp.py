@@ -202,7 +202,6 @@ class Tlp:
         self.bcm = False
         self.byte_count = 0
         self.requester_id = PcieId(0, 0, 0)
-        self.dest_id = PcieId(0, 0, 0)
         self.tag = 0
         self.first_be = 0
         self.last_be = 0
@@ -230,7 +229,6 @@ class Tlp:
             self.bcm = tlp.bcm
             self.byte_count = tlp.byte_count
             self.requester_id = tlp.requester_id
-            self.dest_id = tlp.dest_id
             self.tag = tlp.tag
             self.first_be = tlp.first_be
             self.last_be = tlp.last_be
@@ -266,14 +264,6 @@ class Tlp:
     @requester_id.setter
     def requester_id(self, val):
         self._requester_id = PcieId(val)
-
-    @property
-    def dest_id(self):
-        return self._dest_id
-
-    @dest_id.setter
-    def dest_id(self, val):
-        self._dest_id = PcieId(val)
 
     def check(self):
         """Validate TLP"""
@@ -505,7 +495,7 @@ class Tlp:
 
             if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
                 dw = self.address & 0xffc
-                dw |= int(self.dest_id) << 16
+                dw |= int(self.completer_id) << 16
                 pkt.extend(struct.pack('>L', dw))
             else:
                 if self.fmt in {TlpFmt.FOUR_DW, TlpFmt.FOUR_DW_DATA}:
@@ -577,7 +567,7 @@ class Tlp:
             if tlp.fmt_type in {TlpType.CFG_READ_0,  TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,  TlpType.CFG_WRITE_1}:
                 dw, = struct.unpack_from('>L', pkt, 8)
                 tlp.address = dw & 0xffc
-                tlp.dest_id = PcieId.from_int(dw >> 16)
+                tlp.completer_id = PcieId.from_int(dw >> 16)
             elif tlp.fmt in {TlpFmt.FOUR_DW, TlpFmt.FOUR_DW_DATA}:
                 val, = struct.unpack_from('>Q', pkt, 8)
                 tlp.address = val & 0xfffffffffffffffc
@@ -631,7 +621,6 @@ class Tlp:
                 self.bcm == other.bcm and
                 self.byte_count == other.byte_count and
                 self.requester_id == other.requester_id and
-                self.dest_id == other.dest_id and
                 self.tag == other.tag and
                 self.first_be == other.first_be and
                 self.last_be == other.last_be and
@@ -659,7 +648,6 @@ class Tlp:
             f"bcm={self.bcm}, "
             f"byte_count={self.byte_count}, "
             f"requester_id={self.requester_id!r}, "
-            f"dest_id={self.dest_id!r}, "
             f"tag={self.tag}, "
             f"first_be={self.first_be:#x}, "
             f"last_be={self.last_be:#x}, "

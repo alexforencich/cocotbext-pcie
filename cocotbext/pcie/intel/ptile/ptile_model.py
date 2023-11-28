@@ -761,11 +761,11 @@ class PTilePcieDevice(Device):
             # config type 0
 
             # capture address information
-            self.bus_num = tlp.dest_id.bus
+            self.bus_num = tlp.completer_id.bus
 
             # pass TLP to function
             for f in self.functions:
-                if f.pcie_id == tlp.dest_id:
+                if f.pcie_id == tlp.completer_id:
                     await f.upstream_recv(tlp)
                     return
 
