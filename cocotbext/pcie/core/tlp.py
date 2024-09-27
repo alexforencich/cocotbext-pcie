@@ -265,6 +265,15 @@ class Tlp:
     def requester_id(self, val):
         self._requester_id = PcieId(val)
 
+    # alias for backwards compatibility
+    @property
+    def dest_id(self):
+        return self._completer_id
+
+    @dest_id.setter
+    def dest_id(self, val):
+        self._completer_id = PcieId(val)
+
     def check(self):
         """Validate TLP"""
         ret = True
