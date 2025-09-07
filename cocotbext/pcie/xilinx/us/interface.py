@@ -302,13 +302,24 @@ class UsPcieSource(UsPcieBase):
             await clock_edge_event
 
             # read handshake signals
-            tready_sample = self.bus.tready.value
-            tvalid_sample = self.bus.tvalid.value
+            try:
+                tready_sample = int(self.bus.tready.value)
+            except ValueError:
+                tready_sample = False
+            try:
+                tvalid_sample = int(self.bus.tvalid.value)
+            except ValueError:
+                tvalid_sample = False
 
-            if self.reset is not None and self.reset.value:
-                self.active = False
-                self.bus.tvalid.value = 0
-                continue
+            if self.reset is not None:
+                try:
+                    reset_sample = int(self.reset.value)
+                except ValueError:
+                    reset_sample = False
+
+                if reset_sample:
+                    self.bus.tvalid.value = 0
+                    continue
 
             if (tready_sample and tvalid_sample) or not tvalid_sample:
                 if self.drive_obj and not self.pause:
@@ -441,12 +452,24 @@ class UsPcieSink(UsPcieBase):
             await clock_edge_event
 
             # read handshake signals
-            tready_sample = self.bus.tready.value
-            tvalid_sample = self.bus.tvalid.value
+            try:
+                tready_sample = int(self.bus.tready.value)
+            except ValueError:
+                tready_sample = False
+            try:
+                tvalid_sample = int(self.bus.tvalid.value)
+            except ValueError:
+                tvalid_sample = False
 
-            if self.reset is not None and self.reset.value:
-                self.bus.tready.value = 0
-                continue
+            if self.reset is not None:
+                try:
+                    reset_sample = int(self.reset.value)
+                except ValueError:
+                    reset_sample = False
+
+                if reset_sample:
+                    self.bus.tready.value = 0
+                    continue
 
             if tready_sample and tvalid_sample:
                 self.sample_obj = self._transaction_obj()
@@ -599,23 +622,23 @@ class RqSink(UsPcieSink):
             sop_cnt = 0
 
             if self.seg_count == 1:
-                lane_valid = sample.tkeep
+                lane_valid = int(sample.tkeep)
                 seg_valid = 1
 
                 if not frame:
                     seg_sop = 1
 
-                if sample.tlast:
+                if int(sample.tlast):
                     seg_eop = 1
             elif self.width == 512:
                 sop_byte_lane = 0
                 eop_byte_lane = 0
                 for k in range(self.seg_count):
-                    if sample.tuser & (1 << (20+k)):
-                        offset = (sample.tuser >> (22+k*2)) & 0x3
+                    if int(sample.tuser) & (1 << (20+k)):
+                        offset = (int(sample.tuser) >> (22+k*2)) & 0x3
                         sop_byte_lane |= 1 << (offset*4)
-                    if sample.tuser & (1 << (26+k)):
-                        offset = (sample.tuser >> (28+k*4)) & 0xf
+                    if int(sample.tuser) & (1 << (26+k)):
+                        offset = (int(sample.tuser) >> (28+k*4)) & 0xf
                         eop_byte_lane |= 1 << offset
                 lane_valid = 0
                 seg_valid = 0
@@ -641,29 +664,29 @@ class RqSink(UsPcieSink):
                     frame = UsPcieFrame()
 
                     if self.width == 512:
-                        frame.first_be = (sample.tuser >> (sop_cnt*4)) & 0xf
-                        frame.last_be = (sample.tuser >> (sop_cnt*4+8)) & 0xf
+                        frame.first_be = (int(sample.tuser) >> (sop_cnt*4)) & 0xf
+                        frame.last_be = (int(sample.tuser) >> (sop_cnt*4+8)) & 0xf
                         # addr_offset
-                        frame.seq_num = (sample.tuser >> (sop_cnt*6+61)) & 0x3f
+                        frame.seq_num = (int(sample.tuser) >> (sop_cnt*6+61)) & 0x3f
                     else:
-                        frame.first_be = sample.tuser & 0xf
-                        frame.last_be = (sample.tuser >> 4) & 0xf
+                        frame.first_be = int(sample.tuser) & 0xf
+                        frame.last_be = (int(sample.tuser) >> 4) & 0xf
                         # addr_offset
-                        frame.seq_num = (sample.tuser >> 24) & 0xf
+                        frame.seq_num = (int(sample.tuser) >> 24) & 0xf
 
                         if len(self.bus.tuser) == 62:
-                            frame.seq_num |= ((sample.tuser >> 60) & 0x3) << 4
+                            frame.seq_num |= ((int(sample.tuser) >> 60) & 0x3) << 4
 
                     sop_cnt += 1
 
-                if sample.tuser & (1 << self.discontinue_offset):
+                if int(sample.tuser) & (1 << self.discontinue_offset):
                     frame.discontinue = True
 
                 for k in range(self.seg_byte_lanes):
                     lane = k+seg*self.seg_byte_lanes
                     if lane_valid & (1 << lane):
-                        frame.data.append((sample.tdata >> lane*32) & 0xffffffff)
-                        frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
+                        frame.data.append((int(sample.tdata) >> lane*32) & 0xffffffff)
+                        frame.parity.append((int(sample.tuser) >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
                     self.log.info("RX RQ frame: %r", frame)
@@ -792,37 +815,37 @@ class RcSink(UsPcieSink):
             seg_eop = 0
 
             if self.seg_count == 1:
-                lane_valid = sample.tkeep
+                lane_valid = int(sample.tkeep)
                 seg_valid = 1
 
                 if not frame:
                     seg_sop = 1
 
-                if sample.tlast:
+                if int(sample.tlast):
                     seg_eop = 1
             elif self.width >= 256:
                 sop_byte_lane = 0
                 eop_byte_lane = 0
                 if self.width == 256:
                     if self.seg_count == 1:
-                        if sample.tuser & (1 << 32):
+                        if int(sample.tuser) & (1 << 32):
                             sop_byte_lane |= 1 << 0
                     else:
-                        if sample.tuser & (1 << 32):
+                        if int(sample.tuser) & (1 << 32):
                             sop_byte_lane |= 1 << (4 if frame is not None else 0)
-                        if sample.tuser & (2 << 32):
+                        if int(sample.tuser) & (2 << 32):
                             sop_byte_lane |= 1 << 4
                     for k in range(self.seg_count):
-                        if sample.tuser & (1 << (34+k*4)):
-                            offset = ((sample.tuser >> (35+k*4)) & 0x7)
+                        if int(sample.tuser) & (1 << (34+k*4)):
+                            offset = ((int(sample.tuser) >> (35+k*4)) & 0x7)
                             eop_byte_lane |= 1 << offset
                 elif self.width == 512:
                     for k in range(self.seg_count):
-                        if sample.tuser & (1 << (64+k)):
-                            offset = ((sample.tuser >> (68+k*2)) & 0x3)
+                        if int(sample.tuser) & (1 << (64+k)):
+                            offset = ((int(sample.tuser) >> (68+k*2)) & 0x3)
                             sop_byte_lane |= 1 << (offset * 4)
-                        if sample.tuser & (1 << (76+k)):
-                            offset = ((sample.tuser >> (80+k*4)) & 0xf)
+                        if int(sample.tuser) & (1 << (76+k)):
+                            offset = ((int(sample.tuser) >> (80+k*4)) & 0xf)
                             eop_byte_lane |= 1 << offset
                 lane_valid = 0
                 seg_valid = 0
@@ -847,15 +870,15 @@ class RcSink(UsPcieSink):
                 if seg_sop & (1 << seg):
                     frame = UsPcieFrame()
 
-                if sample.tuser & (1 << self.discontinue_offset):
+                if int(sample.tuser) & (1 << self.discontinue_offset):
                     frame.discontinue = True
 
                 for k in range(self.seg_byte_lanes):
                     lane = k+seg*self.seg_byte_lanes
                     if lane_valid & (1 << lane):
-                        frame.data.append((sample.tdata >> lane*32) & 0xffffffff)
-                        frame.byte_en.append((sample.tuser >> (lane*4)) & 0xf)
-                        frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
+                        frame.data.append((int(sample.tdata) >> lane*32) & 0xffffffff)
+                        frame.byte_en.append((int(sample.tuser) >> (lane*4)) & 0xf)
+                        frame.parity.append((int(sample.tuser) >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
                     self.log.info("RX RC frame: %r", frame)
@@ -991,23 +1014,23 @@ class CqSink(UsPcieSink):
             seg_eop = 0
 
             if self.seg_count == 1:
-                lane_valid = sample.tkeep
+                lane_valid = int(sample.tkeep)
                 seg_valid = 1
 
                 if not frame:
                     seg_sop = 1
 
-                if sample.tlast:
+                if int(sample.tlast):
                     seg_eop = 1
             elif self.width == 512:
                 sop_byte_lane = 0
                 eop_byte_lane = 0
                 for k in range(self.seg_count):
-                    if sample.tuser & (1 << (80+k)):
-                        offset = (sample.tuser >> (82+k*2)) & 0x3
+                    if int(sample.tuser) & (1 << (80+k)):
+                        offset = (int(sample.tuser) >> (82+k*2)) & 0x3
                         sop_byte_lane |= 1 << (offset*4)
-                    if sample.tuser & (1 << (86+k)):
-                        offset = (sample.tuser >> (88+k*4)) & 0xf
+                    if int(sample.tuser) & (1 << (86+k)):
+                        offset = (int(sample.tuser) >> (88+k*4)) & 0xf
                         eop_byte_lane |= 1 << offset
                 lane_valid = 0
                 seg_valid = 0
@@ -1033,21 +1056,21 @@ class CqSink(UsPcieSink):
                     frame = UsPcieFrame()
 
                     if self.width == 512:
-                        frame.first_be = (sample.tuser >> (seg*4)) & 0xf
-                        frame.last_be = (sample.tuser >> (seg*4+8)) & 0xf
+                        frame.first_be = (int(sample.tuser) >> (seg*4)) & 0xf
+                        frame.last_be = (int(sample.tuser) >> (seg*4+8)) & 0xf
                     else:
-                        frame.first_be = sample.tuser & 0xf
-                        frame.last_be = (sample.tuser >> 4) & 0xf
+                        frame.first_be = int(sample.tuser) & 0xf
+                        frame.last_be = (int(sample.tuser) >> 4) & 0xf
 
-                if sample.tuser & (1 << self.discontinue_offset):
+                if int(sample.tuser) & (1 << self.discontinue_offset):
                     frame.discontinue = True
 
                 for k in range(self.seg_byte_lanes):
                     lane = k+seg*self.seg_byte_lanes
                     if lane_valid & (1 << lane):
-                        frame.data.append((sample.tdata >> lane*32) & 0xffffffff)
-                        frame.byte_en.append((sample.tuser >> (lane*4+self.byte_en_offset)) & 0xf)
-                        frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
+                        frame.data.append((int(sample.tdata) >> lane*32) & 0xffffffff)
+                        frame.byte_en.append((int(sample.tuser) >> (lane*4+self.byte_en_offset)) & 0xf)
+                        frame.parity.append((int(sample.tuser) >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
                     self.log.info("RX CQ frame: %r", frame)
@@ -1169,23 +1192,23 @@ class CcSink(UsPcieSink):
             seg_eop = 0
 
             if self.seg_count == 1:
-                lane_valid = sample.tkeep
+                lane_valid = int(sample.tkeep)
                 seg_valid = 1
 
                 if not frame:
                     seg_sop = 1
 
-                if sample.tlast:
+                if int(sample.tlast):
                     seg_eop = 1
             elif self.width == 512:
                 sop_byte_lane = 0
                 eop_byte_lane = 0
                 for k in range(self.seg_count):
-                    if sample.tuser & (1 << (0+k)):
-                        offset = (sample.tuser >> (2+k*2)) & 0x3
+                    if int(sample.tuser) & (1 << (0+k)):
+                        offset = (int(sample.tuser) >> (2+k*2)) & 0x3
                         sop_byte_lane |= 1 << (offset*4)
-                    if sample.tuser & (1 << (6+k)):
-                        offset = (sample.tuser >> (8+k*4)) & 0xf
+                    if int(sample.tuser) & (1 << (6+k)):
+                        offset = (int(sample.tuser) >> (8+k*4)) & 0xf
                         eop_byte_lane |= 1 << offset
                 lane_valid = 0
                 seg_valid = 0
@@ -1210,14 +1233,14 @@ class CcSink(UsPcieSink):
                 if seg_sop & (1 << seg):
                     frame = UsPcieFrame()
 
-                if sample.tuser & (1 << self.discontinue_offset):
+                if int(sample.tuser) & (1 << self.discontinue_offset):
                     frame.discontinue = True
 
                 for k in range(self.seg_byte_lanes):
                     lane = k+seg*self.seg_byte_lanes
                     if lane_valid & (1 << lane):
-                        frame.data.append((sample.tdata >> lane*32) & 0xffffffff)
-                        frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
+                        frame.data.append((int(sample.tdata) >> lane*32) & 0xffffffff)
+                        frame.parity.append((int(sample.tuser) >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
                     self.log.info("RX CC frame: %r", frame)

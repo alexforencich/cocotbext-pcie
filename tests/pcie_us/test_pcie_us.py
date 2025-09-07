@@ -503,7 +503,7 @@ class TB:
             first_pad = addr % 4
             byte_length = len(data)-n
             # max payload size
-            byte_length = min(byte_length, (128 << self.dut.cfg_max_payload.value.integer)-first_pad)
+            byte_length = min(byte_length, (128 << int(self.dut.cfg_max_payload.value))-first_pad)
             # 4k address align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             req.set_addr_be_data(addr, data[n:n+byte_length])
@@ -538,9 +538,9 @@ class TB:
             # remaining length
             byte_length = length-n
             # limit to max read request size
-            if byte_length > (128 << self.dut.cfg_max_read_req.value.integer) - first_pad:
+            if byte_length > (128 << int(self.dut.cfg_max_read_req.value)) - first_pad:
                 # split on 128-byte read completion boundary
-                byte_length = min(byte_length, (128 << self.dut.cfg_max_read_req.value.integer) - (addr & 0x7f))
+                byte_length = min(byte_length, (128 << int(self.dut.cfg_max_read_req.value)) - (addr & 0x7f))
             # 4k align
             byte_length = min(byte_length, 0x1000 - (addr & 0xfff))
             req.set_addr_be(addr, byte_length)
@@ -589,7 +589,7 @@ class TB:
             await clock_edge_event
 
             if self.dut.pcie_rq_tag_vld.value:
-                self.rq_tag.put_nowait(self.dut.pcie_rq_tag.value.integer)
+                self.rq_tag.put_nowait(int(self.dut.pcie_rq_tag.value))
 
     async def _run_rc(self):
         while True:
@@ -701,9 +701,9 @@ class TB:
                     cpl_dw_length = dw_length - m
                     cpl_byte_length = byte_length - n
                     cpl.byte_count = cpl_byte_length
-                    if cpl_dw_length > 32 << self.dut.cfg_max_payload.value.integer:
+                    if cpl_dw_length > 32 << int(self.dut.cfg_max_payload.value):
                         # max payload size
-                        cpl_dw_length = 32 << self.dut.cfg_max_payload.value.integer
+                        cpl_dw_length = 32 << int(self.dut.cfg_max_payload.value)
                         # RCB align
                         cpl_dw_length -= (addr & 0x7c) >> 2
 
@@ -893,7 +893,7 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await dev.set_master()
     await dev.alloc_irq_vectors(32, 32)
 
-    assert dut.cfg_interrupt_msi_enable.value.integer & 1
+    assert int(dut.cfg_interrupt_msi_enable.value) & 1
 
     for k in range(32):
         tb.log.info("Send MSI %d", k)
@@ -903,7 +903,7 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
         await RisingEdge(dut.user_clk)
         tb.dut.cfg_interrupt_msi_int.value = 0
 
-        while not tb.dut.cfg_interrupt_msi_sent.value.integer and not tb.dut.cfg_interrupt_msi_fail.value.integer:
+        while not int(tb.dut.cfg_interrupt_msi_sent.value) and not int(tb.dut.cfg_interrupt_msi_fail.value):
             await RisingEdge(dut.user_clk)
 
         event = dev.msi_vectors[k].event
@@ -944,7 +944,7 @@ async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
         await RisingEdge(dut.user_clk)
         tb.dut.cfg_interrupt_msix_int.value = 0
 
-        while not tb.dut.cfg_interrupt_msix_sent.value.integer and not tb.dut.cfg_interrupt_msix_fail.value.integer:
+        while not int(tb.dut.cfg_interrupt_msix_sent.value) and not int(tb.dut.cfg_interrupt_msix_fail.value):
             await RisingEdge(dut.user_clk)
 
         event = dev.msi_vectors[k].event

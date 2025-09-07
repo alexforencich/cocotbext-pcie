@@ -1339,14 +1339,14 @@ class UltraScalePlusPcieDevice(Device):
             await clock_edge_event
 
             # configuration management
-            function = self.cfg_mgmt_function_number.value.integer
-            reg_num = self.cfg_mgmt_addr.value.integer
-            write_data = self.cfg_mgmt_write_data.value.integer
-            byte_enable = self.cfg_mgmt_byte_enable.value.integer
-            cfg_mgmt_read = self.cfg_mgmt_read.value.integer
-            cfg_mgmt_write = self.cfg_mgmt_write.value.integer
+            function = int(self.cfg_mgmt_function_number.value)
+            reg_num = int(self.cfg_mgmt_addr.value)
+            write_data = int(self.cfg_mgmt_write_data.value)
+            byte_enable = int(self.cfg_mgmt_byte_enable.value)
+            cfg_mgmt_read = int(self.cfg_mgmt_read.value)
+            cfg_mgmt_write = int(self.cfg_mgmt_write.value)
 
-            if self.cfg_mgmt_read_write_done.value:
+            if int(self.cfg_mgmt_read_write_done.value):
                 self.cfg_mgmt_read_write_done.value = 0
             elif cfg_mgmt_read or cfg_mgmt_write:
                 for k in range(3):
@@ -1459,7 +1459,7 @@ class UltraScalePlusPcieDevice(Device):
             if isinstance(self.cfg_fc_sel, int):
                 sel = self.cfg_fc_sel
             else:
-                sel = self.cfg_fc_sel.value.integer
+                sel = int(self.cfg_fc_sel.value)
 
             if (sel == 0b010):
                 # Receive credits consumed
@@ -1570,25 +1570,25 @@ class UltraScalePlusPcieDevice(Device):
             msix_data = 0
 
             if self.cfg_interrupt_msi_int is not None:
-                msi_int = self.cfg_interrupt_msi_int.value.integer
+                msi_int = int(self.cfg_interrupt_msi_int.value)
             if self.cfg_interrupt_msi_function_number is not None:
-                msi_function_number = self.cfg_interrupt_msi_function_number.value.integer
+                msi_function_number = int(self.cfg_interrupt_msi_function_number.value)
             if self.cfg_interrupt_msi_attr is not None:
-                msi_attr = TlpAttr(self.cfg_interrupt_msi_attr.value.integer)
+                msi_attr = TlpAttr(int(self.cfg_interrupt_msi_attr.value))
             if self.cfg_interrupt_msi_select is not None:
-                msi_select = self.cfg_interrupt_msi_select.value.integer
+                msi_select = int(self.cfg_interrupt_msi_select.value)
             if self.cfg_interrupt_msi_pending_status_data_enable is not None:
-                msi_pending_status_data_enable = self.cfg_interrupt_msi_pending_status_data_enable.value.integer
+                msi_pending_status_data_enable = int(self.cfg_interrupt_msi_pending_status_data_enable.value)
             if self.cfg_interrupt_msi_pending_status_function_num is not None:
-                msi_pending_status_function_num = self.cfg_interrupt_msi_pending_status_function_num.value.integer
+                msi_pending_status_function_num = int(self.cfg_interrupt_msi_pending_status_function_num.value)
             if self.cfg_interrupt_msi_pending_status is not None:
-                msi_pending_status = self.cfg_interrupt_msi_pending_status.value.integer
+                msi_pending_status = int(self.cfg_interrupt_msi_pending_status.value)
             if self.cfg_interrupt_msix_int is not None:
-                msix_int = self.cfg_interrupt_msix_int.value.integer
+                msix_int = int(self.cfg_interrupt_msix_int.value)
             if self.cfg_interrupt_msix_address is not None:
-                msix_address = self.cfg_interrupt_msix_address.value.integer
+                msix_address = int(self.cfg_interrupt_msix_address.value)
             if self.cfg_interrupt_msix_data is not None:
-                msix_data = self.cfg_interrupt_msix_data.value.integer
+                msix_data = int(self.cfg_interrupt_msix_data.value)
 
             # INTx
             # cfg_interrupt_int

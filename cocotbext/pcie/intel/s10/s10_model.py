@@ -827,21 +827,21 @@ class S10PcieDevice(Device):
             await clock_edge_event
 
             # Interrupt interface
-            while not self.app_msi_req.value.integer:
+            while not int(self.app_msi_req.value):
                 await RisingEdge(self.app_msi_req)
                 await clock_edge_event
 
             # issue MSI interrupt
-            app_msi_func_num = self.app_msi_func_num.value.integer
-            app_msi_num = self.app_msi_num.value.integer
-            app_msi_tc = self.app_msi_tc.value.integer
+            app_msi_func_num = int(self.app_msi_func_num.value)
+            app_msi_num = int(self.app_msi_num.value)
+            app_msi_tc = int(self.app_msi_tc.value)
             await self.functions[app_msi_func_num].msi_cap.issue_msi_interrupt(app_msi_num, tc=app_msi_tc)
 
             self.app_msi_ack.value = 1
             await clock_edge_event
             self.app_msi_ack.value = 0
 
-            while self.app_msi_req.value.integer:
+            while int(self.app_msi_req.value):
                 await clock_edge_event
 
     # Error interface

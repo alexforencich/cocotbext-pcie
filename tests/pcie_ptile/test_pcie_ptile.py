@@ -779,9 +779,9 @@ class TB:
         while True:
             await RisingEdge(self.dut.coreclkout_hip)
 
-            if self.dut.tl_cfg_func.value.integer == 0:
-                addr = self.dut.tl_cfg_add.value.integer
-                ctl = self.dut.tl_cfg_ctl.value.integer
+            if int(self.dut.tl_cfg_func.value) == 0:
+                addr = int(self.dut.tl_cfg_add.value)
+                ctl = int(self.dut.tl_cfg_ctl.value)
                 if addr == 0x00:
                     self.dev_max_payload = ctl & 0x7
                     self.dev_max_read_req = (ctl >> 3) & 0x7

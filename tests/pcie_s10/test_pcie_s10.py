@@ -707,9 +707,9 @@ class TB:
         while True:
             await RisingEdge(self.dut.coreclkout_hip)
 
-            if self.dut.tl_cfg_func.value.integer == 0:
-                addr = self.dut.tl_cfg_add.value.integer
-                ctl = self.dut.tl_cfg_ctl.value.integer
+            if int(self.dut.tl_cfg_func.value) == 0:
+                addr = int(self.dut.tl_cfg_add.value)
+                ctl = int(self.dut.tl_cfg_ctl.value)
                 if addr == 0x00:
                     self.dev_max_payload = ctl & 0x7
                     self.dev_max_read_req = (ctl >> 3) & 0x7
@@ -865,7 +865,7 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
         dut.app_msi_num.value = k
         dut.app_msi_func_num.value = 0
 
-        while not dut.app_msi_ack.value.integer:
+        while not int(dut.app_msi_ack.value):
             await RisingEdge(dut.coreclkout_hip)
 
         dut.app_msi_req.value = 0
