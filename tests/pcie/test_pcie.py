@@ -29,6 +29,7 @@ import os
 import cocotb_test.simulator
 
 import cocotb
+from cocotb.triggers import Event
 from cocotb.regression import TestFactory
 
 from cocotbext.pcie.core import RootComplex, MemoryEndpoint, Device, Switch
