@@ -629,17 +629,17 @@ class PTilePcieSink(PTilePcieBase):
             self.sample_obj = None
 
             for seg in range(self.seg_count):
-                if not sample.valid & (1 << seg):
+                if not int(sample.valid) & (1 << seg):
                     continue
 
-                if sample.sop & (1 << seg):
+                if int(sample.sop) & (1 << seg):
                     assert frame is None, "framing error: sop asserted in frame"
                     frame = PTilePcieFrame()
 
-                    frame.tlp_prfx = (sample.tlp_prfx >> (seg*32)) & 0xffffffff
-                    frame.tlp_prfx_par = (sample.tlp_prfx_par >> (seg*4)) & 0xf
-                    frame.hdr = (sample.hdr >> (seg*128)) & (2**128-1)
-                    frame.hdr_par = (sample.hdr_par >> (seg*16)) & 0xffff
+                    frame.tlp_prfx = (int(sample.tlp_prfx) >> (seg*32)) & 0xffffffff
+                    frame.tlp_prfx_par = (int(sample.tlp_prfx_par) >> (seg*4)) & 0xf
+                    frame.hdr = (int(sample.hdr) >> (seg*128)) & (2**128-1)
+                    frame.hdr_par = (int(sample.hdr_par) >> (seg*16)) & 0xffff
                     if frame.hdr & (1 << 126):
                         dword_count = (frame.hdr >> 96) & 0x3ff
                         if dword_count == 0:
@@ -647,23 +647,23 @@ class PTilePcieSink(PTilePcieBase):
                     else:
                         dword_count = 0
 
-                    frame.bar_range = (sample.bar_range >> seg*3) & 0x7
-                    frame.func_num = (sample.func_num >> seg*3) & 0x7
-                    if sample.vf_active & (1 << seg):
-                        frame.vf_num = (sample.vf_num >> seg*11) & 0x7ff
-                    frame.err = (sample.err >> seg) & 0x1
+                    frame.bar_range = (int(sample.bar_range) >> seg*3) & 0x7
+                    frame.func_num = (int(sample.func_num) >> seg*3) & 0x7
+                    if int(sample.vf_active) & (1 << seg):
+                        frame.vf_num = (int(sample.vf_num) >> seg*11) & 0x7ff
+                    frame.err = (int(sample.err) >> seg) & 0x1
 
                 assert frame is not None, "framing error: data transferred outside of frame"
 
                 if dword_count > 0:
-                    data = (sample.data >> (seg*self.seg_width)) & self.seg_mask
-                    data_par = (sample.data_par >> (seg*self.seg_par_width)) & self.seg_par_mask
+                    data = (int(sample.data) >> (seg*self.seg_width)) & self.seg_mask
+                    data_par = (int(sample.data_par) >> (seg*self.seg_par_width)) & self.seg_par_mask
                     for k in range(min(self.seg_byte_lanes, dword_count)):
                         frame.data.append((data >> 32*k) & 0xffffffff)
                         frame.parity.append((data_par >> 4*k) & 0xf)
                         dword_count -= 1
 
-                if sample.eop & (1 << seg):
+                if int(sample.eop) & (1 << seg):
                     assert dword_count == 0, "framing error: incorrect length or early eop"
                     self.log.info("RX frame: %r", frame)
                     self._sink_frame(frame)

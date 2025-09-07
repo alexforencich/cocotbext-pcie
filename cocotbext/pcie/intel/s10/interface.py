@@ -591,14 +591,14 @@ class S10PcieSink(S10PcieBase):
             self.sample_obj = None
 
             for seg in range(self.seg_count):
-                if not sample.valid & (1 << seg):
+                if not int(sample.valid) & (1 << seg):
                     continue
 
-                if sample.sop & (1 << seg):
+                if int(sample.sop) & (1 << seg):
                     assert frame is None, "framing error: sop asserted in frame"
                     frame = S10PcieFrame()
 
-                    hdr = (sample.data >> (seg*self.seg_width)) & self.seg_mask
+                    hdr = (int(sample.data) >> (seg*self.seg_width)) & self.seg_mask
                     fmt = (hdr >> 29) & 0b111
                     if fmt & 0b001:
                         dword_count = 4
@@ -611,23 +611,23 @@ class S10PcieSink(S10PcieBase):
                             count = 1024
                         dword_count += count
 
-                    frame.bar_range = (sample.bar_range >> seg*3) & 0x7
-                    frame.func_num = (sample.func_num >> seg*3) & 0x7
-                    if sample.vf_active & (1 << seg):
-                        frame.vf_num = (sample.vf_num >> seg*11) & 0x7ff
-                    frame.err = (sample.err >> seg) & 0x1
+                    frame.bar_range = (int(sample.bar_range) >> seg*3) & 0x7
+                    frame.func_num = (int(sample.func_num) >> seg*3) & 0x7
+                    if int(sample.vf_active) & (1 << seg):
+                        frame.vf_num = (int(sample.vf_num) >> seg*11) & 0x7ff
+                    frame.err = (int(sample.err) >> seg) & 0x1
 
                 assert frame is not None, "framing error: data transferred outside of frame"
 
                 if dword_count > 0:
-                    data = (sample.data >> (seg*self.seg_width)) & self.seg_mask
-                    parity = (sample.parity >> (seg*self.seg_par_width)) & self.seg_par_mask
+                    data = (int(sample.data) >> (seg*self.seg_width)) & self.seg_mask
+                    parity = (int(sample.parity) >> (seg*self.seg_par_width)) & self.seg_par_mask
                     for k in range(min(self.seg_byte_lanes, dword_count)):
                         frame.data.append((data >> 32*k) & 0xffffffff)
                         frame.parity.append((parity >> 4*k) & 0xf)
                         dword_count -= 1
 
-                if sample.eop & (1 << seg):
+                if int(sample.eop) & (1 << seg):
                     assert dword_count == 0, "framing error: incorrect length or early eop"
                     self.log.info("RX frame: %r", frame)
                     self._sink_frame(frame)
