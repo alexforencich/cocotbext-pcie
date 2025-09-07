@@ -28,7 +28,7 @@ Installation for active development:
 
 ## Documentation and usage examples
 
-See the `tests` directory, [verilog-pcie](https://github.com/alexforencich/verilog-pcie), and [corundum](https://github.com/corundum/corundum) for complete testbenches using these modules.
+See the `tests` directory, [taxi](https://github.com/fpganinja/taxi), [verilog-pcie](https://github.com/alexforencich/verilog-pcie), and [corundum](https://github.com/corundum/corundum) for complete testbenches using these modules.
 
 ### Core PCIe simulation framework
 
