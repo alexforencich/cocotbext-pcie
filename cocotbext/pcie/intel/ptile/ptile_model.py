@@ -743,13 +743,13 @@ class PTilePcieDevice(Device):
         if self.coreclkout_hip is not None:
             cocotb.start_soon(Clock(self.coreclkout_hip, int(1e9/self.pld_clk_frequency), units="ns").start())
 
-        if self.rx_source:
+        if self.rx_source is not None:
             cocotb.start_soon(self._run_rx_logic())
-        if self.tx_sink:
+        if self.tx_sink is not None:
             cocotb.start_soon(self._run_tx_logic())
-        if self.tx_cdts_limit:
+        if self.tx_cdts_limit is not None:
             cocotb.start_soon(self._run_tx_fc_logic())
-        if self.tl_cfg_ctl:
+        if self.tl_cfg_ctl is not None:
             cocotb.start_soon(self._run_cfg_out_logic())
 
         cocotb.start_soon(self._run_reset())
