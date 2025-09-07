@@ -27,9 +27,10 @@ COCOTB_HDL_TIMEUNIT = 1ns
 COCOTB_HDL_TIMEPRECISION = 1ps
 
 DUT      = test_pcie
-TOPLEVEL = $(DUT)
-MODULE   = $(DUT)
+COCOTB_TEST_MODULES = $(DUT)
+COCOTB_TOPLEVEL     = $(DUT)
+MODULE   = $(COCOTB_TEST_MODULES)
+TOPLEVEL = $(COCOTB_TOPLEVEL)
 VERILOG_SOURCES += $(DUT).v
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
-

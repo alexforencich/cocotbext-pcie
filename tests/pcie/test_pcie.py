@@ -547,7 +547,8 @@ async def run_test_msi(dut, ep_index=0):
         event.clear()
         await event.wait()
 
-if cocotb.SIM_NAME:
+
+if getattr(cocotb, 'top', None) is not None:
 
     for test in [
                 run_test_rc_mem,
