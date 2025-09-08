@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2022 Alex Forencich
+Copyright (c) 2022-2025 Alex Forencich
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -321,7 +321,7 @@ class PTilePcieDevice(Device):
 
         self.log.info("Intel P-tile PCIe hard IP core model")
         self.log.info("cocotbext-pcie version %s", __version__)
-        self.log.info("Copyright (c) 2022 Alex Forencich")
+        self.log.info("Copyright (c) 2022-2025 Alex Forencich")
         self.log.info("https://github.com/alexforencich/cocotbext-pcie")
 
         self.default_function = PTilePcieFunction

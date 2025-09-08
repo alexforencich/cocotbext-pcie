@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020 Alex Forencich
+Copyright (c) 2020-2025 Alex Forencich
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -318,7 +318,7 @@ class UltraScalePcieDevice(Device):
 
         self.log.info("Xilinx UltraScale PCIe hard IP core model")
         self.log.info("cocotbext-pcie version %s", __version__)
-        self.log.info("Copyright (c) 2020 Alex Forencich")
+        self.log.info("Copyright (c) 2020-2025 Alex Forencich")
         self.log.info("https://github.com/alexforencich/cocotbext-pcie")
 
         self.default_function = UltraScalePcieFunction
