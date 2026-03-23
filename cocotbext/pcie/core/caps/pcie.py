@@ -295,10 +295,10 @@ class PcieCapability(PciCap):
         elif reg == 3:
             # Link capabilities
             val = self.max_link_speed & 0xf
-            val |= (self.max_link_width & 0x3f) >> 4
-            val |= (self.aspm_support & 0x3) >> 10
-            val |= (self.l0s_exit_latency & 0x7) >> 12
-            val |= (self.l1_exit_latency & 0x7) >> 15
+            val |= (self.max_link_width & 0x3f) << 4
+            val |= (self.aspm_support & 0x3) << 10
+            val |= (self.l0s_exit_latency & 0x7) << 12
+            val |= (self.l1_exit_latency & 0x7) << 15
             val |= bool(self.clock_power_management) << 18
             val |= bool(self.surprise_down_error_reporting_capability) << 19
             val |= bool(self.data_link_layer_link_active_reporting_capable) << 20
@@ -573,12 +573,13 @@ class PcieCapability(PciCap):
                 self.target_link_speed = data & 0xf
                 self.enter_compliance = bool(data & 1 << 4)
                 self.hardware_autonomous_speed_disable = bool(data & 1 << 5)
+                self.selectable_deemphasis = bool(data & 1 << 6)
                 self.transmit_margin = self.transmit_margin & 0x6 | (data >> 7) & 0x1
             if mask & 0x2:
                 self.transmit_margin = self.transmit_margin & 0x1 | (data >> 7) & 0x6
                 self.enter_modified_compliance = bool(data & 1 << 10)
                 self.compliance_sos = bool(data & 1 << 11)
-                self.compliance_preset_deemphasis = (data >> 12) & 0xff
+                self.compliance_preset_deemphasis = (data >> 12) & 0xf
             # Link status 2
             if mask & 0x4:
                 self.link_equalization_8gt_request = bool(data & 1 << 21)
