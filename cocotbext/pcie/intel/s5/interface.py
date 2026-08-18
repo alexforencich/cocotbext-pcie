@@ -30,7 +30,7 @@ from cocotb.queue import Queue, QueueFull
 from cocotb.triggers import RisingEdge, Timer, First, Event
 from cocotb_bus.bus import Bus
 
-from cocotbext.pcie.core.tlp import Tlp
+from cocotbext.pcie.core.tlp import Tlp, TlpType
 
 # NOTE: this models the "single packet per cycle" mode of the Stratix V Hard
 # IP for PCI Express, Avalon-ST interface (UG-01097_avst). Only the 128-bit
@@ -100,11 +100,34 @@ class S5PcieFrame:
             hdr_dwords = []
             for k in range(0, len(hdr), 4):
                 hdr_dwords.extend(struct.unpack_from('>L', hdr, k))
-            if len(hdr_dwords) % 2:
-                # pad header to qword boundary
-                hdr_dwords.append(0)
 
             data = frame.get_data()
+
+            if data:
+                # The Hard IP aligns the payload to a qword boundary measured
+                # against the TLP's own low address bit, not against header
+                # length alone (UG-01097_avst "qword aligned address"
+                # framing): a pad dword follows the header only when the
+                # header's own dword parity disagrees with address bit 2.
+                # Getting this wrong drops every payload dword silently
+                # against a real Stratix V hard IP or RTL that implements it
+                # (mate_tlp_rx.sv/mate_tlp_tx.sv/mate_dma_tlp.sv mirror this
+                # as `payload_dw = addr[2] ? <hdr_len> : <hdr_len>+1`, and the
+                # symmetric case for 4DW headers).
+                if frame.fmt_type in {TlpType.CPL, TlpType.CPL_DATA,
+                                      TlpType.CPL_LOCKED,
+                                      TlpType.CPL_LOCKED_DATA}:
+                    addr_bit2 = bool(frame.lower_address & 0x4)
+                else:
+                    addr_bit2 = bool(frame.address & 0x4)
+
+                if (len(hdr_dwords) % 2) != int(addr_bit2):
+                    hdr_dwords.append(0)
+            elif len(hdr_dwords) % 2:
+                # header-only TLP: no payload placement to get right, pad to
+                # qword boundary unconditionally as before
+                hdr_dwords.append(0)
+
             data_dwords = []
             for k in range(0, len(data), 4):
                 data_dwords.extend(struct.unpack_from('<L', data, k))
@@ -129,7 +152,6 @@ class S5PcieFrame:
     def to_tlp(self):
         fmt = (self.data[0] >> 29) & 0b111
         hdr_len = 4 if fmt & 0b001 else 3
-        wire_hdr_len = hdr_len + (hdr_len % 2)
 
         hdr = bytearray()
         for dw in self.data[:hdr_len]:
@@ -137,6 +159,17 @@ class S5PcieFrame:
         tlp = Tlp.unpack_header(hdr)
 
         if fmt & 0b010:
+            # Mirror the address-bit-2 payload shift applied in from_tlp()
+            # above, using the address fields already parsed onto `tlp`.
+            if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA,
+                                TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
+                addr_bit2 = bool(tlp.lower_address & 0x4)
+            else:
+                addr_bit2 = bool(tlp.address & 0x4)
+
+            wire_hdr_len = hdr_len if (hdr_len % 2) == int(addr_bit2) \
+                else hdr_len + 1
+
             for dw in self.data[wire_hdr_len:wire_hdr_len+tlp.length]:
                 tlp.data.extend(struct.pack('<L', dw))
 
