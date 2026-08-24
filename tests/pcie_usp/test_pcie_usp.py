@@ -34,7 +34,6 @@ import pytest
 import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event, First
-from cocotb.regression import TestFactory
 
 from cocotbext.axi import AxiStreamBus
 from cocotbext.pcie.core import RootComplex
@@ -804,6 +803,15 @@ class TB:
                     self.regions[region][addr+start_offset:addr+offset] = data[start_offset:offset]
 
 
+def cycle_pause():
+    return itertools.cycle([1, 1, 1, 0])
+
+
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -861,6 +869,11 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.user_clk)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -911,6 +924,11 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.user_clk)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -949,6 +967,11 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.user_clk)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut, msix=True)
@@ -990,6 +1013,11 @@ async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.user_clk)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_crs(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -1028,25 +1056,6 @@ async def run_test_crs(dut, idle_inserter=None, backpressure_inserter=None):
 
     await RisingEdge(dut.user_clk)
     await RisingEdge(dut.user_clk)
-
-
-def cycle_pause():
-    return itertools.cycle([1, 1, 1, 0])
-
-
-if getattr(cocotb, 'top', None) is not None:
-
-    for test in [
-                run_test_mem,
-                run_test_dma,
-                run_test_msi,
-                run_test_msix,
-                run_test_crs,
-            ]:
-
-        factory = TestFactory(test)
-        factory.add_option(("idle_inserter", "backpressure_inserter"), [(None, None), (cycle_pause, cycle_pause)])
-        factory.generate_tests()
 
 
 # cocotb-test

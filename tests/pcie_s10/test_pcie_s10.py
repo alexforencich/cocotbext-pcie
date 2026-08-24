@@ -34,7 +34,6 @@ import pytest
 import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Event, First
-from cocotb.regression import TestFactory
 
 from cocotbext.pcie.core import RootComplex
 from cocotbext.pcie.intel.s10 import S10PcieDevice, S10RxBus, S10TxBus
@@ -734,6 +733,15 @@ class TB:
                     self.dev_msix_function_mask = (ctl >> 6) & 1
 
 
+def cycle_pause():
+    return itertools.cycle([1, 1, 1, 0])
+
+
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -791,6 +799,11 @@ async def run_test_mem(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.coreclkout_hip)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -841,6 +854,11 @@ async def run_test_dma(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.coreclkout_hip)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut)
@@ -884,6 +902,11 @@ async def run_test_msi(dut, idle_inserter=None, backpressure_inserter=None):
     await RisingEdge(dut.coreclkout_hip)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("idle_inserter", [None, cycle_pause]),
+    ("backpressure_inserter", [None, cycle_pause]),
+)
 async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
 
     tb = TB(dut, msix=True)
@@ -918,24 +941,6 @@ async def run_test_msix(dut, idle_inserter=None, backpressure_inserter=None):
 
     await RisingEdge(dut.coreclkout_hip)
     await RisingEdge(dut.coreclkout_hip)
-
-
-def cycle_pause():
-    return itertools.cycle([1, 1, 1, 0])
-
-
-if getattr(cocotb, 'top', None) is not None:
-
-    for test in [
-                run_test_mem,
-                run_test_dma,
-                run_test_msi,
-                run_test_msix,
-            ]:
-
-        factory = TestFactory(test)
-        factory.add_option(("idle_inserter", "backpressure_inserter"), [(None, None), (cycle_pause, cycle_pause)])
-        factory.generate_tests()
 
 
 # cocotb-test

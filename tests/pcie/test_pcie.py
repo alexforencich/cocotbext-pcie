@@ -29,8 +29,6 @@ import os
 import cocotb_test.simulator
 
 import cocotb
-from cocotb.triggers import Event
-from cocotb.regression import TestFactory
 
 from cocotbext.pcie.core import RootComplex, MemoryEndpoint, Device, Switch
 from cocotbext.pcie.core.caps import MsiCapability
@@ -105,6 +103,7 @@ class TB:
         self.rc.make_port().connect(self.dev4)
 
 
+@cocotb.test()
 async def run_test_rc_mem(dut):
 
     tb = TB(dut)
@@ -140,6 +139,7 @@ async def run_test_rc_mem(dut):
             assert await tb.rc.io_read(addr, length) == test_data
 
 
+@cocotb.test()
 async def run_test_config(dut):
 
     tb = TB(dut)
@@ -159,6 +159,7 @@ async def run_test_config(dut):
     await tb.rc.config_write(PcieId(0, 1, 0), 0x000, orig, timeout=1000, timeout_unit='ns')
 
 
+@cocotb.test()
 async def run_test_enumerate(dut):
 
     tb = TB(dut)
@@ -375,6 +376,10 @@ async def run_test_enumerate(dut):
     check_bus(tb.rc.host_bridge.bus)
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("ep_index", list(range(4))),
+)
 async def run_test_ep_mem(dut, ep_index=0):
 
     tb = TB(dut)
@@ -426,6 +431,11 @@ async def run_test_ep_mem(dut, ep_index=0):
             assert await dev_bar3.read(offset, length, timeout=1000, timeout_unit='ns') == test_data
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("ep1_index", [0, 1]),
+    ("ep2_index", [2, 3]),
+)
 async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
 
     tb = TB(dut)
@@ -481,6 +491,10 @@ async def run_test_p2p_dma(dut, ep1_index=0, ep2_index=1):
             assert await ep1.io_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("ep_index", list(range(4))),
+)
 async def run_test_dma(dut, ep_index=0):
 
     tb = TB(dut)
@@ -525,6 +539,10 @@ async def run_test_dma(dut, ep_index=0):
             assert await ep.io_read(addr, length, timeout=1000, timeout_unit='ns') == test_data
 
 
+@cocotb.test()
+@cocotb.parametrize(
+    ("ep_index", list(range(4))),
+)
 async def run_test_msi(dut, ep_index=0):
 
     tb = TB(dut)
@@ -547,35 +565,6 @@ async def run_test_msi(dut, ep_index=0):
         event = dev.msi_vectors[k].event
         event.clear()
         await event.wait()
-
-
-if getattr(cocotb, 'top', None) is not None:
-
-    for test in [
-                run_test_rc_mem,
-                run_test_config,
-                run_test_enumerate,
-            ]:
-
-        factory = TestFactory(test)
-        factory.generate_tests()
-
-    factory = TestFactory(run_test_ep_mem)
-    factory.add_option("ep_index", range(4))
-    factory.generate_tests()
-
-    factory = TestFactory(run_test_p2p_dma)
-    factory.add_option("ep1_index", [0, 1])
-    factory.add_option("ep2_index", [2, 3])
-    factory.generate_tests()
-
-    factory = TestFactory(run_test_dma)
-    factory.add_option("ep_index", range(4))
-    factory.generate_tests()
-
-    factory = TestFactory(run_test_msi)
-    factory.add_option("ep_index", range(4))
-    factory.generate_tests()
 
 
 # cocotb-test
