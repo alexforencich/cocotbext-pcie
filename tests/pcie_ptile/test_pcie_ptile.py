@@ -1016,8 +1016,8 @@ if getattr(cocotb, 'top', None) is not None:
 tests_dir = os.path.dirname(__file__)
 
 
-@pytest.mark.parametrize("data_width", [128, 256, 512])
-def test_pcie_ptile(request, data_width):
+@pytest.mark.parametrize("data_w", [128, 256, 512])
+def test_pcie_ptile(request, data_w):
     dut = "test_pcie_ptile"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -1028,14 +1028,14 @@ def test_pcie_ptile(request, data_width):
 
     parameters = {}
 
-    parameters['SEG_COUNT'] = 2 if data_width == 512 else 1
-    parameters['SEG_DATA_WIDTH'] = data_width // parameters['SEG_COUNT']
-    parameters['SEG_HDR_WIDTH'] = 128
-    parameters['SEG_PRFX_WIDTH'] = 32
-    parameters['SEG_DATA_PAR_WIDTH'] = parameters['SEG_DATA_WIDTH'] // 8
-    parameters['SEG_HDR_PAR_WIDTH'] = parameters['SEG_HDR_WIDTH'] // 8
-    parameters['SEG_PRFX_PAR_WIDTH'] = parameters['SEG_PRFX_WIDTH'] // 8
-    parameters['SEG_EMPTY_WIDTH'] = ((parameters['SEG_DATA_WIDTH'] // 32) - 1).bit_length()
+    parameters['SEG_COUNT'] = 2 if data_w == 512 else 1
+    parameters['SEG_DATA_W'] = data_w // parameters['SEG_COUNT']
+    parameters['SEG_HDR_W'] = 128
+    parameters['SEG_PRFX_W'] = 32
+    parameters['SEG_DATA_PAR_W'] = parameters['SEG_DATA_W'] // 8
+    parameters['SEG_HDR_PAR_W'] = parameters['SEG_HDR_W'] // 8
+    parameters['SEG_PRFX_PAR_W'] = parameters['SEG_PRFX_W'] // 8
+    parameters['SEG_EMPTY_W'] = ((parameters['SEG_DATA_W'] // 32) - 1).bit_length()
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

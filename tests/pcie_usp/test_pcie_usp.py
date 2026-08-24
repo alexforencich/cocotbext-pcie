@@ -1055,9 +1055,9 @@ tests_dir = os.path.dirname(__file__)
 
 
 @pytest.mark.parametrize("client_tag", [True, False])
-@pytest.mark.parametrize(("data_width", "straddle"),
+@pytest.mark.parametrize(("data_w", "straddle"),
     [(64, False), (128, False), (256, False), (256, True), (512, False), (512, True)])
-def test_pcie_usp(request, data_width, straddle, client_tag):
+def test_pcie_usp(request, data_w, straddle, client_tag):
     dut = "test_pcie_usp"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -1068,12 +1068,12 @@ def test_pcie_usp(request, data_width, straddle, client_tag):
 
     parameters = {}
 
-    parameters['DATA_WIDTH'] = data_width
-    parameters['KEEP_WIDTH'] = (parameters['DATA_WIDTH'] // 32)
-    parameters['RQ_USER_WIDTH'] = 62 if parameters['DATA_WIDTH'] < 512 else 137
-    parameters['RC_USER_WIDTH'] = 75 if parameters['DATA_WIDTH'] < 512 else 161
-    parameters['CQ_USER_WIDTH'] = 88 if parameters['DATA_WIDTH'] < 512 else 183
-    parameters['CC_USER_WIDTH'] = 33 if parameters['DATA_WIDTH'] < 512 else 81
+    parameters['DATA_W'] = data_w
+    parameters['KEEP_W'] = (parameters['DATA_W'] // 32)
+    parameters['RQ_USER_W'] = 62 if parameters['DATA_W'] < 512 else 137
+    parameters['RC_USER_W'] = 75 if parameters['DATA_W'] < 512 else 161
+    parameters['CQ_USER_W'] = 88 if parameters['DATA_W'] < 512 else 183
+    parameters['CC_USER_W'] = 33 if parameters['DATA_W'] < 512 else 81
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

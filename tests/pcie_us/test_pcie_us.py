@@ -1020,9 +1020,9 @@ tests_dir = os.path.dirname(__file__)
 
 
 @pytest.mark.parametrize("client_tag", [True, False])
-@pytest.mark.parametrize(("data_width", "straddle"),
+@pytest.mark.parametrize(("data_w", "straddle"),
     [(64, False), (128, False), (256, False), (256, True)])
-def test_pcie_us(request, data_width, straddle, client_tag):
+def test_pcie_us(request, data_w, straddle, client_tag):
     dut = "test_pcie_us"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
@@ -1033,12 +1033,12 @@ def test_pcie_us(request, data_width, straddle, client_tag):
 
     parameters = {}
 
-    parameters['DATA_WIDTH'] = data_width
-    parameters['KEEP_WIDTH'] = (parameters['DATA_WIDTH'] // 32)
-    parameters['RQ_USER_WIDTH'] = 60
-    parameters['RC_USER_WIDTH'] = 75
-    parameters['CQ_USER_WIDTH'] = 85
-    parameters['CC_USER_WIDTH'] = 33
+    parameters['DATA_W'] = data_w
+    parameters['KEEP_W'] = (parameters['DATA_W'] // 32)
+    parameters['RQ_USER_W'] = 60
+    parameters['RC_USER_W'] = 75
+    parameters['CQ_USER_W'] = 85
+    parameters['CC_USER_W'] = 33
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

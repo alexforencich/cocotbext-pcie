@@ -34,13 +34,13 @@ TOPLEVEL = $(COCOTB_TOPLEVEL)
 VERILOG_SOURCES  = $(DUT).v
 
 # module parameters
-export PARAM_DATA_WIDTH := 64
-export PARAM_KEEP_WIDTH := $(shell expr $(PARAM_DATA_WIDTH) / 32 )
-export PARAM_RQ_USER_WIDTH := $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),62,137)
-export PARAM_RC_USER_WIDTH := $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),75,161)
-export PARAM_CQ_USER_WIDTH := $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),88,183)
-export PARAM_CC_USER_WIDTH := $(if $(filter-out 512,$(PARAM_DATA_WIDTH)),33,81)
-export STRADDLE := $(if $(filter-out 256 512,$(PARAM_DATA_WIDTH)),0,1)
+export PARAM_DATA_W := 64
+export PARAM_KEEP_W := $(shell expr $(PARAM_DATA_W) / 32 )
+export PARAM_RQ_USER_W := $(if $(filter-out 512,$(PARAM_DATA_W)),62,137)
+export PARAM_RC_USER_W := $(if $(filter-out 512,$(PARAM_DATA_W)),75,161)
+export PARAM_CQ_USER_W := $(if $(filter-out 512,$(PARAM_DATA_W)),88,183)
+export PARAM_CC_USER_W := $(if $(filter-out 512,$(PARAM_DATA_W)),33,81)
+export STRADDLE := $(if $(filter-out 256 512,$(PARAM_DATA_W)),0,1)
 export CLIENT_TAG := 1
 
 ifeq ($(SIM), icarus)
