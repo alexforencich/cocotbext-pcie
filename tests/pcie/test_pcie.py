@@ -25,10 +25,10 @@ THE SOFTWARE.
 
 import logging
 import os
-
-import cocotb_test.simulator
+import sys
 
 import cocotb
+from cocotb_tools.runner import get_runner
 
 from cocotbext.pcie.core import RootComplex, MemoryEndpoint, Device, Switch
 from cocotbext.pcie.core.caps import MsiCapability
@@ -577,17 +577,32 @@ def test_pcie(request):
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
-    verilog_sources = [
+    sources = [
         os.path.join(os.path.dirname(__file__), f"{dut}.v"),
     ]
 
     sim_build = os.path.join(tests_dir, "sim_build",
         request.node.name.replace('[', '-').replace(']', ''))
 
-    cocotb_test.simulator.run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        toplevel=toplevel,
-        module=module,
-        sim_build=sim_build,
+    timescale = ("1ns", "1ps")
+    sim = os.getenv("SIM", "icarus")
+    waves = bool(int(os.getenv("WAVES", 0)))
+
+    sys.path.append(tests_dir)
+
+    runner = get_runner(sim)
+    runner.build(
+        sources=sources,
+        hdl_toplevel=toplevel,
+        always=True,
+        build_dir=sim_build,
+        timescale=timescale,
+        waves=waves,
+    )
+    runner.test(
+        hdl_toplevel=toplevel,
+        test_module=module,
+        build_dir=sim_build,
+        timescale=timescale,
+        waves=waves,
     )
