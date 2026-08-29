@@ -28,6 +28,7 @@ import struct
 import cocotb
 from cocotb.queue import Queue, QueueFull
 from cocotb.triggers import RisingEdge, Timer, First, Event
+from cocotb.handle import Immediate
 from cocotb_bus.bus import Bus
 
 from cocotbext.pcie.core.tlp import Tlp, TlpType
@@ -339,19 +340,19 @@ class S5PcieSource(S5PcieBase):
         self.queue_occupancy_limit_bytes = -1
         self.queue_occupancy_limit_frames = -1
 
-        self.bus.data.setimmediatevalue(0)
-        self.bus.sop.setimmediatevalue(0)
-        self.bus.eop.setimmediatevalue(0)
-        self.bus.valid.setimmediatevalue(0)
+        self.bus.data.value = Immediate(0)
+        self.bus.sop.value = Immediate(0)
+        self.bus.eop.value = Immediate(0)
+        self.bus.valid.value = Immediate(0)
 
         if hasattr(self.bus, "empty"):
-            self.bus.empty.setimmediatevalue(0)
+            self.bus.empty.value = Immediate(0)
         if hasattr(self.bus, "err"):
-            self.bus.err.setimmediatevalue(0)
+            self.bus.err.value = Immediate(0)
         if hasattr(self.bus, "bar"):
-            self.bus.bar.setimmediatevalue(0)
+            self.bus.bar.value = Immediate(0)
         if hasattr(self.bus, "parity"):
-            self.bus.parity.setimmediatevalue(0)
+            self.bus.parity.value = Immediate(0)
 
         cocotb.start_soon(self._run_source())
         cocotb.start_soon(self._run())
@@ -501,7 +502,7 @@ class S5PcieSink(S5PcieBase):
         self.queue_occupancy_limit_bytes = -1
         self.queue_occupancy_limit_frames = -1
 
-        self.bus.ready.setimmediatevalue(0)
+        self.bus.ready.value = Immediate(0)
 
         cocotb.start_soon(self._run_sink())
         cocotb.start_soon(self._run())

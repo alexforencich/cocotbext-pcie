@@ -26,6 +26,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, First
+from cocotb.handle import Immediate
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
@@ -90,7 +91,7 @@ def init_signal(sig, width=None, initval=None):
     if width is not None:
         assert len(sig) == width
     if initval is not None:
-        sig.setimmediatevalue(initval)
+        sig.value = Immediate(initval)
     return sig
 
 
