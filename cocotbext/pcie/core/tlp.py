@@ -289,7 +289,7 @@ class Tlp:
             if self.length*4 > 0x1000 - (self.address & 0xfff):
                 print(f"TLP validation failed, request crosses 4K boundary: {self!r}")
                 ret = False
-        if self.fmt_type == {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,
+        if self.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1,
                 TlpType.CFG_WRITE_1, TlpType.IO_READ, TlpType.IO_WRITE}:
             if self.length != 1:
                 print(f"TLP validation failed, invalid length for IO or configuration request: {self!r}")

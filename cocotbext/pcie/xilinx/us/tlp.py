@@ -120,7 +120,7 @@ class Tlp_us(Tlp):
             self.discontinue = tlp.discontinue
             self.seq_num = tlp.seq_num
             self.error_code = tlp.error_code
-            self.request_completed == tlp.request_completed
+            self.request_completed = tlp.request_completed
 
     def pack_us_cq(self):
         pkt = UsPcieFrame()
